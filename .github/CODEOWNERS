@@ -1,0 +1,22 @@
+# CODEOWNERS
+# This file defines code ownership for PR review assignments
+# TODO: Update with actual GitHub team handles when available
+
+/apps/questboard/ @signal-blueprint/questboard-owners
+# TODO: Replace with actual team handle or individual maintainers
+
+/packages/schemas/ @signal-blueprint/platform
+# TODO: Replace with actual team handle or individual maintainers
+
+/packages/ai/ @signal-blueprint/platform
+# TODO: Replace with actual team handle or individual maintainers
+
+/packages/ui/ @signal-blueprint/frontend
+# TODO: Replace with actual team handle or individual maintainers
+
+/packages/db/ @signal-blueprint/platform
+# TODO: Replace with actual team handle or individual maintainers
+
+/packages/utils/ @signal-blueprint/platform
+# TODO: Replace with actual team handle or individual maintainers
+

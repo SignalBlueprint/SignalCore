@@ -1,0 +1,15 @@
+{
+  "name": "questboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev script not configured yet'",
+    "build": "echo 'build script not configured yet'",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+
