@@ -40,7 +40,8 @@ const DAILY_DECK_KIND = "daily_decks";
  */
 export async function runQuestmaster(
   orgId: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  jobRunId?: string
 ): Promise<{
   goals: number;
   questlines: number;
@@ -211,7 +212,8 @@ export async function runQuestmaster(
     tasks,
     members,
     quests,
-    questlines
+    questlines,
+    jobRunId
   );
 
   return {
@@ -365,7 +367,8 @@ async function generateDailyDeck(
   allTasks: Task[],
   members: Member[],
   quests: Quest[],
-  questlines: Questline[]
+  questlines: Questline[],
+  jobRunId?: string
 ): Promise<{ dailyDeckTasks: number; dailyDeckWarnings: number }> {
   const warnings: string[] = [];
 
@@ -395,20 +398,27 @@ async function generateDailyDeck(
     return true;
   });
 
-  // Priority scoring (higher is better)
+  // Deterministic priority scoring (higher is better)
+  // Criteria: priority + age (oldest created) + shortest tasks (tie-break)
   const priorityScore = (task: Task): number => {
     let score = 0;
 
-    // Priority weight
-    if (task.priority === "urgent") score += 100;
-    else if (task.priority === "high") score += 50;
-    else if (task.priority === "medium") score += 20;
-    else score += 10;
+    // Priority weight (most important)
+    if (task.priority === "urgent") score += 1000;
+    else if (task.priority === "high") score += 500;
+    else if (task.priority === "medium") score += 200;
+    else score += 100;
 
     // In-progress tasks get a boost
-    if (task.status === "in-progress") score += 30;
+    if (task.status === "in-progress") score += 300;
 
-    // Smaller tasks get a slight boost (easier to complete)
+    // Age: older tasks get priority (created earlier)
+    // Calculate days old, add to score (up to 100 points for 100+ day old tasks)
+    const createdAt = new Date(task.createdAt || now);
+    const ageInDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    score += Math.min(ageInDays, 100); // Cap at 100 points
+
+    // Smaller tasks get a slight boost (easier to complete - tie-break)
     const estimatedMinutes = task.estimatedMinutes || 60;
     if (estimatedMinutes <= 30) score += 15;
     else if (estimatedMinutes <= 60) score += 10;
@@ -417,13 +427,18 @@ async function generateDailyDeck(
     return score;
   };
 
-  // Sort by priority score
+  // Sort by priority score (deterministic)
   const sortedTasks = candidateTasks
     .map((task) => ({
       task,
       score: priorityScore(task),
     }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      // Primary: score
+      if (a.score !== b.score) return b.score - a.score;
+      // Tie-break: task ID (for determinism)
+      return a.task.id.localeCompare(b.task.id);
+    });
 
   // Select top 3-7 tasks
   const minTasks = 3;
@@ -431,14 +446,40 @@ async function generateDailyDeck(
   const selectedCount = Math.min(maxTasks, Math.max(minTasks, sortedTasks.length));
   const selectedTasks = sortedTasks.slice(0, selectedCount).map((s) => s.task);
 
-  // If we have fewer than 3 tasks, add a warning
-  if (selectedTasks.length < minTasks && candidateTasks.length === 0) {
-    warnings.push(
-      "No unblocked tasks found. All tasks are either completed, blocked, or locked."
-    );
+  // Generate warnings for edge cases
+  if (candidateTasks.length === 0) {
+    // No tasks available at all
+    const totalTasks = allTasks.length;
+    const doneTasks = allTasks.filter((t) => t.status === "done").length;
+    const blockedTasks = allTasks.filter((t) => t.status === "blocked" || (t.blockers && t.blockers.length > 0)).length;
+    const lockedTasks = allTasks.filter((t) => {
+      const quest = taskToQuestMap.get(t.id);
+      return quest && quest.state === "locked";
+    }).length;
+
+    if (totalTasks === 0) {
+      warnings.push("No tasks exist. Create goals and decompose them to generate tasks.");
+    } else if (doneTasks === totalTasks) {
+      warnings.push("All tasks are completed! 🎉 Create new goals to continue.");
+    } else if (blockedTasks > 0) {
+      warnings.push(`${blockedTasks} task(s) are blocked. Resolve blockers to unlock work.`);
+    } else if (lockedTasks > 0) {
+      warnings.push(`${lockedTasks} task(s) are locked. Complete prerequisite quests to unlock.`);
+    } else {
+      warnings.push("No unblocked tasks found. All tasks are either completed, blocked, or locked.");
+    }
   } else if (selectedTasks.length < minTasks) {
+    // Fewer than desired minimum
     warnings.push(
-      `Only ${selectedTasks.length} task(s) available. Consider unblocking more tasks or creating new quests.`
+      `Only ${selectedTasks.length} task(s) in deck (target: ${minTasks}-${maxTasks}). Consider creating more tasks or unblocking existing ones.`
+    );
+  }
+
+  // Check if team has profiles
+  const membersWithProfiles = members.filter((m) => m.workingGeniusProfile);
+  if (membersWithProfiles.length === 0 && members.length > 0) {
+    warnings.push(
+      `No team members have Working Genius profiles. Visit /team to set up profiles for better task assignment.`
     );
   }
 
@@ -516,6 +557,7 @@ async function generateDailyDeck(
     orgId,
     date,
     generatedAt: now.toISOString(),
+    jobRunId,
     items: deckItems,
     teamCapacity,
     summary: {
@@ -536,12 +578,13 @@ async function generateDailyDeck(
 
   // Emit event
   await publish(
-    "daily.deck.generated",
+    "deck.generated",
     {
       orgId,
       date,
       taskCount: selectedTasks.length,
       warningCount: warnings.length,
+      jobRunId,
     },
     {
       orgId,

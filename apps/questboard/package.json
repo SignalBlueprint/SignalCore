@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json && cd web && pnpm install && pnpm run build",
     "build:web": "cd web && pnpm run build",
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke:deck": "tsx scripts/smoke-deck.ts"
   },
   "dependencies": {
     "@sb/ai": "workspace:*",
