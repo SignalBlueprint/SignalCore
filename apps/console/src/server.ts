@@ -8,12 +8,13 @@ import "@sb/config";
 
 import express from "express";
 import * as path from "path";
-import { SUITE_APPS } from "@sb/suite";
+import { SUITE_APPS, getSuiteApp } from "@sb/suite";
 import { readEvents } from "@sb/events";
 import { getTelemetryState } from "@sb/telemetry";
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const suiteApp = getSuiteApp("console");
+const PORT = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
@@ -23,6 +24,10 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 // Get suite apps
 app.get("/api/apps", (req, res) => {
   res.json(SUITE_APPS);
+});
+
+app.get(suiteApp.routes.health, (req, res) => {
+  res.status(200).json({ status: "ok", app: suiteApp.id });
 });
 
 // Get latest events (last 200)
@@ -53,6 +58,7 @@ app.get("*", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`[console] Server running on http://localhost:${PORT}`);
+  console.log(
+    `[${suiteApp.id}] Server running on http://localhost:${PORT}${suiteApp.routes.base}`
+  );
 });
-

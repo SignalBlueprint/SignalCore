@@ -12,63 +12,109 @@ export type AppId =
   | "console"
   | "demoapp";
 
+export type AppStatus = "skeleton" | "wip" | "beta" | "prod";
+
 export interface SuiteApp {
   id: AppId;
-  title: string;
-  purpose: string;
-  status: "skeleton" | "wip" | "beta" | "prod";
+  name: string;
+  description: string;
+  status: AppStatus;
+  defaultPort: number;
+  routes: {
+    health: string;
+    base: string;
+  };
   owners: string[];
 }
 
-export const SUITE_APPS: SuiteApp[] = [
-  {
+export const SUITE_REGISTRY = {
+  questboard: {
     id: "questboard",
-    title: "Questboard",
-    purpose:
+    name: "Questboard",
+    description:
       "Questline task system combined with Working Genius team assignment, orchestrated by daily Questmaster role",
     status: "skeleton",
+    defaultPort: 4020,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/questboard-owners"],
   },
-  {
+  leadscout: {
     id: "leadscout",
-    title: "LeadScout",
-    purpose: "Lead discovery and qualification system",
+    name: "LeadScout",
+    description: "Lead discovery and qualification system",
     status: "skeleton",
+    defaultPort: 4021,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-  {
+  siteforge: {
     id: "siteforge",
-    title: "SiteForge",
-    purpose: "Website generation and management platform",
+    name: "SiteForge",
+    description: "Website generation and management platform",
     status: "skeleton",
+    defaultPort: 4022,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-  {
+  catalog: {
     id: "catalog",
-    title: "Catalog",
-    purpose: "Product catalog and inventory management",
+    name: "Catalog",
+    description: "Product catalog and inventory management",
     status: "skeleton",
+    defaultPort: 4023,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-  {
+  outreach: {
     id: "outreach",
-    title: "Outreach",
-    purpose: "Outreach campaign management and automation",
+    name: "Outreach",
+    description: "Outreach campaign management and automation",
     status: "skeleton",
+    defaultPort: 4024,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-  {
+  console: {
     id: "console",
-    title: "Console",
-    purpose: "Unified admin console for suite management",
+    name: "Console",
+    description: "Unified admin console for suite management",
     status: "skeleton",
+    defaultPort: 4000,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-  {
+  demoapp: {
     id: "demoapp",
-    title: "Demoapp",
-    purpose: "[Add purpose description]",
+    name: "Demoapp",
+    description: "[Add purpose description]",
     status: "skeleton",
+    defaultPort: 4025,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
     owners: ["@signal-blueprint/platform"],
   },
-];
+} satisfies Record<AppId, SuiteApp>;
+
+export const SUITE_APPS = Object.values(SUITE_REGISTRY);
+
+export const getSuiteApp = (id: AppId): SuiteApp => SUITE_REGISTRY[id];
