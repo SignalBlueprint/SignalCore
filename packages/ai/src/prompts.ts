@@ -198,10 +198,12 @@ TEAM (use for phase-fit + capacity awareness):
 ${team}
 
 OUTPUT REQUIREMENTS:
-- 2 to 5 questlines
-- 5 to 25 tasks total
+- IMPORTANT: Create EXACTLY 3-5 questlines (prefer 3-4 for simple goals, 5 for complex ones)
+- Each questline should represent a major theme or workstream (like game quest chains)
+- 5 to 25 tasks total, distributed across questlines
 - Identify up to 8 expansion_candidates (task ids) that would benefit from deeper breakdown
 - Each task must include: phase, estimate_min, acceptance_criteria, depends_on_task_ids (can be empty)
+- Assign tasks to questlines based on thematic fit (tasks in same questline should tell a coherent story)
 `;
 }
 
@@ -219,6 +221,7 @@ export const DECOMPOSE_SCHEMA = {
       summary: { type: "string" },
       questlines: {
         type: "array",
+        minItems: 3,
         maxItems: 5,
         items: {
           type: "object",

@@ -83,6 +83,10 @@ export async function getQuestlinesByGoalId(goalId: string): Promise<Questline[]
   return storage.list<Questline>(QUESTLINE_KIND, (q) => q.goalId === goalId);
 }
 
+export async function getQuestlinesByOrgId(orgId: string): Promise<Questline[]> {
+  return storage.list<Questline>(QUESTLINE_KIND, (q) => q.orgId === orgId);
+}
+
 export async function createQuestline(
   orgId: string,
   goalId: string,
