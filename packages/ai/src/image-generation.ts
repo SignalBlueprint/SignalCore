@@ -66,6 +66,10 @@ export class DallEService implements ImageGenerationService {
         n: 1,
       });
 
+      if (!response.data || response.data.length === 0) {
+        throw new Error("No image data in response");
+      }
+
       const image = response.data[0];
       if (!image || !image.url) {
         throw new Error("No image URL in response");

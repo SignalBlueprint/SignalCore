@@ -335,6 +335,24 @@ export class SupabaseStorage implements Storage {
       .single();
 
     if (error) {
+      // If table doesn't exist, throw a specific error that can trigger fallback
+      const errorMsg = error.message?.toLowerCase() || '';
+      const errorCode = error.code || '';
+      
+      if (errorMsg.includes('could not find the table') || 
+          errorMsg.includes('relation') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('schema cache') ||
+          errorCode === 'PGRST116' ||
+          errorCode === '42P01' ||
+          errorCode === 'PGRST202') {
+        // Throw a specific error that can be caught to trigger fallback
+        const fallbackError = new Error(`TABLE_NOT_FOUND: ${kind}`);
+        (fallbackError as any).code = 'TABLE_NOT_FOUND';
+        (fallbackError as any).kind = kind;
+        throw fallbackError;
+      }
+      
       throw new Error(`Failed to upsert ${kind} ${entity.id}: ${error.message}`);
     }
 
@@ -461,10 +479,75 @@ export function getStorage(): Storage {
 }
 
 /**
+ * Reset storage instance (useful for fallback scenarios)
+ */
+export function resetStorage(): void {
+  storageInstance = null;
+  storageMode = 'local';
+}
+
+/**
+ * Storage wrapper that handles table-not-found errors by falling back to local storage
+ */
+class StorageWrapper implements Storage {
+  private instance: Storage;
+
+  constructor() {
+    this.instance = getStorage();
+  }
+
+  private async handleTableError<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      // Check if this is a table-not-found error and we're using Supabase
+      if (error instanceof Error && (error as any).code === 'TABLE_NOT_FOUND' && storageMode === 'supabase') {
+        const kind = (error as any).kind || 'unknown';
+        console.warn(`[@sb/storage] Table '${kind}' not found in Supabase. Falling back to local storage.`);
+        console.warn(`[@sb/storage] To use Supabase, run the migration script to create tables.`);
+        
+        // Reset and switch to local storage
+        resetStorage();
+        this.instance = getStorage();
+        
+        // Retry the operation with local storage
+        return await operation();
+      }
+      throw error;
+    }
+  }
+
+  async get<T extends { id: string }>(kind: string, id: string): Promise<T | null> {
+    return this.instance.get(kind, id);
+  }
+
+  async list<T extends { id: string }>(kind: string, filter?: StorageFilter<T>): Promise<T[]> {
+    return this.instance.list(kind, filter);
+  }
+
+  async upsert<T extends { id: string }>(kind: string, entity: T): Promise<T> {
+    return this.handleTableError(() => this.instance.upsert(kind, entity));
+  }
+
+  async updateWithVersion<T extends { id: string; updatedAt: string }>(
+    kind: string,
+    entity: T,
+    expectedUpdatedAt: string
+  ): Promise<T> {
+    return this.handleTableError(() => this.instance.updateWithVersion(kind, entity, expectedUpdatedAt));
+  }
+
+  async remove(kind: string, id: string): Promise<boolean> {
+    return this.instance.remove(kind, id);
+  }
+}
+
+/**
  * Default storage instance
  * Automatically selects Supabase if configured, otherwise uses LocalJsonStorage
+ * Handles table-not-found errors by falling back to local storage
  */
-export const storage = getStorage();
+export const storage = new StorageWrapper();
 
 /**
  * Get storage information (mode and configuration details)

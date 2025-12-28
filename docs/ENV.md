@@ -18,7 +18,8 @@ This centralized approach means:
 
 2. Fill in the required values in `.env`:
    - **OPENAI_API_KEY** (required) - For AI features like goal clarification and decomposition
-   - **SUPABASE_URL** and **SUPABASE_ANON_KEY** (optional) - If using Supabase for storage
+   - **SUPABASE_URL** and **SUPABASE_SERVICE_ROLE_KEY** (recommended) - For Supabase backend operations (bypasses RLS)
+   - **SUPABASE_ANON_KEY** (optional) - Alternative to service role key, but requires RLS policy configuration
    - Other variables as needed
 
 3. **Never commit `.env` files** - they are included in `.gitignore`
@@ -77,6 +78,27 @@ NOTIFY_SLACK_ENABLED=true
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 NOTIFY_EMAIL_ENABLED=false
 ```
+
+## Supabase Configuration
+
+The `@sb/db` and `@sb/storage` packages use the following environment variables:
+
+- `SUPABASE_URL` - Your Supabase project URL (required if using Supabase)
+- `SUPABASE_SERVICE_ROLE_KEY` - **Recommended** for backend operations (bypasses RLS policies)
+- `SUPABASE_ANON_KEY` - Alternative to service role key, but requires RLS policy configuration
+
+**Important:** For backend operations (file uploads, database writes), use `SUPABASE_SERVICE_ROLE_KEY`. The service role key bypasses Row Level Security (RLS) policies, which is required for server-side operations.
+
+You can find your service role key in:
+- Supabase Dashboard → **Settings** → **API** → **service_role** key (keep this secret!)
+
+Example `.env`:
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Security Note**: Never commit your `SUPABASE_SERVICE_ROLE_KEY` to version control. This key has full access to your database and bypasses all security policies.
 
 ## GitHub Integration Configuration
 

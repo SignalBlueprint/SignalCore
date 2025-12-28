@@ -71,6 +71,15 @@ If you see errors about tables already existing, you can either:
 1. Drop existing tables first (be careful - this deletes data!)
 2. Use `CREATE TABLE IF NOT EXISTS` (already included in the migration)
 
+### "policy already exists" errors
+If you see errors about policies already existing:
+- The migration now includes `DROP POLICY IF EXISTS` before creating policies
+- This allows you to re-run the migration safely
+- If you still see errors, you can manually drop the policy first:
+  ```sql
+  DROP POLICY IF EXISTS "Allow all for service role" ON <table_name>;
+  ```
+
 ### RLS blocking queries
 If you're getting permission errors:
 1. Check that you're using the service role key (not the anon key) in your backend

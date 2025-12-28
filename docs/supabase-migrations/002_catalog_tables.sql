@@ -98,11 +98,17 @@ ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
 
 -- Basic policies (allow all for service role)
 -- For production, add more restrictive policies based on org_id and user roles
+DROP POLICY IF EXISTS "Allow all for service role" ON products;
 CREATE POLICY "Allow all for service role" ON products FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON lookbooks;
 CREATE POLICY "Allow all for service role" ON lookbooks FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON store_settings;
 CREATE POLICY "Allow all for service role" ON store_settings FOR ALL USING (true);
 
 -- Public read policy for public lookbooks (for storefront)
+DROP POLICY IF EXISTS "Public lookbooks are viewable by everyone" ON lookbooks;
 CREATE POLICY "Public lookbooks are viewable by everyone"
   ON lookbooks FOR SELECT
   USING (is_public = true);

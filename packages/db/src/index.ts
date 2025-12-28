@@ -11,20 +11,34 @@ export type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Get Supabase client instance
- * Reads SUPABASE_URL and SUPABASE_ANON_KEY from environment
+ * Prefers SUPABASE_SERVICE_ROLE_KEY for backend operations (bypasses RLS)
+ * Falls back to SUPABASE_ANON_KEY if service role key not available
  * Throws clear error if missing
  */
 export function getSupabaseClient(): SupabaseClient {
   const url = getEnv("SUPABASE_URL", { required: true });
-  const anonKey = getEnv("SUPABASE_ANON_KEY", { required: true });
+  
+  // Prefer service role key for backend operations (bypasses RLS)
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = getEnv("SUPABASE_ANON_KEY", { required: !serviceRoleKey });
 
-  if (!url || !anonKey) {
+  if (!url) {
     throw new Error(
-      "Supabase configuration missing. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables."
+      "Supabase configuration missing. Please set SUPABASE_URL environment variable."
     );
   }
 
-  return createClient(url, anonKey);
+  // Use service role key if available (for backend operations)
+  // Otherwise fall back to anon key (for client-side operations)
+  const key = serviceRoleKey || anonKey;
+  
+  if (!key) {
+    throw new Error(
+      "Supabase key missing. Please set SUPABASE_SERVICE_ROLE_KEY (recommended for backend) or SUPABASE_ANON_KEY environment variable."
+    );
+  }
+
+  return createClient(url, key);
 }
 
 /**
@@ -33,8 +47,9 @@ export function getSupabaseClient(): SupabaseClient {
 export function isSupabaseConfigured(): boolean {
   try {
     const url = getEnv("SUPABASE_URL");
+    const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = getEnv("SUPABASE_ANON_KEY");
-    return !!(url && anonKey);
+    return !!(url && (serviceRoleKey || anonKey));
   } catch {
     return false;
   }

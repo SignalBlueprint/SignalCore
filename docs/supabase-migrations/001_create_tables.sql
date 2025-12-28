@@ -302,17 +302,43 @@ ALTER TABLE org_settings ENABLE ROW LEVEL SECURITY;
 
 -- Basic RLS policies: Allow all operations for service role (used by backend)
 -- For production, you'll want to add more restrictive policies based on org_id
+-- Drop policies if they exist, then create them
+DROP POLICY IF EXISTS "Allow all for service role" ON orgs;
 CREATE POLICY "Allow all for service role" ON orgs FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON members;
 CREATE POLICY "Allow all for service role" ON members FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON member_profiles;
 CREATE POLICY "Allow all for service role" ON member_profiles FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON goals;
 CREATE POLICY "Allow all for service role" ON goals FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON questlines;
 CREATE POLICY "Allow all for service role" ON questlines FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON quests;
 CREATE POLICY "Allow all for service role" ON quests FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON tasks;
 CREATE POLICY "Allow all for service role" ON tasks FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON templates;
 CREATE POLICY "Allow all for service role" ON templates FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON template_questlines;
 CREATE POLICY "Allow all for service role" ON template_questlines FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON member_quest_decks;
 CREATE POLICY "Allow all for service role" ON member_quest_decks FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON sprint_plans;
 CREATE POLICY "Allow all for service role" ON sprint_plans FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON job_run_summaries;
 CREATE POLICY "Allow all for service role" ON job_run_summaries FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all for service role" ON org_settings;
 CREATE POLICY "Allow all for service role" ON org_settings FOR ALL USING (true);
 

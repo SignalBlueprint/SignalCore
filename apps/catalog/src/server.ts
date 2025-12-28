@@ -7,6 +7,7 @@ import "@sb/config";
 import express from "express";
 import multer from "multer";
 import { randomUUID } from "crypto";
+import { join } from "path";
 import { getSuiteApp } from "@sb/suite";
 import { storage } from "@sb/storage";
 import { uploadFile, deleteFile } from "@sb/storage";
@@ -30,6 +31,16 @@ const suiteApp = getSuiteApp("catalog");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 const app = express();
+
+// Serve static files from public directory
+app.use(express.static(join(__dirname, "../public")));
+
+// Serve uploaded files from local storage (if using local storage mode)
+// This makes local files accessible for OpenAI Vision API
+const uploadsDir = join(process.cwd(), ".sb", "uploads");
+if (require("fs").existsSync(uploadsDir)) {
+  app.use("/uploads", express.static(uploadsDir));
+}
 
 // Middleware
 app.use(express.json({ limit: "50mb" }));
@@ -254,12 +265,15 @@ app.post("/api/products/upload", upload.single("image"), async (req, res) => {
     const generateClean = req.body.generateClean === "true";
 
     // Upload original image
+    // Use full server URL for local storage so OpenAI Vision can access it
+    const serverUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
     const uploadedFile = await uploadFile({
       filename: req.file.originalname,
       contentType: req.file.mimetype,
       data: req.file.buffer,
       bucket: "product-images",
       folder: orgId,
+      publicBaseUrl: `${serverUrl}/uploads`, // Pass server URL for local storage fallback
     });
 
     const productImage: ProductImage = {

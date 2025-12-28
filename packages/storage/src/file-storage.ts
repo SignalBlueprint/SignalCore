@@ -43,7 +43,17 @@ export class LocalFileStorage implements FileStorage {
 
   constructor(storageDir?: string, publicBaseUrl?: string) {
     this.storageDir = storageDir || path.join(process.cwd(), ".sb", "uploads");
-    this.publicBaseUrl = publicBaseUrl || "/uploads";
+    // Use full URL if available (for OpenAI Vision API), otherwise relative path
+    // The server should serve /uploads to make files accessible
+    if (publicBaseUrl) {
+      this.publicBaseUrl = publicBaseUrl;
+    } else {
+      // Try to get from environment or default to localhost
+      const port = process.env.PORT || "4023";
+      const host = process.env.PUBLIC_HOST || "localhost";
+      const protocol = process.env.PUBLIC_PROTOCOL || "http";
+      this.publicBaseUrl = `${protocol}://${host}:${port}/uploads`;
+    }
 
     // Ensure storage directory exists
     if (!fs.existsSync(this.storageDir)) {
@@ -168,6 +178,15 @@ export class SupabaseFileStorage implements FileStorage {
       });
 
     if (error) {
+      // If bucket doesn't exist, throw a specific error that can be caught
+      const errorMsg = (error.message || '').toLowerCase();
+      if (errorMsg.includes('bucket') && errorMsg.includes('not found')) {
+        throw new Error(`BUCKET_NOT_FOUND: ${bucketName}. Please create the bucket in Supabase or use local storage mode.`);
+      }
+      // Check for RLS policy violations
+      if (errorMsg.includes('row-level security') || errorMsg.includes('policy')) {
+        throw new Error(`RLS_POLICY_VIOLATION: ${error.message}. Use SUPABASE_SERVICE_ROLE_KEY (not SUPABASE_ANON_KEY) in your .env file for backend operations. The service role key bypasses RLS policies.`);
+      }
       throw new Error(`Failed to upload file: ${error.message}`);
     }
 
@@ -257,10 +276,38 @@ export function getFileStorage(bucket?: string): FileStorage {
 
 /**
  * Upload a file
+ * Automatically falls back to local storage if Supabase bucket doesn't exist
  */
-export async function uploadFile(options: FileUploadOptions): Promise<UploadedFile> {
-  const storage = getFileStorage(options.bucket);
-  return storage.upload(options);
+export async function uploadFile(options: FileUploadOptions & { publicBaseUrl?: string }): Promise<UploadedFile> {
+  let storage = getFileStorage(options.bucket);
+  
+  try {
+    return await storage.upload(options);
+  } catch (error) {
+    // If bucket not found and we're using Supabase, fall back to local storage
+    if (error instanceof Error && error.message.includes('BUCKET_NOT_FOUND')) {
+      console.warn(`[@sb/storage] Bucket '${options.bucket || 'product-images'}' not found in Supabase. Falling back to local file storage.`);
+      console.warn(`[@sb/storage] To use Supabase storage, create the bucket in your Supabase dashboard.`);
+      console.warn(`[@sb/storage] To force local storage, set STORAGE_MODE=local in your .env file.`);
+      
+      // Reset the instance and force local storage with proper URL
+      fileStorageInstance = null;
+      const originalMode = process.env.STORAGE_MODE;
+      process.env.STORAGE_MODE = 'local';
+      try {
+        // Create new LocalFileStorage with public URL if provided
+        const localStorage = new LocalFileStorage(undefined, options.publicBaseUrl);
+        const result = await localStorage.upload(options);
+        // Restore original mode
+        process.env.STORAGE_MODE = originalMode;
+        return result;
+      } catch (fallbackError) {
+        process.env.STORAGE_MODE = originalMode;
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
