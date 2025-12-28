@@ -19,18 +19,17 @@ export default function SprintPage() {
       }}
     >
       <h2 style={{ fontSize: '32px', marginBottom: '20px' }}>📊 SPRINT</h2>
-      <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px', marginTop: '20px' }}>
-        <p style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
-          Current pathname:
+      <div style={{ marginTop: '30px', padding: '40px', background: '#f9f9f9', borderRadius: '12px', textAlign: 'center' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+        <h3 style={{ fontSize: '20px', marginBottom: '12px', color: '#333' }}>Sprint Planning</h3>
+        <p style={{ color: '#666', marginBottom: '8px' }}>
+          Weekly sprint plans and capacity allocation coming soon.
         </p>
-        <code style={{ fontSize: '16px', fontWeight: 'bold', color: '#0066cc' }}>
-          {pathname}
-        </code>
-      </div>
-      <div style={{ marginTop: '30px', padding: '20px', background: '#fff3cd', borderRadius: '8px' }}>
-        <p style={{ color: '#856404' }}>
-          This is the Sprint page. Future implementation will show sprint plans and team capacity.
-        </p>
+        <div style={{ marginTop: '20px', padding: '12px', background: '#fff3cd', borderRadius: '8px', display: 'inline-block' }}>
+          <code style={{ fontSize: '14px', color: '#856404' }}>
+            Current route: {pathname}
+          </code>
+        </div>
       </div>
     </div>
   );

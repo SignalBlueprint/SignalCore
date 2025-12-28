@@ -80,6 +80,10 @@ export default function GoalsPage() {
       return;
     }
 
+    // Get orgId from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const orgId = urlParams.get('orgId') || 'default-org';
+
     try {
       setCreating(true);
       const response = await fetch('/api/goals', {
@@ -87,7 +91,7 @@ export default function GoalsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newGoalTitle.trim(),
-          orgId: 'default-org',
+          orgId,
         }),
       });
 
