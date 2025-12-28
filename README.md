@@ -38,6 +38,10 @@ For detailed information about each app and the suite architecture, see [SUITE_M
 # Install dependencies
 pnpm install
 
+# Set up environment variables
+cp .env.example .env
+# Edit .env and add your API keys (OPENAI_API_KEY, etc.)
+
 # Run all apps and packages in dev mode
 pnpm dev
 

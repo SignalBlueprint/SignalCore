@@ -54,6 +54,8 @@ window.addEventListener('hashchange', () => {
     navigate('new-goal-from-template', templateId);
   } else if (parts[0] === 'today') {
     navigate('today');
+  } else if (parts[0] === 'debug') {
+    navigate('debug');
   } else if (parts.length === 0 || parts[0] === '' || parts[0] === 'goals') {
     navigate('goals');
   } else {
@@ -408,6 +410,27 @@ async function fetchTodayData() {
   return res.json();
 }
 
+async function fetchDebugData() {
+  const res = await fetch(`${API_BASE}/debug?userId=${currentUserId}&orgId=default-org`);
+  if (!res.ok) {
+    throw new Error('Failed to fetch debug data');
+  }
+  return res.json();
+}
+
+async function runQuestmasterNow() {
+  const res = await fetch(`${API_BASE}/debug/run-questmaster`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orgId: 'default-org' }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Failed to run questmaster');
+  }
+  return res.json();
+}
+
 async function updateOrgSettings(orgId, updates) {
   const res = await fetch(`${API_BASE}/orgs/${orgId}`, {
     method: 'PUT',
@@ -710,6 +733,7 @@ async function render() {
         <button onclick="navigate('templates')" style="margin-left: 8px; background: #9c27b0; color: white;">📋 Templates</button>
         <button onclick="handleReassignAll()" style="margin-left: 8px; background: #ff9800;">Re-run Assignments</button>
         <button onclick="handleRunQuestmaster()" style="margin-left: 8px; background: #4CAF50; color: white;">Run Questmaster Now</button>
+        ${isAdmin ? `<button onclick="navigate('debug')" style="margin-left: 8px; background: #f44336; color: white;">🔍 Debug</button>` : ''}
       </div>
       ${renderGoals(goals)}
     `;
@@ -749,6 +773,9 @@ async function render() {
   } else if (currentView === 'today') {
     const todayData = await fetchTodayData();
     app.innerHTML = renderToday(todayData);
+  } else if (currentView === 'debug') {
+    const debugData = await fetchDebugData();
+    app.innerHTML = renderDebug(debugData);
   } else if (currentView === 'deck') {
     const filter = currentGoalId || 'my-deck';
     
@@ -1547,7 +1574,20 @@ window.handleTemplateSearch = async function() {
 };
 
 function renderToday(data) {
-  const { deck, blockedTasks, readyToUnlock, standup, teamPulse, lastQuestmasterRun } = data;
+  const { 
+    deck, 
+    blockedTasks, 
+    readyToUnlock, 
+    standup, 
+    teamPulse, 
+    lastQuestmasterRun,
+    storageInfo,
+    orgId,
+    counts,
+    hasGoals,
+    hasQuestlines,
+    readyTasks
+  } = data;
   
   // Limit deck to 3-7 tasks (show first few quests until we have 3-7 tasks)
   let deckTasks = [];
@@ -1579,6 +1619,9 @@ function renderToday(data) {
   // Check if user is admin (for now, everyone can run questmaster - TODO: use actual role)
   const isAdmin = true;
   
+  // Determine empty state
+  const isEmptyState = !hasGoals || !hasQuestlines || deckQuests.length === 0;
+  
   return `
     <div style="max-width: 1400px; margin: 0 auto;">
       <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -1586,29 +1629,99 @@ function renderToday(data) {
           <div>
             <h1 style="margin: 0; font-size: 32px;">📅 Today</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9;">Your daily command center</p>
+            <div style="margin-top: 12px; font-size: 12px; opacity: 0.9;">
+              <span>Storage: ${storageInfo.mode}</span>
+              <span style="margin-left: 16px;">Org: ${orgId}</span>
+              <span style="margin-left: 16px;">Last Questmaster run: ${lastRunHtml}</span>
+            </div>
           </div>
           <div style="text-align: right;">
             ${isAdmin ? `
               <button onclick="handleRunQuestmaster()" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 2px solid white; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 8px;">
                 ⚡ Run Questmaster Now
               </button>
-              <div style="font-size: 12px; opacity: 0.8;">
-                Last run: ${lastRunHtml}
-              </div>
-            ` : `
-              <div style="font-size: 12px; opacity: 0.8;">
-                Last Questmaster run: ${lastRunHtml}
-              </div>
-            `}
+            ` : ''}
           </div>
         </div>
       </div>
       
+      ${!hasGoals ? `
+        <!-- Empty State: No Goals -->
+        <div class="card" style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+          <h2 style="font-size: 48px; margin: 0 0 16px 0;">🎯</h2>
+          <h2 style="margin: 0 0 16px 0; color: #333;">Create Your First Goal</h2>
+          <p style="color: #666; font-size: 16px; margin: 0 0 32px 0; max-width: 600px; margin-left: auto; margin-right: auto;">
+            Start your journey by creating a goal. Goals get clarified, approved, and decomposed into actionable questlines.
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="navigate('new-goal')" style="padding: 14px 28px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">
+              ➕ Create Your First Goal
+            </button>
+            <button onclick="handleSeedDemo()" style="padding: 14px 28px; background: white; color: #667eea; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">
+              🌱 Run Seed Demo
+            </button>
+          </div>
+        </div>
+      ` : !hasQuestlines ? `
+        <!-- Empty State: Goals exist but no questlines -->
+        <div class="card" style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+          <h2 style="font-size: 48px; margin: 0 0 16px 0;">🚀</h2>
+          <h2 style="margin: 0 0 16px 0; color: #333;">Ready to Decompose?</h2>
+          <p style="color: #666; font-size: 16px; margin: 0 0 32px 0; max-width: 600px; margin-left: auto; margin-right: auto;">
+            You have goals! Next steps: clarify your goals, get them approved, then decompose them into questlines.
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="navigate('goals')" style="padding: 14px 28px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">
+              📋 Go to Goals
+            </button>
+          </div>
+          <div style="margin-top: 24px; padding: 20px; background: white; border-radius: 8px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
+            <h3 style="margin: 0 0 12px 0; font-size: 18px;">Quick Start Guide:</h3>
+            <ol style="margin: 0; padding-left: 20px; color: #666; line-height: 1.8;">
+              <li>Open a goal and click <strong>"Clarify Goal"</strong></li>
+              <li>Review and click <strong>"Approve"</strong> or <strong>"Deny"</strong></li>
+              <li>Once approved, click <strong>"Decompose into Questlines"</strong></li>
+              <li>Questmaster will generate your quest decks!</li>
+            </ol>
+          </div>
+        </div>
+      ` : deckQuests.length === 0 ? `
+        <!-- Empty State: No deck -->
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>🎯 My Deck</h2>
+          <div style="text-align: center; padding: 40px 20px; background: #f9f9f9; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #666; font-size: 16px; margin: 0 0 24px 0;">
+              Your deck is empty. Generate it to see your tasks for today!
+            </p>
+            <button onclick="handleRunQuestmaster()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">
+              ⚡ Generate Deck
+            </button>
+          </div>
+          
+          ${readyTasks && readyTasks.length > 0 ? `
+            <div style="margin-top: 24px;">
+              <h3 style="margin: 0 0 16px 0;">✨ Ready Tasks (Unblocked & Unlocked)</h3>
+              <p style="color: #666; font-size: 14px; margin: 0 0 16px 0;">
+                These tasks are ready to work on. Generate your deck to see them organized by quest.
+              </p>
+              ${readyTasks.map(task => `
+                <div style="margin: 8px 0; padding: 12px; border-left: 3px solid #4CAF50; background: #f9f9f9; border-radius: 4px;">
+                  <strong>${task.title}</strong>
+                  ${task.description ? `<p style="color: #666; font-size: 12px; margin: 4px 0;">${task.description}</p>` : ''}
+                  ${task.owner ? `<p style="color: #999; font-size: 11px; margin: 4px 0;">Assigned to: ${task.owner}</p>` : '<p style="color: #999; font-size: 11px; margin: 4px 0;">Unassigned</p>'}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
+      
+      
+      ${hasGoals && hasQuestlines && deckQuests.length > 0 ? `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
         <!-- My Deck -->
         <div class="card">
           <h2>🎯 My Deck</h2>
-          ${deckQuests.length === 0 ? '<p style="color: #666;">No active quests. Complete some tasks to unlock more quests!</p>' : ''}
           ${deckQuests.map(entry => {
             const tasksHtml = entry.tasks.map(task => {
               const isCheckpoint = task.requiresApproval;
@@ -1735,6 +1848,7 @@ function renderToday(data) {
         </div>
       </div>
       
+      ${hasGoals && hasQuestlines && deckQuests.length > 0 ? `
       <!-- Team Pulse -->
       <div class="card">
         <h2>👥 Team Pulse</h2>
@@ -1773,12 +1887,220 @@ function renderToday(data) {
           }).join('')}
         </div>
       </div>
+      ` : ''}
       
+      ${hasGoals && hasQuestlines && deckQuests.length > 0 ? `
       <div style="margin-top: 20px;">
         <button onclick="navigate('goals')">← Back to Goals</button>
       </div>
+      ` : ''}
     </div>
   `;
+}
+
+async function handleRunQuestmaster() {
+  try {
+    const result = await runQuestmasterNow();
+    alert(`Questmaster completed!\n\nGoals: ${result.stats.goals}\nTasks: ${result.stats.tasks}\nDecks: ${result.stats.decksGenerated}\nUnlocked: ${result.stats.unlockedQuests}`);
+    // Refresh the page
+    navigate('today');
+  } catch (error) {
+    alert(`Error: ${error.message}`);
+  }
+}
+
+async function handleSeedDemo() {
+  if (confirm('This will run the seed demo script. Continue?')) {
+    try {
+      // In a real implementation, this would call an API endpoint
+      alert('To seed demo data, run: pnpm sb seed:demo');
+      navigate('goals');
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
+}
+
+function renderDebug(data) {
+  const { storage, orgId, currentUser, counts, jobSummaries, recentEvents } = data;
+  
+  return `
+    <div style="max-width: 1400px; margin: 0 auto;">
+      <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h1 style="margin: 0; font-size: 32px;">🔍 Debug & Status</h1>
+            <p style="margin: 8px 0 0 0; opacity: 0.9;">System diagnostics and job run summaries</p>
+          </div>
+          <button onclick="navigate('goals')" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 2px solid white; border-radius: 8px; cursor: pointer;">← Back</button>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Storage Info -->
+        <div class="card">
+          <h2>💾 Storage</h2>
+          <div style="margin: 12px 0;">
+            <p><strong>Mode:</strong> <span style="padding: 4px 8px; background: #e3f2fd; border-radius: 4px;">${storage.mode}</span></p>
+            ${storage.mode === 'LocalJson' ? `
+              <p><strong>Data Directory:</strong> <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${storage.config.dataDir || 'N/A'}</code></p>
+            ` : `
+              <p><strong>Supabase URL:</strong> <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${storage.config.supabaseUrl ? storage.config.supabaseUrl.substring(0, 40) + '...' : 'N/A'}</code></p>
+            `}
+          </div>
+        </div>
+        
+        <!-- Context -->
+        <div class="card">
+          <h2>📋 Context</h2>
+          <div style="margin: 12px 0;">
+            <p><strong>Current Org:</strong> <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${orgId}</code></p>
+            <p><strong>Current User:</strong> <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${currentUser}</code></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Entity Counts -->
+      <div class="card" style="margin-bottom: 20px;">
+        <h2>📊 Entity Counts</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px;">
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.goals}</div>
+            <div style="color: #666; font-size: 14px;">Goals</div>
+          </div>
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.questlines}</div>
+            <div style="color: #666; font-size: 14px;">Questlines</div>
+          </div>
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.quests}</div>
+            <div style="color: #666; font-size: 14px;">Quests</div>
+          </div>
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.tasks}</div>
+            <div style="color: #666; font-size: 14px;">Tasks</div>
+          </div>
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.decks}</div>
+            <div style="color: #666; font-size: 14px;">Decks</div>
+          </div>
+          <div style="padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #667eea;">${counts.sprintPlans}</div>
+            <div style="color: #666; font-size: 14px;">Sprint Plans</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Job Run Summaries -->
+        <div class="card">
+          <h2>⚙️ Job Run Summaries (Last 10)</h2>
+          ${jobSummaries.length === 0 ? '<p style="color: #666;">No job runs yet.</p>' : ''}
+          ${jobSummaries.map(summary => {
+            const statusColor = summary.status === 'success' ? '#4CAF50' : summary.status === 'failed' ? '#f44336' : '#ff9800';
+            const duration = Math.round((new Date(summary.finishedAt) - new Date(summary.startedAt)) / 1000);
+            return `
+              <div style="margin: 12px 0; padding: 12px; border-left: 4px solid ${statusColor}; background: #f9f9f9; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                  <div style="flex: 1;">
+                    <strong>${summary.jobId}</strong>
+                    <span style="margin-left: 8px; padding: 2px 6px; background: ${statusColor}; color: white; border-radius: 3px; font-size: 11px;">${summary.status}</span>
+                    <div style="margin-top: 4px; font-size: 12px; color: #666;">
+                      ${new Date(summary.finishedAt).toLocaleString()} (${duration}s)
+                    </div>
+                  </div>
+                </div>
+                ${summary.stats ? `
+                  <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-size: 12px;">
+                    ${summary.stats.goals !== undefined ? `<div>Goals: ${summary.stats.goals}</div>` : ''}
+                    ${summary.stats.questlines !== undefined ? `<div>Questlines: ${summary.stats.questlines}</div>` : ''}
+                    ${summary.stats.quests !== undefined ? `<div>Quests: ${summary.stats.quests}</div>` : ''}
+                    ${summary.stats.tasks !== undefined ? `<div>Tasks: ${summary.stats.tasks}</div>` : ''}
+                    ${summary.stats.decksGenerated !== undefined ? `<div>Decks Generated: ${summary.stats.decksGenerated}</div>` : ''}
+                    ${summary.stats.unlockedQuests !== undefined ? `<div>Unlocked Quests: ${summary.stats.unlockedQuests}</div>` : ''}
+                    ${summary.stats.staleTasks !== undefined ? `<div>Stale Tasks: ${summary.stats.staleTasks}</div>` : ''}
+                    ${summary.stats.sprintPlansGenerated !== undefined ? `<div>Sprint Plans: ${summary.stats.sprintPlansGenerated}</div>` : ''}
+                    ${summary.stats.memberPlansGenerated !== undefined ? `<div>Member Plans: ${summary.stats.memberPlansGenerated}</div>` : ''}
+                  </div>
+                ` : ''}
+                ${summary.error ? `
+                  <div style="margin-top: 8px; padding: 8px; background: #ffebee; border-radius: 4px; font-size: 11px; color: #d32f2f;">
+                    <strong>Error:</strong> ${summary.error}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+          <div style="margin-top: 16px;">
+            <button onclick="handleRunQuestmasterDebug()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+              ⚡ Run Questmaster Now
+            </button>
+            <div id="questmaster-result" style="margin-top: 12px;"></div>
+          </div>
+        </div>
+        
+        <!-- Recent Events -->
+        <div class="card">
+          <h2>📝 Recent Events (Last 50)</h2>
+          <div style="max-height: 600px; overflow-y: auto;">
+            ${recentEvents.length === 0 ? '<p style="color: #666;">No events yet.</p>' : ''}
+            ${recentEvents.slice().reverse().map(event => {
+              const time = new Date(event.createdAt).toLocaleTimeString();
+              return `
+                <div style="margin: 8px 0; padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                      <strong>${event.type}</strong>
+                      <div style="color: #666; font-size: 11px; margin-top: 2px;">${time}</div>
+                    </div>
+                    <span style="padding: 2px 6px; background: #e3f2fd; border-radius: 3px; font-size: 10px;">${event.sourceApp}</span>
+                  </div>
+                  <div style="margin-top: 4px; color: #666; font-size: 11px; font-family: monospace; background: white; padding: 4px; border-radius: 3px; max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
+                    ${JSON.stringify(event.payload, null, 2).substring(0, 200)}${JSON.stringify(event.payload).length > 200 ? '...' : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function handleRunQuestmasterDebug() {
+  const resultDiv = document.getElementById('questmaster-result');
+  resultDiv.innerHTML = '<div style="color: #2196F3;">Running Questmaster...</div>';
+  
+  try {
+    const result = await runQuestmasterNow();
+    resultDiv.innerHTML = `
+      <div style="padding: 12px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4CAF50;">
+        <div style="color: #2e7d32; font-weight: bold; margin-bottom: 8px;">✅ Questmaster completed successfully!</div>
+        <div style="font-size: 12px; color: #666;">
+          <div>Goals: ${result.stats.goals || 0}</div>
+          <div>Questlines: ${result.stats.questlines || 0}</div>
+          <div>Quests: ${result.stats.quests || 0}</div>
+          <div>Tasks: ${result.stats.tasks || 0}</div>
+          <div>Decks Generated: ${result.stats.decksGenerated || 0}</div>
+          <div>Unlocked Quests: ${result.stats.unlockedQuests || 0}</div>
+          <div>Stale Tasks: ${result.stats.staleTasks || 0}</div>
+        </div>
+        <button onclick="navigate('debug')" style="margin-top: 8px; padding: 6px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
+      </div>
+    `;
+    // Auto-refresh after 2 seconds
+    setTimeout(() => {
+      navigate('debug');
+    }, 2000);
+  } catch (error) {
+    resultDiv.innerHTML = `
+      <div style="padding: 12px; background: #ffebee; border-radius: 8px; border: 1px solid #f44336;">
+        <div style="color: #d32f2f; font-weight: bold; margin-bottom: 8px;">❌ Error</div>
+        <div style="font-size: 12px; color: #666;">${error.message}</div>
+      </div>
+    `;
+  }
 }
 
 // Initial render

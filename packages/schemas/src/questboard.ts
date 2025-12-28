@@ -14,12 +14,51 @@ export type WorkingGenius =
   | "Tenacity";
 
 /**
+ * Working Genius phase abbreviations (single letter codes)
+ */
+export type WGPhase = "W" | "I" | "D" | "G" | "E" | "T";
+// W = Wonder, I = Invention, D = Discernment, G = Galvanizing, E = Enablement, T = Tenacity
+
+/**
  * Working Genius profile for a user
  */
 export interface WorkingGeniusProfile {
   top2: [WorkingGenius, WorkingGenius];
   competency2: [WorkingGenius, WorkingGenius]; // Changed from competency array to 2-item tuple
   frustration2: [WorkingGenius, WorkingGenius]; // Changed from frustration array to 2-item tuple
+}
+
+/**
+ * Member profile with Working Genius and capacity information
+ */
+export interface MemberProfile {
+  memberId: string;
+  orgId: string;
+  top2: [WGPhase, WGPhase];
+  competency2: [WGPhase, WGPhase];
+  frustration2: [WGPhase, WGPhase];
+  dailyCapacityMinutes: number;
+  timezone?: string;
+  role?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  notes?: string;
+  updatedAt: string;
+}
+
+/**
+ * Team snapshot - aggregated view of team with member profiles
+ */
+export interface TeamSnapshot {
+  orgId: string;
+  members: Array<{
+    id: string;
+    email: string;
+    role: string;
+    profile: MemberProfile;
+  }>;
+  teamNotes?: string;
+  generatedAt: string;
 }
 
 /**
@@ -94,8 +133,26 @@ export interface DecomposeOutput {
     order: number;
     locked: boolean;
     prerequisiteIds?: string[];
+    quests?: Array<{
+      id: string;
+      title: string;
+      objective: string;
+      tasks: Array<{
+        id: string;
+        title: string;
+        description?: string;
+        phase?: WGPhase; // Working Genius phase (W/I/D/G/E/T)
+        estimatedMinutes?: number;
+        suggestedOwnerEmail?: string; // AI hint for assignment
+        priority?: "low" | "medium" | "high" | "urgent";
+        requiresApproval?: boolean;
+        acceptanceCriteria?: string[];
+        dependsOnTaskIds?: string[];
+      }>;
+    }>;
   }>;
   estimatedComplexity: string;
+  expansionCandidates?: string[]; // Task IDs worth expanding next
 }
 
 /**
@@ -211,4 +268,29 @@ export interface TemplateQuestline {
       }>;
     }>;
   };
+}
+
+/**
+ * JobRunSummary - tracks execution stats for background jobs
+ */
+export interface JobRunSummary {
+  id: string; // Format: summary-{jobId}-{orgId}-{timestamp}
+  orgId: string;
+  jobId: string; // e.g., "daily.questmaster", "weekly.sprintplanner"
+  startedAt: string;
+  finishedAt: string;
+  status: "success" | "failed" | "partial";
+  error?: string; // Error message if failed
+  stats: {
+    goals?: number;
+    questlines?: number;
+    quests?: number;
+    tasks?: number;
+    decksGenerated?: number;
+    unlockedQuests?: number;
+    staleTasks?: number;
+    sprintPlansGenerated?: number;
+    memberPlansGenerated?: number;
+  };
+  createdAt: string;
 }

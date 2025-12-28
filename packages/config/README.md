@@ -4,7 +4,16 @@ Environment variable and runtime configuration management for the Signal Bluepri
 
 ## How Environment Variables Work in This Monorepo
 
-Each app in the monorepo manages its own environment variables independently. Use this package to access environment variables safely with type checking and validation.
+The monorepo uses a **single root-level `.env` file** for all environment variables. This package automatically loads the root `.env` file when imported, ensuring all apps and packages use the same configuration.
+
+## Automatic Loading
+
+When you import `@sb/config` (or any package that imports it), the root `.env` file is automatically loaded. You don't need to do anything special - just import the package:
+
+```typescript
+import { getEnv } from "@sb/config";
+// Root .env is now loaded automatically!
+```
 
 ### Usage
 

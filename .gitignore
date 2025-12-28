@@ -13,7 +13,7 @@ out/
 .env
 .env.local
 .env.*.local
-
+# Note: .env.example is NOT ignored - it's a template file that should be committed
 # IDE
 .vscode/
 .idea/

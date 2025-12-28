@@ -31,6 +31,12 @@ async function main() {
       case "seed:demo":
         await runSeedDemoCommand();
         break;
+      case "qb:status":
+        await runQbStatusCommand();
+        break;
+      case "orgs:list":
+        await runOrgsListCommand();
+        break;
       default:
         showHelp();
         process.exit(1);
@@ -54,6 +60,8 @@ Commands:
   cache:stats   Show cache statistics
   cost:stats    Show cost and telemetry statistics
   seed:demo     Seed demo org with members and sample goal
+  qb:status     Show Questboard status (counts and job summaries)
+  orgs:list     List all organizations with their IDs
   `);
 }
 
@@ -233,6 +241,104 @@ async function runSeedDemoCommand() {
     });
   } catch (error) {
     // Error already printed by the script
+    process.exit(1);
+  }
+}
+
+async function runQbStatusCommand() {
+  const { getStorageInfo } = await import("@sb/storage");
+  const { getEntityCounts, getJobRunSummaries } = await import("../../apps/questboard/src/store.ts");
+  
+  const orgId = process.argv[3] || "default-org";
+  
+  console.log(`\n🔍 Questboard Status (org: ${orgId})\n`);
+  
+  // Storage info
+  const storageInfo = getStorageInfo();
+  console.log("💾 Storage:");
+  console.log(`   Mode: ${storageInfo.mode}`);
+  if (storageInfo.mode === "LocalJson") {
+    console.log(`   Data Directory: ${storageInfo.config.dataDir}`);
+  } else {
+    console.log(`   Supabase URL: ${storageInfo.config.supabaseUrl?.substring(0, 50)}...`);
+  }
+  console.log("");
+  
+  // Entity counts
+  console.log("📊 Entity Counts:");
+  try {
+    const counts = await getEntityCounts(orgId);
+    console.log(`   Goals: ${counts.goals}`);
+    console.log(`   Questlines: ${counts.questlines}`);
+    console.log(`   Quests: ${counts.quests}`);
+    console.log(`   Tasks: ${counts.tasks}`);
+    console.log(`   Decks: ${counts.decks}`);
+    console.log(`   Sprint Plans: ${counts.sprintPlans}`);
+  } catch (error) {
+    console.log(`   Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  console.log("");
+  
+  // Job summaries
+  console.log("⚙️  Recent Job Runs:");
+  try {
+    const summaries = await getJobRunSummaries(orgId, 10);
+    if (summaries.length === 0) {
+      console.log("   No job runs yet.");
+    } else {
+      summaries.forEach((summary) => {
+        const statusIcon = summary.status === "success" ? "✅" : summary.status === "failed" ? "❌" : "⚠️";
+        const duration = Math.round(
+          (new Date(summary.finishedAt).getTime() - new Date(summary.startedAt).getTime()) / 1000
+        );
+        console.log(`   ${statusIcon} ${summary.jobId} (${summary.status}) - ${duration}s`);
+        if (summary.stats) {
+          const statsStr = Object.entries(summary.stats)
+            .filter(([_, v]) => v !== undefined)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(", ");
+          if (statsStr) {
+            console.log(`      ${statsStr}`);
+          }
+        }
+        if (summary.error) {
+          console.log(`      Error: ${summary.error}`);
+        }
+        console.log(`      Finished: ${new Date(summary.finishedAt).toLocaleString()}`);
+        console.log("");
+      });
+    }
+  } catch (error) {
+    console.log(`   Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  console.log("");
+}
+
+async function runOrgsListCommand() {
+  const { listOrgs, getEntityCounts } = await import("../../apps/questboard/src/store.ts");
+  
+  console.log("\n🏢 Organizations:\n");
+  
+  try {
+    const orgs = await listOrgs();
+    
+    if (orgs.length === 0) {
+      console.log("  No orgs found.");
+      console.log("  Run 'pnpm sb seed:demo' to create one.\n");
+      return;
+    }
+    
+    for (const org of orgs) {
+      const counts = await getEntityCounts(org.id);
+      console.log(`  ${org.id}`);
+      if (org.name && org.name !== org.id) {
+        console.log(`    Name: ${org.name}`);
+      }
+      console.log(`    Counts: goals=${counts.goals}, questlines=${counts.questlines}, quests=${counts.quests}, tasks=${counts.tasks}`);
+      console.log("");
+    }
+  } catch (error) {
+    console.error(`Error listing orgs: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }

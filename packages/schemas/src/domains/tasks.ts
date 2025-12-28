@@ -22,6 +22,25 @@ export interface TaskGitHub {
 }
 
 /**
+ * Assignment explanation stored on task
+ */
+export interface TaskAssignmentReason {
+  scoreBreakdown?: {
+    geniusMatch: number;
+    competencyMatch: number;
+    frustrationPenalty: number;
+    workloadPenalty: number;
+  };
+  alternatives?: Array<{ userId: string; score: number }>;
+  aiSuggestedOwner?: string; // Email if AI suggested an owner
+}
+
+/**
+ * Task expansion state
+ */
+export type TaskExpandState = "ready" | "expanded" | "locked";
+
+/**
  * Task entity
  */
 export interface Task {
@@ -33,6 +52,14 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   owner?: string;
+  phase?: "W" | "I" | "D" | "G" | "E" | "T"; // Working Genius phase
+  estimatedMinutes?: number; // Estimated time to complete in minutes
+  assignmentReason?: TaskAssignmentReason; // Why this task was assigned to owner
+  expandState?: TaskExpandState; // Expansion control state
+  expansionDepth?: number; // How many times this task has been expanded (max 2)
+  expandCostEstimate?: number; // Estimated cost of expansion (for UI display)
+  acceptanceCriteria?: string[]; // Acceptance criteria for the task
+  parentTaskId?: string; // If this is a subtask, reference to parent
   dod?: string; // Definition of Done
   blockers?: string[];
   tags?: string[];

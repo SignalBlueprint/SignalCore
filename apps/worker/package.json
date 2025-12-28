@@ -14,7 +14,9 @@
     "@sb/storage": "workspace:*",
     "@sb/assignment": "workspace:*",
     "@sb/schemas": "workspace:*",
-    "@sb/notify": "workspace:*"
+    "@sb/notify": "workspace:*",
+    "@sb/events": "workspace:*",
+    "@sb/integrations-github": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

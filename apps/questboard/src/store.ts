@@ -4,7 +4,7 @@
 
 import { storage, ConflictError } from "@sb/storage";
 import { publish } from "@sb/events";
-import type { Goal, Questline, Quest, UnlockCondition, Member, Task, Org, Template, TemplateQuestline } from "@sb/schemas";
+import type { Goal, Questline, Quest, UnlockCondition, Member, Task, Org, Template, TemplateQuestline, JobRunSummary, MemberQuestDeck, SprintPlan, MemberProfile, TeamSnapshot, WGPhase } from "@sb/schemas";
 import { assignTaskWithExplanation, assignTasks } from "@sb/assignment";
 
 const GOAL_KIND = "goals";
@@ -15,6 +15,11 @@ const MEMBER_KIND = "members";
 const ORG_KIND = "orgs";
 const TEMPLATE_KIND = "templates";
 const TEMPLATE_QUESTLINE_KIND = "template_questlines";
+const JOB_RUN_SUMMARY_KIND = "job_run_summaries";
+const DECK_KIND = "member_quest_decks";
+const SPRINT_PLAN_KIND = "sprint_plans";
+const MEMBER_PROFILE_KIND = "member_profiles";
+const ORG_SETTINGS_KIND = "org_settings";
 
 export async function getAllGoals(): Promise<Goal[]> {
   return storage.list<Goal>(GOAL_KIND);
@@ -26,6 +31,17 @@ export async function getGoalById(id: string): Promise<Goal | undefined> {
 }
 
 export async function createGoal(title: string, orgId: string = "default-org"): Promise<Goal> {
+  // Ensure the org exists before creating a goal (for foreign key constraints)
+  const org = await storage.get<Org>(ORG_KIND, orgId);
+  if (!org) {
+    // Create the org if it doesn't exist
+    await storage.upsert(ORG_KIND, {
+      id: orgId,
+      name: orgId === "default-org" ? "Default Organization" : orgId,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   const goal: Goal = {
     id: `goal-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     title,
@@ -335,11 +351,11 @@ export async function reassignTasks(orgId: string): Promise<void> {
           actor: "system",
           before: { owner: oldOwner },
           after: { owner: explanation.assignedUserId },
-          reason: explanation.scoreBreakdown.length > 0
-            ? `Assigned to ${explanation.assignedUserId} (score: ${explanation.scoreBreakdown[0]?.score || 0})`
+          reason: explanation.scores.length > 0
+            ? `Assigned to ${explanation.assignedUserId} (score: ${explanation.scores.find(s => s.userId === explanation.assignedUserId)?.totalScore || 0})`
             : "Auto-assigned",
-          explanation: explanation.scoreBreakdown.find(s => s.userId === explanation.assignedUserId),
-          alternatives: explanation.alternatives,
+          explanation: explanation.scores.find((s) => s.userId === explanation.assignedUserId),
+          alternatives: explanation.topAlternatives,
         }, {
           orgId: orgId,
           sourceApp: "questboard",
@@ -393,6 +409,54 @@ export async function getMembersByOrgId(orgId: string): Promise<Member[]> {
 
 export async function getMemberById(id: string): Promise<Member | null> {
   return storage.get<Member>(MEMBER_KIND, id);
+}
+
+export async function createMember(
+  orgId: string,
+  email: string,
+  role: string = "member"
+): Promise<Member> {
+  // Ensure the org exists before creating a member (for foreign key constraints)
+  const org = await storage.get<Org>(ORG_KIND, orgId);
+  if (!org) {
+    // Create the org if it doesn't exist
+    await storage.upsert(ORG_KIND, {
+      id: orgId,
+      name: orgId === "default-org" ? "Default Organization" : orgId,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  // Check if member already exists
+  const existingMembers = await getMembersByOrgId(orgId);
+  const existing = existingMembers.find((m) => m.email.toLowerCase() === email.toLowerCase());
+  if (existing) {
+    throw new Error(`Member with email ${email} already exists in this organization`);
+  }
+
+  const member: Member = {
+    id: `member-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    orgId,
+    email,
+    role: role as any,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await storage.upsert(MEMBER_KIND, member);
+  
+  // Publish event
+  await publish("member.created", {
+    memberId: member.id,
+    orgId,
+    email: member.email,
+    role: member.role,
+  }, {
+    sourceApp: "questboard",
+    orgId,
+  });
+
+  return member;
 }
 
 export async function updateMember(id: string, updates: Partial<Member>): Promise<Member | null> {
@@ -832,10 +896,45 @@ export async function getBlockedTasksForUser(userId: string, orgId: string): Pro
     t.orgId === orgId && 
     t.owner === userId && 
     t.status !== "done" &&
-    t.blockers && 
-    t.blockers.length > 0
+    !!(t.blockers && t.blockers.length > 0)
   );
   return tasks;
+}
+
+/**
+ * Get ready tasks for a user (unblocked, unlocked tasks that can be worked on)
+ */
+export async function getReadyTasks(userId: string, orgId: string): Promise<Task[]> {
+  // Get all unlocked quests for this org
+  const unlockedQuests = await storage.list<Quest>(QUEST_KIND, (q) => 
+    q.orgId === orgId && q.state === "unlocked"
+  );
+  
+  // Get all tasks from unlocked quests that are:
+  // - Assigned to the user OR unassigned
+  // - Not done
+  // - Not blocked
+  const allTasks = await storage.list<Task>(TASK_KIND, (t) => 
+    t.orgId === orgId && 
+    t.status !== "done"
+  );
+  
+  const unlockedQuestIds = new Set(unlockedQuests.map(q => q.id));
+  const readyTasks = allTasks.filter(task => {
+    // Task must be in an unlocked quest
+    const quest = unlockedQuests.find(q => q.taskIds.includes(task.id));
+    if (!quest || quest.state !== "unlocked") return false;
+    
+    // Task must be assigned to user or unassigned
+    if (task.owner && task.owner !== userId) return false;
+    
+    // Task must not be blocked
+    if (task.blockers && task.blockers.length > 0) return false;
+    
+    return true;
+  });
+  
+  return readyTasks.slice(0, 10); // Limit to 10 for display
 }
 
 /**
@@ -1272,5 +1371,194 @@ export async function spawnGoalFromTemplate(
   });
   
   return goal;
+}
+
+/**
+ * Save a job run summary
+ */
+export async function saveJobRunSummary(summary: Omit<JobRunSummary, "id" | "createdAt">): Promise<JobRunSummary> {
+  const jobSummary: JobRunSummary = {
+    ...summary,
+    id: `summary-${summary.jobId}-${summary.orgId}-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+  };
+  
+  await storage.upsert(JOB_RUN_SUMMARY_KIND, jobSummary);
+  return jobSummary;
+}
+
+/**
+ * Get job run summaries for an org
+ */
+export async function getJobRunSummaries(orgId: string, limit: number = 10): Promise<JobRunSummary[]> {
+  const summaries = await storage.list<JobRunSummary>(JOB_RUN_SUMMARY_KIND, (s) => s.orgId === orgId);
+  // Sort by finishedAt descending and limit
+  return summaries
+    .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime())
+    .slice(0, limit);
+}
+
+/**
+ * Get entity counts for an org
+ */
+export async function getEntityCounts(orgId: string): Promise<{
+  goals: number;
+  questlines: number;
+  quests: number;
+  tasks: number;
+  decks: number;
+  sprintPlans: number;
+}> {
+  const [goals, questlines, quests, tasks, decks, sprintPlans] = await Promise.all([
+    storage.list<Goal>(GOAL_KIND, (g) => g.orgId === orgId),
+    storage.list<Questline>(QUESTLINE_KIND, (q) => q.orgId === orgId),
+    storage.list<Quest>(QUEST_KIND, (q) => q.orgId === orgId),
+    storage.list<Task>(TASK_KIND, (t) => t.orgId === orgId),
+    storage.list<MemberQuestDeck>(DECK_KIND, (d) => d.orgId === orgId),
+    storage.list<SprintPlan>(SPRINT_PLAN_KIND, (s) => s.orgId === orgId),
+  ]);
+
+  return {
+    goals: goals.length,
+    questlines: questlines.length,
+    quests: quests.length,
+    tasks: tasks.length,
+    decks: decks.length,
+    sprintPlans: sprintPlans.length,
+  };
+}
+
+/**
+ * List all organizations
+ */
+export async function listOrgs(): Promise<Org[]> {
+  return storage.list<Org>(ORG_KIND);
+}
+
+// ============================================================================
+// Member Profile storage functions
+// ============================================================================
+
+/**
+ * Get a member profile by member ID
+ * Note: The storage uses memberId as the id field (for member_profiles, id === memberId)
+ */
+export async function getMemberProfile(memberId: string): Promise<MemberProfile | null> {
+  // For member_profiles, the id field is the same as memberId
+  const profile = await storage.get<MemberProfile>(MEMBER_PROFILE_KIND, memberId);
+  return profile;
+}
+
+/**
+ * Get all member profiles for an org
+ */
+export async function getMemberProfilesByOrgId(orgId: string): Promise<MemberProfile[]> {
+  const profiles = await storage.list<MemberProfile & { id: string }>(MEMBER_PROFILE_KIND, (p) => p.orgId === orgId);
+  // Remove id field before returning (it's just for storage)
+  return profiles.map(({ id, ...profile }) => profile as MemberProfile);
+}
+
+/**
+ * Save or update a member profile
+ * Note: The id field must match memberId for storage lookup
+ */
+export async function saveMemberProfile(profile: MemberProfile): Promise<MemberProfile> {
+  // Ensure id field matches memberId for storage
+  const profileWithId = {
+    ...profile,
+    id: profile.memberId, // Use memberId as the storage id
+    updatedAt: new Date().toISOString(),
+  } as MemberProfile & { id: string };
+  const saved = await storage.upsert<MemberProfile & { id: string }>(MEMBER_PROFILE_KIND, profileWithId);
+  // Remove id field before returning (it's just for storage)
+  const { id, ...profileWithoutId } = saved;
+  return profileWithoutId as MemberProfile;
+}
+
+/**
+ * Delete a member profile
+ */
+export async function deleteMemberProfile(memberId: string): Promise<void> {
+  await storage.delete(MEMBER_PROFILE_KIND, memberId);
+}
+
+// ============================================================================
+// Org Settings storage functions (for team notes)
+// ============================================================================
+
+interface OrgSettings {
+  id: string; // Same as orgId
+  orgId: string;
+  teamNotes?: string;
+  updatedAt: string;
+}
+
+/**
+ * Get org settings (including team notes)
+ */
+export async function getOrgSettings(orgId: string): Promise<OrgSettings | null> {
+  return storage.get<OrgSettings>(ORG_SETTINGS_KIND, orgId);
+}
+
+/**
+ * Update org settings (including team notes)
+ */
+export async function updateOrgSettings(orgId: string, updates: { teamNotes?: string }): Promise<OrgSettings> {
+  const existing = await getOrgSettings(orgId);
+  const settings: OrgSettings = existing || {
+    id: orgId,
+    orgId,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  const updated: OrgSettings = {
+    ...settings,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  return storage.upsert(ORG_SETTINGS_KIND, updated);
+}
+
+// ============================================================================
+// Team Snapshot builder
+// ============================================================================
+
+/**
+ * Build a team snapshot for an org
+ * Aggregates members with their profiles and org team notes
+ */
+export async function buildTeamSnapshot(orgId: string): Promise<TeamSnapshot> {
+  const [members, profiles, orgSettings] = await Promise.all([
+    getMembersByOrgId(orgId),
+    getMemberProfilesByOrgId(orgId),
+    getOrgSettings(orgId),
+  ]);
+
+  // Create a map of memberId -> profile for quick lookup
+  const profileMap = new Map<string, MemberProfile>();
+  for (const profile of profiles) {
+    profileMap.set(profile.memberId, profile);
+  }
+
+  // Build the snapshot members array
+  const snapshotMembers = members
+    .filter((member) => profileMap.has(member.id)) // Only include members with profiles
+    .map((member) => {
+      const profile = profileMap.get(member.id)!;
+      return {
+        id: member.id,
+        email: member.email,
+        role: member.role || "member",
+        profile,
+      };
+    });
+
+  return {
+    orgId,
+    members: snapshotMembers,
+    teamNotes: orgSettings?.teamNotes,
+    generatedAt: new Date().toISOString(),
+  };
 }
 

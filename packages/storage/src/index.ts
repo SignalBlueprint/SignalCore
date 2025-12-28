@@ -5,8 +5,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { getSupabaseClient, isSupabaseConfigured } from "@sb/db";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseClient, isSupabaseConfigured, type SupabaseClient } from "@sb/db";
 
 /**
  * Filter function for list operations
@@ -272,6 +271,20 @@ export class SupabaseStorage implements Storage {
         // Not found
         return null;
       }
+      
+      // If table doesn't exist, return null instead of throwing
+      const errorMsg = (error.message || '').toLowerCase();
+      const errorCode = error.code || '';
+      if (errorMsg.includes('could not find the table') || 
+          errorMsg.includes('relation') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('schema cache') ||
+          errorCode === '42P01' ||
+          errorCode === 'PGRST202') {
+        console.warn(`[SupabaseStorage] Table '${kind}' not found (${errorCode || 'unknown'}), returning null. Run docs/supabase-migrations/001_create_tables.sql to create tables.`);
+        return null;
+      }
+      
       throw new Error(`Failed to get ${kind} ${id}: ${error.message}`);
     }
 
@@ -284,6 +297,21 @@ export class SupabaseStorage implements Storage {
       .select("*");
 
     if (error) {
+      // If table doesn't exist, return empty array instead of throwing
+      // This allows graceful fallback to local storage
+      const errorMsg = error.message?.toLowerCase() || '';
+      const errorCode = error.code || '';
+      
+      if (errorMsg.includes('could not find the table') || 
+          errorMsg.includes('relation') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('schema cache') ||
+          errorCode === 'PGRST116' ||
+          errorCode === '42P01' ||
+          errorCode === 'PGRST202') {
+        console.warn(`[SupabaseStorage] Table '${kind}' not found (${error.code || 'unknown'}), returning empty list. Run the migration script to create tables.`);
+        return [];
+      }
       throw new Error(`Failed to list ${kind}: ${error.message}`);
     }
 
@@ -393,16 +421,43 @@ export class SupabaseStorage implements Storage {
  * Get the appropriate storage instance
  * Uses Supabase if configured, otherwise falls back to LocalJsonStorage
  */
+// Cache for storage instance to avoid recreating
+let storageInstance: Storage | null = null;
+let storageMode: 'supabase' | 'local' = 'local';
+
 export function getStorage(): Storage {
+  // Return cached instance if available
+  if (storageInstance) {
+    return storageInstance;
+  }
+
+  // Check if local storage is forced via environment variable
+  const forceLocal = process.env.STORAGE_MODE === 'local' || process.env.FORCE_LOCAL_STORAGE === 'true';
+  
+  if (forceLocal) {
+    console.log("[@sb/storage] Using local storage (forced via STORAGE_MODE=local)");
+    storageInstance = new LocalJsonStorage();
+    storageMode = 'local';
+    return storageInstance;
+  }
+
   if (isSupabaseConfigured()) {
     try {
-      return new SupabaseStorage();
+      const supabaseStorage = new SupabaseStorage();
+      storageInstance = supabaseStorage;
+      storageMode = 'supabase';
+      return storageInstance;
     } catch (error) {
       console.warn("Failed to initialize Supabase storage, falling back to local:", error);
-      return new LocalJsonStorage();
+      storageInstance = new LocalJsonStorage();
+      storageMode = 'local';
+      return storageInstance;
     }
   }
-  return new LocalJsonStorage();
+  
+  storageInstance = new LocalJsonStorage();
+  storageMode = 'local';
+  return storageInstance;
 }
 
 /**
@@ -410,4 +465,38 @@ export function getStorage(): Storage {
  * Automatically selects Supabase if configured, otherwise uses LocalJsonStorage
  */
 export const storage = getStorage();
+
+/**
+ * Get storage information (mode and configuration details)
+ */
+export function getStorageInfo(): {
+  mode: "LocalJson" | "Supabase";
+  config: {
+    dataDir?: string;
+    supabaseUrl?: string;
+  };
+} {
+  if (isSupabaseConfigured()) {
+    try {
+      const url = process.env.SUPABASE_URL;
+      return {
+        mode: "Supabase",
+        config: {
+          supabaseUrl: url || undefined,
+        },
+      };
+    } catch {
+      // Fall through to LocalJson
+    }
+  }
+
+  // Default to LocalJson
+  const dataDir = path.join(process.cwd(), ".sb", "data");
+  return {
+    mode: "LocalJson",
+    config: {
+      dataDir,
+    },
+  };
+}
 

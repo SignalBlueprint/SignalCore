@@ -41,7 +41,8 @@ export type EventType =
   | "sprint.plan.generated"
   | "sprint.plan.approved"
   | "template.saved"
-  | "template.spawned";
+  | "template.spawned"
+  | "member.created";
 
 /**
  * Event payload is a generic object
@@ -82,8 +83,11 @@ export const EventEnvelopeSchema = z.object({
     "job.completed",
     "job.failed",
     "questmaster.dryrun.completed",
+    "sprint.plan.generated",
+    "sprint.plan.approved",
     "template.saved",
     "template.spawned",
+    "member.created",
   ]),
   payload: z.record(z.unknown()),
   createdAt: z.string(),

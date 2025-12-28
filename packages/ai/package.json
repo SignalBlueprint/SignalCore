@@ -21,7 +21,8 @@
     "@sb/cache": "workspace:*",
     "@sb/events": "workspace:*",
     "@sb/schemas": "workspace:*",
-    "@sb/telemetry": "workspace:*"
+    "@sb/telemetry": "workspace:*",
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

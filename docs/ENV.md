@@ -2,18 +2,46 @@
 
 ## Overview
 
-Each app in the monorepo manages its own environment variables independently.
+The monorepo uses a **single root-level `.env` file** for all environment variables. All apps and packages automatically load environment variables from the root `.env` file via the `@sb/config` package.
+
+This centralized approach means:
+- One place to manage all API keys and configuration
+- Consistent environment variables across all apps
+- Easier setup for new developers
 
 ## Setup
 
-1. Copy the `.env.example` file in the app directory to `.env`:
+1. Copy the root `.env.example` file to `.env`:
    ```bash
-   cp apps/questboard/.env.example apps/questboard/.env
+   cp .env.example .env
    ```
 
-2. Fill in the required values in `.env`
+2. Fill in the required values in `.env`:
+   - **OPENAI_API_KEY** (required) - For AI features like goal clarification and decomposition
+   - **SUPABASE_URL** and **SUPABASE_ANON_KEY** (optional) - If using Supabase for storage
+   - Other variables as needed
 
 3. **Never commit `.env` files** - they are included in `.gitignore`
+   
+   Note: `.env.example` is committed as a template for other developers.
+
+## How It Works
+
+The `@sb/config` package automatically:
+1. Finds the repository root directory (by looking for `.env.example` or `package.json` with name "signal-blueprint")
+2. Loads the `.env` file from the root
+3. Optionally loads `.env.local` for local overrides (if it exists)
+
+All apps that import `@sb/config` (or any package that imports it) will automatically have access to the root `.env` variables.
+
+## Local Overrides
+
+You can create a `.env.local` file in the root for local-only overrides. Variables in `.env.local` will override those in `.env`. This is useful for:
+- Developer-specific API keys
+- Local development settings
+- Temporary configuration changes
+
+**Note**: `.env.local` is also in `.gitignore` and should never be committed.
 
 ## Best Practices
 

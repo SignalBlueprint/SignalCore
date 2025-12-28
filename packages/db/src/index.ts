@@ -6,6 +6,9 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { getEnv } from "@sb/config";
 
+// Re-export SupabaseClient type for use in other packages
+export type { SupabaseClient } from "@supabase/supabase-js";
+
 /**
  * Get Supabase client instance
  * Reads SUPABASE_URL and SUPABASE_ANON_KEY from environment

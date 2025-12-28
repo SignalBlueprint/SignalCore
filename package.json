@@ -14,16 +14,16 @@
     "sb": "tsx tooling/cli/src/index.ts"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0",
-    "eslint": "^8.50.0",
+    "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "eslint-plugin-boundaries": "^5.3.1",
     "eslint-plugin-import": "^2.29.0",
-    "eslint-plugin-boundaries": "^2.11.0",
+    "prettier": "^3.0.0",
+    "tsup": "^8.0.0",
     "tsx": "^4.0.0",
-    "tsup": "^8.0.0"
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
   }
 }
-

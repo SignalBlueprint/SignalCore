@@ -28,9 +28,26 @@ export interface AssignmentExplanation {
 }
 
 /**
+ * Phase to Working Genius mapping
+ */
+const PHASE_TO_GENIUS: Record<string, WorkingGenius> = {
+  W: "Wonder",
+  I: "Invention",
+  D: "Discernment",
+  G: "Galvanizing",
+  E: "Enablement",
+  T: "Tenacity",
+};
+
+/**
  * Infer Working Genius phase from task characteristics
  */
 export function inferTaskGenius(task: Task): WorkingGenius {
+  // If task has explicit phase, use it
+  if (task.phase) {
+    return PHASE_TO_GENIUS[task.phase] || "Enablement";
+  }
+  
   const text = `${task.title} ${task.description || ""} ${task.dod || ""}`.toLowerCase();
   
   // Wonder: questioning, exploring, researching
@@ -74,14 +91,17 @@ export function scoreTaskForUser(
   task: Task,
   userId: string,
   profile: WorkingGeniusProfile,
-  currentWorkload: number = 0, // Current number of assigned tasks
-  dailyCapacity: number = 480 // Default 8 hours
+  currentWorkloadMinutes: number = 0, // Current workload in minutes
+  dailyCapacity: number = 480, // Default 8 hours
+  aiSuggestedOwnerEmail?: string, // AI hint for assignment
+  userEmail?: string // User's email for AI hint matching
 ): AssignmentScore {
   const taskGenius = inferTaskGenius(task);
   
   let geniusMatch = 0;
   let competencyMatch = 0;
   let frustrationPenalty = 0;
+  let aiHintBonus = 0;
   
   // Top 2 genius match: +3 points
   if (profile.top2[0] === taskGenius || profile.top2[1] === taskGenius) {
@@ -98,12 +118,20 @@ export function scoreTaskForUser(
     frustrationPenalty = -3;
   }
   
-  // Workload penalty: -1 per task over capacity (rough estimate: 1 task = 60 min)
-  const estimatedTaskMinutes = 60;
-  const currentMinutes = currentWorkload * estimatedTaskMinutes;
-  const workloadPenalty = currentMinutes > dailyCapacity ? -Math.floor((currentMinutes - dailyCapacity) / estimatedTaskMinutes) : 0;
+  // AI hint bonus: +2 points if AI suggested this user (best-effort hint)
+  if (aiSuggestedOwnerEmail && userEmail && 
+      aiSuggestedOwnerEmail.toLowerCase() === userEmail.toLowerCase()) {
+    aiHintBonus = 2;
+  }
   
-  const totalScore = geniusMatch + competencyMatch + frustrationPenalty + workloadPenalty;
+  // Workload penalty: based on estimated minutes
+  const estimatedTaskMinutes = task.estimatedMinutes || 60;
+  const totalMinutes = currentWorkloadMinutes + estimatedTaskMinutes;
+  const workloadPenalty = totalMinutes > dailyCapacity 
+    ? -Math.floor((totalMinutes - dailyCapacity) / 60) 
+    : 0;
+  
+  const totalScore = geniusMatch + competencyMatch + frustrationPenalty + workloadPenalty + aiHintBonus;
   
   return {
     userId,
@@ -125,17 +153,27 @@ export function assignTaskWithExplanation(
   candidates: Array<{
     userId: string;
     profile: WorkingGeniusProfile;
-    currentWorkload: number;
+    currentWorkloadMinutes: number; // Changed from currentWorkload (count) to minutes
     dailyCapacity: number;
-  }>
+    email?: string; // User email for AI hint matching
+  }>,
+  aiSuggestedOwnerEmail?: string // AI hint from decomposition
 ): AssignmentExplanation {
   if (candidates.length === 0) {
     throw new Error("No candidates provided for assignment");
   }
   
   // Score task for each candidate
-  const scores = candidates.map(({ userId, profile, currentWorkload, dailyCapacity }) =>
-    scoreTaskForUser(task, userId, profile, currentWorkload, dailyCapacity)
+  const scores = candidates.map(({ userId, profile, currentWorkloadMinutes, dailyCapacity, email }) =>
+    scoreTaskForUser(
+      task, 
+      userId, 
+      profile, 
+      currentWorkloadMinutes, 
+      dailyCapacity,
+      aiSuggestedOwnerEmail,
+      email
+    )
   );
   
   // Sort by total score descending
@@ -164,16 +202,17 @@ export function assignTasks(
   candidates: Array<{
     userId: string;
     profile: WorkingGeniusProfile;
-    currentWorkload: number;
+    currentWorkloadMinutes: number; // Changed to minutes
     dailyCapacity: number;
+    email?: string; // User email for AI hint matching
   }>
 ): Map<string, AssignmentExplanation> {
   const assignments = new Map<string, AssignmentExplanation>();
-  const workload: Record<string, number> = {};
+  const workload: Record<string, number> = {}; // Track minutes per user
   
   // Initialize workload tracking
-  candidates.forEach(({ userId, currentWorkload }) => {
-    workload[userId] = currentWorkload;
+  candidates.forEach(({ userId, currentWorkloadMinutes }) => {
+    workload[userId] = currentWorkloadMinutes;
   });
   
   // Assign each task
@@ -181,17 +220,21 @@ export function assignTasks(
     // Update candidate workloads
     const updatedCandidates = candidates.map((c) => ({
       ...c,
-      currentWorkload: workload[c.userId] || 0,
+      currentWorkloadMinutes: workload[c.userId] || 0,
     }));
     
+    // Get AI suggested owner from task assignmentReason if available
+    const aiSuggestedOwnerEmail = task.assignmentReason?.aiSuggestedOwner;
+    
     // Get assignment with explanation
-    const explanation = assignTaskWithExplanation(task, updatedCandidates);
+    const explanation = assignTaskWithExplanation(task, updatedCandidates, aiSuggestedOwnerEmail);
     
     // Record assignment
     assignments.set(task.id, explanation);
     
-    // Update workload
-    workload[explanation.assignedUserId] = (workload[explanation.assignedUserId] || 0) + 1;
+    // Update workload (add task's estimated minutes)
+    const taskMinutes = task.estimatedMinutes || 60;
+    workload[explanation.assignedUserId] = (workload[explanation.assignedUserId] || 0) + taskMinutes;
   }
   
   return assignments;

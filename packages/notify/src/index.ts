@@ -72,9 +72,9 @@ export async function sendSlackMessage(
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { ok: boolean; error?: string };
       if (!data.ok) {
-        throw new Error(`Slack API error: ${data.error}`);
+        throw new Error(`Slack API error: ${data.error || 'Unknown error'}`);
       }
 
       logger.info(`Slack message sent to ${channel}`);

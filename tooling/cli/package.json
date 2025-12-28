@@ -11,7 +11,8 @@
     "@sb/cache": "workspace:*",
     "@sb/schemas": "workspace:*",
     "@sb/suite": "workspace:*",
-    "@sb/telemetry": "workspace:*"
+    "@sb/telemetry": "workspace:*",
+    "@sb/storage": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

@@ -19,6 +19,7 @@ export interface JobContext {
     getState: typeof getTelemetryState;
   };
   now: Date;
+  input?: Record<string, unknown>; // Optional input data (e.g., { orgId: "default-org" })
 }
 
 /**
@@ -65,7 +66,7 @@ export function getJob(id: string): Job | undefined {
 /**
  * Run a job by ID
  */
-export async function runJob(id: string): Promise<void> {
+export async function runJob(id: string, input?: Record<string, unknown>): Promise<void> {
   const job = jobs.get(id);
   if (!job) {
     throw new Error(`Job "${id}" not found`);
@@ -80,6 +81,7 @@ export async function runJob(id: string): Promise<void> {
       getState: getTelemetryState,
     },
     now: new Date(),
+    input,
   };
 
   ctx.logger.info(`Starting job: ${job.name} (${job.id})`);

@@ -2,6 +2,10 @@
  * Console Server - Suite hub UI
  */
 
+// Load environment variables from root .env file
+// This is done automatically via @sb/config, but we import it here to ensure it loads
+import "@sb/config";
+
 import express from "express";
 import * as path from "path";
 import { SUITE_APPS } from "@sb/suite";

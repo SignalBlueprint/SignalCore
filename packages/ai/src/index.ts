@@ -120,3 +120,6 @@ export async function callAi<T = unknown>(
  */
 
 export * from "./questboard";
+export * from "./openai-client";
+export * from "./schemas";
+export * from "./prompts";

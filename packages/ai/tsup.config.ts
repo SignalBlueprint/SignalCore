@@ -7,6 +7,13 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
+  external: [
+    "@sb/config",
+    "@sb/cache",
+    "@sb/events",
+    "@sb/telemetry",
+    "@sb/schemas",
+  ],
 });
 
 

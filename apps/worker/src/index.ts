@@ -16,8 +16,17 @@ async function main() {
 
   if (command === "job" && jobId) {
     try {
+      // Parse command line arguments for --org
+      let orgId: string | undefined;
+      for (let i = 2; i < args.length; i++) {
+        if (args[i] === "--org" && i + 1 < args.length) {
+          orgId = args[i + 1];
+          break;
+        }
+      }
+
       logger.info(`Running job: ${jobId}`);
-      await runJob(jobId);
+      await runJob(jobId, orgId ? { orgId } : undefined);
       logger.info("Job completed successfully");
       process.exit(0);
     } catch (error) {
@@ -42,10 +51,11 @@ async function main() {
 Worker - Job Runner
 
 Usage:
-  pnpm --filter worker dev -- job <jobId>    Run a specific job
-  pnpm --filter worker dev -- list           List all registered jobs
+  pnpm --filter worker dev -- job <jobId> [--org <orgId>]  Run a specific job
+  pnpm --filter worker dev -- list                         List all registered jobs
 
 Examples:
+  pnpm --filter worker dev -- job daily.questmaster --org default-org
   pnpm --filter worker dev -- job daily.questmaster.dryrun
   pnpm --filter worker dev -- list
     `);

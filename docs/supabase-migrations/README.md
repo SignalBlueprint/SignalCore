@@ -1,0 +1,93 @@
+# Supabase Database Migrations
+
+This directory contains SQL migration scripts for setting up the Signal Blueprint database schema in Supabase.
+
+## Quick Start
+
+1. **Open Supabase SQL Editor**
+   - Go to your Supabase project dashboard
+   - Navigate to SQL Editor
+   - Click "New query"
+
+2. **Run the migration**
+   - Copy the contents of `001_create_tables.sql`
+   - Paste into the SQL Editor
+   - Click "Run" or press `Ctrl+Enter` (Windows) / `Cmd+Enter` (Mac)
+
+3. **Verify tables were created**
+   - Go to Table Editor in Supabase
+   - You should see all the tables listed
+
+## Migration Files
+
+- **001_create_tables.sql** - Creates all core tables, indexes, and RLS policies
+
+## Tables Created
+
+### Core Identity
+- `orgs` - Organizations
+- `members` - Organization members
+- `member_profiles` - Working Genius profiles for members
+
+### Questboard
+- `goals` - Organizational goals
+- `questlines` - Sequential questlines within goals
+- `quests` - Individual quests within questlines
+- `tasks` - Tasks within quests
+
+### Templates
+- `templates` - Reusable goal templates
+- `template_questlines` - Questline definitions for templates
+
+### Questmaster & Planning
+- `member_quest_decks` - Daily quest decks for members
+- `sprint_plans` - Weekly sprint plans
+
+### System
+- `job_run_summaries` - Job execution logs
+- `org_settings` - Organization-specific settings
+
+## Row Level Security (RLS)
+
+The migration enables RLS on all tables with permissive policies for the service role. This allows your backend application to access all data.
+
+**For production**, you should:
+1. Review and tighten RLS policies based on your authentication setup
+2. Add policies that restrict access based on `org_id` for multi-tenant scenarios
+3. Consider user-specific policies if you have user authentication
+
+## Notes
+
+- All tables use `TEXT` for IDs (not UUIDs) to match the application's ID format
+- JSONB columns are used for flexible schema (e.g., `clarify_output`, `unlock_conditions`)
+- Foreign key constraints ensure data integrity
+- Indexes are created on commonly queried columns for performance
+- Timestamps use `TIMESTAMPTZ` for timezone-aware dates
+
+## Troubleshooting
+
+### "relation already exists" errors
+If you see errors about tables already existing, you can either:
+1. Drop existing tables first (be careful - this deletes data!)
+2. Use `CREATE TABLE IF NOT EXISTS` (already included in the migration)
+
+### RLS blocking queries
+If you're getting permission errors:
+1. Check that you're using the service role key (not the anon key) in your backend
+2. Verify RLS policies are set correctly
+3. Temporarily disable RLS for testing: `ALTER TABLE <table_name> DISABLE ROW LEVEL SECURITY;`
+
+### Foreign key constraint errors
+Make sure to create data in the correct order:
+1. `orgs` first
+2. Then `members` (references `orgs`)
+3. Then `goals`, `questlines`, etc.
+
+## Next Steps
+
+After running the migration:
+1. Update your `.env` file with Supabase credentials (if not already done)
+2. Remove `STORAGE_MODE=local` from `.env` (or don't set it) to use Supabase
+3. Restart your application
+4. Test creating a goal, member, etc. to verify everything works
+

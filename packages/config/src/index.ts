@@ -3,6 +3,13 @@
  * Environment variable and runtime configuration management
  */
 
+// Load root .env file automatically when this package is imported
+import { loadRootEnv } from "./load-env";
+loadRootEnv();
+
+// Export loadRootEnv for explicit loading if needed
+export { loadRootEnv } from "./load-env";
+
 export interface GetEnvOptions {
   required?: boolean;
   default?: string;

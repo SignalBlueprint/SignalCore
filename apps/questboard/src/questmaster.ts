@@ -34,8 +34,20 @@ const DECK_KIND = "member_quest_decks";
 
 /**
  * Run Questmaster for an organization
+ * Returns stats about what was processed
  */
-export async function runQuestmaster(orgId: string, now: Date = new Date()): Promise<void> {
+export async function runQuestmaster(
+  orgId: string, 
+  now: Date = new Date()
+): Promise<{
+  goals: number;
+  questlines: number;
+  quests: number;
+  tasks: number;
+  decksGenerated: number;
+  unlockedQuests: number;
+  staleTasks: number;
+}> {
   // 1. Get all active entities
   const goals = await storage.list<Goal>(GOAL_KIND, (g) => g.orgId === orgId);
   const questlines = await storage.list<Questline>(
@@ -47,7 +59,13 @@ export async function runQuestmaster(orgId: string, now: Date = new Date()): Pro
   const members = await getMembersByOrgId(orgId);
 
   // 2. Recompute unlocks for all quests
+  // Track unlocked quests before and after
+  const unlockedBefore = quests.filter(q => q.state === "unlocked").length;
   await evaluateUnlocks();
+  // Re-fetch quests to get updated state
+  const updatedQuests = await storage.list<Quest>(QUEST_KIND, (q) => q.orgId === orgId);
+  const unlockedAfter = updatedQuests.filter(q => q.state === "unlocked").length;
+  const unlockedQuests = Math.max(0, unlockedAfter - unlockedBefore);
 
   // 3. Recompute task assignments if needed (only unassigned tasks)
   await reassignTasks(orgId);
@@ -61,6 +79,7 @@ export async function runQuestmaster(orgId: string, now: Date = new Date()): Pro
 
   // 4. Compute each member's deck for today
   const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  let decksGenerated = 0;
 
   for (const member of members) {
     if (!member.workingGeniusProfile) {
@@ -94,6 +113,7 @@ export async function runQuestmaster(orgId: string, now: Date = new Date()): Pro
       };
 
       await storage.upsert(DECK_KIND, deck);
+      decksGenerated++;
 
       // Emit deck generated event
       await publish(
@@ -171,6 +191,22 @@ export async function runQuestmaster(orgId: string, now: Date = new Date()): Pro
       );
     }
   }
+
+  // Count stale tasks
+  const staleTasks = activeTasks.filter((t) => {
+    const updatedAt = new Date(t.updatedAt);
+    return updatedAt < staleThreshold;
+  }).length;
+
+  return {
+    goals: goals.length,
+    questlines: questlines.length,
+    quests: quests.length,
+    tasks: tasks.length,
+    decksGenerated,
+    unlockedQuests,
+    staleTasks,
+  };
 }
 
 /**
