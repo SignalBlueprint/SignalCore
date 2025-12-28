@@ -12,7 +12,8 @@
     }
   },
   "dependencies": {
-    "@sb/rbac": "workspace:*"
+    "@sb/rbac": "workspace:*",
+    "zod": "^3.22.0"
   },
   "scripts": {
     "build": "tsup",
@@ -25,5 +26,4 @@
     "typescript": "^5.0.0"
   }
 }
-
 

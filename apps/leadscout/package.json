@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@sb/schemas": "workspace:*",
-    "@sb/suite": "workspace:*"
+    "@sb/suite": "workspace:*",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
