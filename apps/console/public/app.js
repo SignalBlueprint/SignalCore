@@ -1,6 +1,6 @@
 // Console client-side app
 const API_BASE = '/api';
-let currentView = 'apps';
+let currentView = 'dashboard';
 
 function setActiveNav(view) {
   document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
@@ -14,16 +14,233 @@ async function showView(view) {
   app.innerHTML = '<div class="loading">Loading...</div>';
 
   try {
-    if (view === 'apps') {
+    if (view === 'dashboard') {
+      await renderDashboard();
+    } else if (view === 'team') {
+      await renderTeam();
+    } else if (view === 'health') {
+      await renderHealth();
+    } else if (view === 'apps') {
       await renderApps();
-    } else if (view === 'events') {
-      await renderEvents();
+    } else if (view === 'activity') {
+      await renderActivity();
     } else if (view === 'telemetry') {
       await renderTelemetry();
     }
   } catch (error) {
     app.innerHTML = `<div class="card"><p style="color: red;">Error: ${error.message}</p></div>`;
   }
+}
+
+async function renderDashboard() {
+  const [statsRes, teamRes, healthRes, eventsRes] = await Promise.all([
+    fetch(`${API_BASE}/dashboard/stats`),
+    fetch(`${API_BASE}/team`),
+    fetch(`${API_BASE}/health`),
+    fetch(`${API_BASE}/events`)
+  ]);
+
+  const stats = await statsRes.json();
+  const team = await teamRes.json();
+  const health = await healthRes.json();
+  const events = await eventsRes.json();
+
+  const onlineApps = health.filter(h => h.status === 'online').length;
+  const recentEvents = events.slice(0, 5).reverse();
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="metric-label">Team Members</div>
+        <div class="metric-value">${team.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Apps Online</div>
+        <div class="metric-value">${onlineApps}/${health.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Events (1h)</div>
+        <div class="metric-value">${stats.recentEventsCount}</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">AI Calls</div>
+        <div class="metric-value">${stats.totalAICalls}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Quick Actions</h2>
+        <div class="grid" style="margin-top: 20px;">
+          <div class="quick-action" onclick="showView('team')">
+            <div class="quick-action-icon">👥</div>
+            <div class="quick-action-label">View Team</div>
+          </div>
+          <div class="quick-action" onclick="showView('health')">
+            <div class="quick-action-icon">💚</div>
+            <div class="quick-action-label">System Health</div>
+          </div>
+          <div class="quick-action" onclick="showView('activity')">
+            <div class="quick-action-icon">📊</div>
+            <div class="quick-action-label">Activity Feed</div>
+          </div>
+          <div class="quick-action" onclick="showView('telemetry')">
+            <div class="quick-action-icon">📈</div>
+            <div class="quick-action-label">Telemetry</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent Activity</h2>
+        ${recentEvents.length === 0 ? '<p style="margin-top: 10px; color: #666;">No recent events</p>' :
+          recentEvents.map(event => `
+            <div style="padding: 10px 0; border-bottom: 1px solid #eee;">
+              <div style="font-weight: 600; color: #667eea; font-size: 13px;">${event.type}</div>
+              <div style="font-size: 11px; color: #999; margin-top: 3px;">
+                ${event.sourceApp} • ${new Date(event.createdAt).toLocaleTimeString()}
+              </div>
+            </div>
+          `).join('')
+        }
+        <div style="margin-top: 15px;">
+          <a href="#" onclick="showView('activity'); return false;" style="color: #667eea; font-size: 14px; font-weight: 600;">View all activity →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Team Overview</h2>
+      ${team.map(member => {
+        const workloadPercent = (member.currentWorkloadMinutes / member.dailyCapacityMinutes * 100).toFixed(0);
+        const isOverloaded = workloadPercent > 100;
+        return `
+          <div class="team-member">
+            <div class="member-header">
+              <div class="member-avatar">${member.avatar || '👤'}</div>
+              <div class="member-info" style="flex: 1;">
+                <h3>${member.name}</h3>
+                <p>${member.email} • ${member.role}</p>
+                <div style="margin-top: 8px;">
+                  <span style="font-size: 12px; color: #666;">
+                    Workload: ${member.currentWorkloadMinutes || 0} / ${member.dailyCapacityMinutes} min (${workloadPercent}%)
+                    ${isOverloaded ? '<span style="color: #d32f2f; font-weight: bold;">⚠️ Overloaded</span>' : ''}
+                  </span>
+                </div>
+                <div class="workload-bar">
+                  <div class="workload-fill" style="width: ${Math.min(workloadPercent, 100)}%; ${isOverloaded ? 'background: linear-gradient(90deg, #ef5350 0%, #d32f2f 100%);' : ''}"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+      <div style="margin-top: 15px;">
+        <a href="#" onclick="showView('team'); return false;" style="color: #667eea; font-size: 14px; font-weight: 600;">View full team details →</a>
+      </div>
+    </div>
+  `;
+}
+
+async function renderTeam() {
+  const res = await fetch(`${API_BASE}/team`);
+  const team = await res.json();
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2>Team Members</h2>
+      <p style="margin: 10px 0; color: #666;">Total: ${team.length} members</p>
+    </div>
+    ${team.map(member => {
+      const workloadPercent = (member.currentWorkloadMinutes / member.dailyCapacityMinutes * 100).toFixed(0);
+      const isOverloaded = workloadPercent > 100;
+      return `
+        <div class="card">
+          <div class="member-header">
+            <div class="member-avatar">${member.avatar || '👤'}</div>
+            <div class="member-info" style="flex: 1;">
+              <h3>${member.name}</h3>
+              <p>${member.email}</p>
+              <p style="margin-top: 5px;"><strong>Role:</strong> ${member.role}</p>
+            </div>
+          </div>
+
+          ${member.workingGeniusProfile ? `
+            <div style="margin-top: 15px;">
+              <h4 style="margin-bottom: 10px;">Working Genius Profile</h4>
+              <div class="genius-badges">
+                <span style="font-size: 12px; color: #666; width: 100%; margin-bottom: 5px;">Top 2 Geniuses:</span>
+                ${member.workingGeniusProfile.top2.map(g =>
+                  `<span class="genius-badge genius-top">✨ ${g}</span>`
+                ).join('')}
+              </div>
+              <div class="genius-badges">
+                <span style="font-size: 12px; color: #666; width: 100%; margin-bottom: 5px;">Competency:</span>
+                ${member.workingGeniusProfile.competency2.map(g =>
+                  `<span class="genius-badge genius-competency">⚡ ${g}</span>`
+                ).join('')}
+              </div>
+              <div class="genius-badges">
+                <span style="font-size: 12px; color: #666; width: 100%; margin-bottom: 5px;">Frustration:</span>
+                ${member.workingGeniusProfile.frustration2.map(g =>
+                  `<span class="genius-badge genius-frustration">⚠️ ${g}</span>`
+                ).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 15px;">
+            <h4>Current Workload</h4>
+            <p style="margin: 10px 0; font-size: 14px; color: #666;">
+              ${member.currentWorkloadMinutes || 0} / ${member.dailyCapacityMinutes} minutes (${workloadPercent}%)
+              ${isOverloaded ? '<span style="color: #d32f2f; font-weight: bold; margin-left: 10px;">⚠️ Overloaded</span>' : ''}
+            </p>
+            <div class="workload-bar">
+              <div class="workload-fill" style="width: ${Math.min(workloadPercent, 100)}%; ${isOverloaded ? 'background: linear-gradient(90deg, #ef5350 0%, #d32f2f 100%);' : ''}"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+async function renderHealth() {
+  const res = await fetch(`${API_BASE}/health`);
+  const health = await res.json();
+
+  const onlineCount = health.filter(h => h.status === 'online').length;
+  const offlineCount = health.filter(h => h.status === 'offline').length;
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2>System Health</h2>
+      <p style="margin: 10px 0; color: #666;">
+        ${onlineCount} online • ${offlineCount} offline
+      </p>
+    </div>
+    <div class="grid">
+      ${health.map(h => `
+        <div class="card">
+          <h3>
+            ${h.name}
+            <span class="status ${h.status}">${h.status}</span>
+          </h3>
+          <p style="margin-top: 10px; color: #666;">
+            <strong>ID:</strong> ${h.id}<br>
+            <strong>Port:</strong> ${h.port}<br>
+            <strong>Last checked:</strong> ${new Date(h.lastChecked).toLocaleTimeString()}
+          </p>
+          ${h.status === 'online' ?
+            `<a href="http://localhost:${h.port}" target="_blank" style="display: inline-block; margin-top: 10px; color: #667eea; font-size: 14px; font-weight: 600;">Open app →</a>`
+            : '<p style="margin-top: 10px; color: #d32f2f; font-size: 14px;">App is not running</p>'}
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 async function renderApps() {
@@ -49,15 +266,15 @@ async function renderApps() {
   `;
 }
 
-async function renderEvents() {
+async function renderActivity() {
   const res = await fetch(`${API_BASE}/events`);
   const events = await res.json();
-  
+
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="card">
-      <h2>Latest Events</h2>
-      <p style="margin: 10px 0; color: #666;">Showing last ${events.length} events</p>
+      <h2>Activity Timeline</h2>
+      <p style="margin: 10px 0; color: #666;">Showing last ${events.length} events across all apps</p>
     </div>
     ${events.length === 0 ? '<div class="card"><p>No events found</p></div>' : events.reverse().map(event => `
       <div class="card event-item">
@@ -125,7 +342,7 @@ async function renderTelemetry() {
 }
 
 // Initialize
-showView('apps');
+showView('dashboard');
 
 window.showView = showView;
 
