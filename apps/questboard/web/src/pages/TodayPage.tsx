@@ -1,114 +1,133 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import QuestlineCard from '../components/QuestlineCard';
 
-interface Quest {
+interface DailyDeckItem {
+  taskId: string;
+  taskTitle: string;
+  questId: string;
+  questTitle: string;
+  questlineId: string;
+  questlineTitle: string;
+  assignedToMemberId?: string;
+  assignedToMemberEmail?: string;
+  estimatedMinutes: number;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  phase?: string;
+  reason: string;
+  status: 'todo' | 'in-progress' | 'done' | 'blocked';
+}
+
+interface TeamCapacity {
+  memberId: string;
+  memberEmail: string;
+  capacityMinutes: number;
+  plannedMinutes: number;
+  utilizationPercent: number;
+}
+
+interface DailyDeck {
   id: string;
-  title: string;
-  objective: string;
-  state: 'locked' | 'unlocked' | 'in-progress' | 'completed';
-  totalTasks?: number;
-  completedTasks?: number;
-  inProgressTasks?: number;
-  progress?: number;
-  unlockedAt?: string;
-  completedAt?: string;
+  orgId: string;
+  date: string;
+  generatedAt: string;
+  items: DailyDeckItem[];
+  teamCapacity: TeamCapacity[];
+  summary: {
+    totalTasks: number;
+    totalEstimatedMinutes: number;
+    tasksConsidered: number;
+    warnings?: string[];
+  };
 }
 
-interface Questline {
+interface JobRunSummary {
   id: string;
-  title: string;
-  description?: string;
-  epic?: string;
-  owner?: string;
-  assignmentReason?: string;
-  quests: Quest[];
-  totalTasks: number;
-  completedTasks: number;
-  progress: number;
+  orgId: string;
+  jobId: string;
+  startedAt: string;
+  finishedAt: string;
+  status: 'success' | 'failed' | 'partial';
+  stats: {
+    tasks?: number;
+    decksGenerated?: number;
+    unlockedQuests?: number;
+    dailyDeckTasks?: number;
+    dailyDeckWarnings?: number;
+  };
 }
 
-interface RouteInfo {
-  path: string;
-  label: string;
-  description: string;
-  icon: string;
+interface DailyDeckResponse {
+  exists: boolean;
+  dailyDeck?: DailyDeck;
+  lastQuestmasterRun?: JobRunSummary;
+  counts?: {
+    goals: number;
+    questlines: number;
+    quests: number;
+    tasks: number;
+    members: number;
+  };
+  message?: string;
+  orgId: string;
 }
-
-const ROUTES: RouteInfo[] = [
-  {
-    path: '/',
-    label: 'Today',
-    description: 'Your daily quest deck, blockers, and standup summary',
-    icon: '📅',
-  },
-  {
-    path: '/today',
-    label: 'Today',
-    description: 'Your daily quest deck, blockers, and standup summary',
-    icon: '📅',
-  },
-  {
-    path: '/goals',
-    label: 'Goals',
-    description: 'Create and manage organizational goals for decomposition',
-    icon: '🎯',
-  },
-  {
-    path: '/goals/:goalId',
-    label: 'Goal Detail',
-    description: 'View goal details, clarify, approve, and decompose',
-    icon: '🎯',
-  },
-  {
-    path: '/sprint',
-    label: 'Sprint Planning',
-    description: 'Weekly sprint plans and capacity allocation',
-    icon: '📊',
-  },
-  {
-    path: '/team',
-    label: 'Team Management',
-    description: 'View and manage team members, profiles, and settings',
-    icon: '👥',
-  },
-  {
-    path: '/team/intake',
-    label: 'Team Intake',
-    description: 'Quick assessment intake for Working Genius profiles',
-    icon: '⚡',
-  },
-  {
-    path: '/goals/:goalId/assignment-review',
-    label: 'Assignment Review',
-    description: 'Review task assignments and capacity after goal decomposition',
-    icon: '📋',
-  },
-  {
-    path: '/debug',
-    label: 'Debug',
-    description: 'System status, storage info, and debugging tools',
-    icon: '🔍',
-  },
-];
 
 export default function TodayPage() {
   const location = useLocation();
-  const [pathname, setPathname] = useState(location.pathname);
-  const [questlines, setQuestlines] = useState<Questline[]>([]);
+  const [data, setData] = useState<DailyDeckResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showRouteMap, setShowRouteMap] = useState(false);
+  const [runningQuestmaster, setRunningQuestmaster] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
 
-  useEffect(() => {
-    setPathname(location.pathname);
-  }, [location]);
+  const urlParams = new URLSearchParams(window.location.search);
+  const orgId = urlParams.get('orgId') || 'default-org';
 
   useEffect(() => {
-    fetchActiveQuests();
+    fetchDailyDeck();
   }, []);
+
+  const fetchDailyDeck = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/daily-deck?orgId=${orgId}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch daily deck');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runQuestmaster = async () => {
+    try {
+      setRunningQuestmaster(true);
+      setError(null);
+
+      const response = await fetch('/api/debug/run-questmaster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      // Refresh the deck after running
+      await fetchDailyDeck();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run Questmaster');
+    } finally {
+      setRunningQuestmaster(false);
+    }
+  };
 
   const seedDemoData = async () => {
     try {
@@ -119,10 +138,8 @@ export default function TodayPage() {
       const response = await fetch('/api/seed-demo', { method: 'POST' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const result = await response.json();
       setSeedSuccess(true);
 
-      // Wait a moment to show success message, then reload with demo-org
       setTimeout(() => {
         window.location.href = '/today?orgId=demo-org';
       }, 1500);
@@ -132,339 +149,551 @@ export default function TodayPage() {
     }
   };
 
-  const fetchActiveQuests = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get orgId from URL or use default
-      const urlParams = new URLSearchParams(window.location.search);
-      const orgId = urlParams.get('orgId') || 'default-org';
-
-      // Fetch all questlines with progress info
-      const response = await fetch(`/api/questlines?orgId=${orgId}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const allQuestlines = await response.json();
-
-      // Fetch quests and tasks for each questline
-      const questlinesWithProgress = await Promise.all(
-        allQuestlines.map(async (ql: any) => {
-          const questsResponse = await fetch(`/api/questlines/${ql.id}/quests`);
-          const quests = questsResponse.ok ? await questsResponse.json() : [];
-
-          const questsWithTasks = await Promise.all(
-            quests.map(async (quest: any) => {
-              const tasksResponse = await fetch(`/api/quests/${quest.id}/tasks`);
-              const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
-
-              const totalTasks = tasks.length;
-              const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
-              const inProgressTasks = tasks.filter((t: any) => t.status === 'in-progress').length;
-
-              return {
-                ...quest,
-                totalTasks,
-                completedTasks,
-                inProgressTasks,
-                progress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
-              };
-            })
-          );
-
-          const totalTasks = questsWithTasks.reduce((sum, q) => sum + (q.totalTasks || 0), 0);
-          const completedTasks = questsWithTasks.reduce((sum, q) => sum + (q.completedTasks || 0), 0);
-
-          return {
-            ...ql,
-            quests: questsWithTasks,
-            totalTasks,
-            completedTasks,
-            progress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
-          };
-        })
-      );
-
-      setQuestlines(questlinesWithProgress);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch quests');
-    } finally {
-      setLoading(false);
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return '#dc3545';
+      case 'high':
+        return '#fd7e14';
+      case 'medium':
+        return '#ffc107';
+      case 'low':
+        return '#6c757d';
+      default:
+        return '#6c757d';
     }
   };
 
-  // Filter out duplicate routes (like / and /today)
-  const uniqueRoutes = ROUTES.filter((route, index, self) =>
-    index === self.findIndex(r => r.label === route.label)
-  );
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'done':
+        return '✅';
+      case 'in-progress':
+        return '⚙️';
+      case 'blocked':
+        return '🚫';
+      default:
+        return '⬜';
+    }
+  };
 
-  // Filter questlines with active or in-progress quests
-  const activeQuestlines = questlines.filter(ql =>
-    ql.quests.some(q => q.state === 'unlocked' || q.state === 'in-progress')
-  );
+  const getPhaseIcon = (phase?: string) => {
+    switch (phase) {
+      case 'W':
+        return '💭';
+      case 'I':
+        return '💡';
+      case 'D':
+        return '🔍';
+      case 'G':
+        return '📣';
+      case 'E':
+        return '🛠️';
+      case 'T':
+        return '🎯';
+      default:
+        return '';
+    }
+  };
 
-  return (
-    <div
-      style={{
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const formatMinutes = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${mins}m`;
+  };
+
+  if (loading) {
+    return (
+      <div style={{
         background: 'white',
         padding: '40px',
         borderRadius: '8px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '32px', margin: 0 }}>📅 TODAY - Your Active Quests</h2>
+        textAlign: 'center',
+      }}>
+        <p style={{ color: '#666', fontSize: '18px' }}>Loading your daily deck...</p>
+      </div>
+    );
+  }
+
+  // Empty state: No org selected
+  if (!orgId || orgId === 'default-org') {
+    return (
+      <div style={{
+        background: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: '#fff3cd',
+          borderRadius: '12px',
+          color: '#856404',
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
+          <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>No Organization Selected</h3>
+          <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+            Please select an organization from the dropdown in the navigation bar, or use the debug page.
+          </p>
+          <Link
+            to="/debug"
+            style={{
+              display: 'inline-block',
+              padding: '14px 28px',
+              background: '#856404',
+              color: 'white',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '16px',
+            }}
+          >
+            Go to Debug Page →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state: No data or no deck exists
+  if (!data || !data.exists) {
+    const hasNoData = data?.counts && data.counts.tasks === 0 && data.counts.quests === 0;
+
+    return (
+      <div style={{
+        background: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <div>
+            <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
+            <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
+              {formatDate(new Date().toISOString())} • {orgId}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div style={{
+            padding: '16px 20px',
+            background: '#ffebee',
+            borderRadius: '8px',
+            color: '#d32f2f',
+            marginBottom: '20px',
+            borderLeft: '4px solid #d32f2f',
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: '#f0f8ff',
+          borderRadius: '12px',
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>
+            {hasNoData ? '🎲' : '🎮'}
+          </div>
+          <h3 style={{ fontSize: '24px', marginBottom: '12px', color: '#333' }}>
+            {hasNoData ? 'No Tasks Available' : 'No Daily Deck Yet'}
+          </h3>
+          <p style={{ fontSize: '16px', marginBottom: '20px', color: '#666' }}>
+            {hasNoData
+              ? 'Create some goals and tasks first, or try the demo!'
+              : 'Run Questmaster to generate your daily deck of priority tasks.'}
+          </p>
+
+          {seedSuccess && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px 20px',
+              background: '#d4edda',
+              color: '#155724',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+            }}>
+              ✓ Demo data created! Redirecting...
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {hasNoData && (
+              <button
+                onClick={seedDemoData}
+                disabled={seeding || seedSuccess}
+                style={{
+                  padding: '14px 28px',
+                  background: seeding || seedSuccess ? '#ccc' : '#ff6b6b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: seeding || seedSuccess ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  boxShadow: seeding || seedSuccess ? 'none' : '0 4px 6px rgba(255, 107, 107, 0.3)',
+                }}
+              >
+                {seeding ? '🌱 Seeding...' : seedSuccess ? '✓ Success!' : '🎲 Seed Demo Data'}
+              </button>
+            )}
+            {!hasNoData && (
+              <button
+                onClick={runQuestmaster}
+                disabled={runningQuestmaster}
+                style={{
+                  padding: '14px 28px',
+                  background: runningQuestmaster ? '#ccc' : '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: runningQuestmaster ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  boxShadow: runningQuestmaster ? 'none' : '0 4px 6px rgba(102, 126, 234, 0.3)',
+                }}
+              >
+                {runningQuestmaster ? '⚙️ Running...' : '🎯 Run Questmaster'}
+              </button>
+            )}
+            <Link
+              to="/goals"
+              style={{
+                display: 'inline-block',
+                padding: '14px 28px',
+                background: '#28a745',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                boxShadow: '0 4px 6px rgba(40, 167, 69, 0.3)',
+              }}
+            >
+              Create Goal →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { dailyDeck, lastQuestmasterRun, counts } = data;
+
+  return (
+    <div style={{
+      background: 'white',
+      padding: '40px',
+      borderRadius: '8px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <div>
+          <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
+          <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
+            {formatDate(dailyDeck.date)} • {orgId}
+          </p>
+        </div>
         <button
-          onClick={() => setShowRouteMap(!showRouteMap)}
+          onClick={runQuestmaster}
+          disabled={runningQuestmaster}
           style={{
-            padding: '8px 16px',
-            background: '#6c757d',
+            padding: '12px 24px',
+            background: runningQuestmaster ? '#ccc' : '#667eea',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
+            borderRadius: '8px',
+            cursor: runningQuestmaster ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
             fontSize: '14px',
+            boxShadow: runningQuestmaster ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.3)',
           }}
         >
-          {showRouteMap ? '🎮 Show Quests' : '🗺️ Show Route Map'}
+          {runningQuestmaster ? '⚙️ Running...' : '🔄 Run Questmaster'}
         </button>
       </div>
 
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-          <p>Loading your quest deck...</p>
-        </div>
-      )}
-
       {error && (
-        <div style={{ padding: '20px', background: '#ffebee', borderRadius: '8px', color: '#d32f2f', marginBottom: '20px' }}>
+        <div style={{
+          padding: '16px 20px',
+          background: '#ffebee',
+          borderRadius: '8px',
+          color: '#d32f2f',
+          marginBottom: '20px',
+          borderLeft: '4px solid #d32f2f',
+        }}>
           <strong>Error:</strong> {error}
         </div>
       )}
 
-      {!loading && !error && !showRouteMap && (
-        <>
-          {/* Quest Stats */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '16px',
-            marginBottom: '30px'
-          }}>
-            <div style={{
-              padding: '20px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '12px',
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{activeQuestlines.length}</div>
-              <div style={{ fontSize: '14px', opacity: 0.9 }}>Active Questlines</div>
+      {/* Last Run Info */}
+      {lastQuestmasterRun && (
+        <div style={{
+          padding: '20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          color: 'white',
+          marginBottom: '30px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px' }}>🤖 Last Questmaster Run</h3>
+            <span style={{ fontSize: '14px', opacity: 0.9 }}>
+              {formatTime(lastQuestmasterRun.finishedAt)}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Tasks Considered</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.tasksConsidered}</div>
             </div>
-            <div style={{
-              padding: '20px',
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              borderRadius: '12px',
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
-                {questlines.reduce((sum, ql) => sum + ql.quests.filter(q => q.state === 'unlocked' || q.state === 'in-progress').length, 0)}
-              </div>
-              <div style={{ fontSize: '14px', opacity: 0.9 }}>Active Quests</div>
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Tasks Selected</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.totalTasks}</div>
             </div>
-            <div style={{
-              padding: '20px',
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              borderRadius: '12px',
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
-                {questlines.reduce((sum, ql) => sum + ql.completedTasks, 0)}/{questlines.reduce((sum, ql) => sum + ql.totalTasks, 0)}
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Quests Unlocked</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{lastQuestmasterRun.stats.unlockedQuests || 0}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Warnings</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                {dailyDeck.summary.warnings?.length || 0}
               </div>
-              <div style={{ fontSize: '14px', opacity: 0.9 }}>Tasks Completed</div>
             </div>
           </div>
-
-          {/* Active Questlines */}
-          {activeQuestlines.length > 0 ? (
-            <div>
-              <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>⚔️ Active Quest Lines</h3>
-              <div style={{ display: 'grid', gap: '20px' }}>
-                {activeQuestlines.map((questline) => (
-                  <QuestlineCard
-                    key={questline.id}
-                    {...questline}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              background: '#f9f9f9',
-              borderRadius: '12px',
-              color: '#666'
-            }}>
-              <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎮</div>
-              <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>No Active Quests</h3>
-              <p style={{ fontSize: '16px', marginBottom: '20px' }}>
-                Start by creating and decomposing a goal to generate quest lines, or try the demo!
-              </p>
-              {seedSuccess && (
-                <div style={{
-                  marginBottom: '16px',
-                  padding: '12px 20px',
-                  background: '#d4edda',
-                  color: '#155724',
-                  borderRadius: '8px',
-                  fontWeight: 'bold',
-                }}>
-                  ✓ Demo data created! Redirecting...
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  onClick={seedDemoData}
-                  disabled={seeding || seedSuccess}
-                  style={{
-                    padding: '14px 28px',
-                    background: seeding || seedSuccess ? '#ccc' : '#ff6b6b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: seeding || seedSuccess ? 'not-allowed' : 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    boxShadow: seeding || seedSuccess ? 'none' : '0 4px 6px rgba(255, 107, 107, 0.3)',
-                  }}
-                >
-                  {seeding ? '🌱 Seeding...' : seedSuccess ? '✓ Success!' : '🎲 Seed Demo Data'}
-                </button>
-                <Link
-                  to="/goals"
-                  style={{
-                    display: 'inline-block',
-                    padding: '14px 28px',
-                    background: '#667eea',
-                    color: 'white',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)',
-                  }}
-                >
-                  Create Goal →
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Completed Questlines (if any) */}
-          {questlines.filter(ql => ql.quests.every(q => q.state === 'completed')).length > 0 && (
-            <div style={{ marginTop: '40px' }}>
-              <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>🏆 Completed Quest Lines</h3>
-              <div style={{ display: 'grid', gap: '20px' }}>
-                {questlines
-                  .filter(ql => ql.quests.every(q => q.state === 'completed'))
-                  .map((questline) => (
-                    <QuestlineCard
-                      key={questline.id}
-                      {...questline}
-                    />
-                  ))}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
-      {/* Route Map Section (toggled) */}
-      {showRouteMap && (
+      {/* Warnings */}
+      {dailyDeck.summary.warnings && dailyDeck.summary.warnings.length > 0 && (
+        <div style={{
+          padding: '16px 20px',
+          background: '#fff3cd',
+          borderRadius: '8px',
+          color: '#856404',
+          marginBottom: '20px',
+          borderLeft: '4px solid #ffc107',
+        }}>
+          <strong>⚠️ Warnings:</strong>
+          <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+            {dailyDeck.summary.warnings.map((warning, idx) => (
+              <li key={idx}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Team Capacity */}
+      {dailyDeck.teamCapacity && dailyDeck.teamCapacity.length > 0 && (
         <div style={{ marginBottom: '30px' }}>
-          <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>🗺️ Route Map</h3>
+          <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>👥 Team Capacity</h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '16px',
           }}>
-            {uniqueRoutes.map((route) => {
-              const displayPath = route.path.includes(':')
-                ? route.path.replace(':goalId', '[goalId]')
-                : route.path;
+            {dailyDeck.teamCapacity.map((member) => {
+              const isOverCapacity = member.utilizationPercent > 100;
+              const isNearCapacity = member.utilizationPercent > 80 && member.utilizationPercent <= 100;
 
               return (
-                <Link
-                  key={route.path}
-                  to={route.path.includes(':') ? '#' : route.path}
-                  onClick={(e) => {
-                    if (route.path.includes(':')) {
-                      e.preventDefault();
-                    }
-                  }}
+                <div
+                  key={member.memberId}
                   style={{
-                    display: 'block',
                     padding: '16px',
-                    background: '#f9f9f9',
+                    background: isOverCapacity ? '#ffebee' : isNearCapacity ? '#fff3e0' : '#f9f9f9',
                     borderRadius: '8px',
-                    border: '1px solid #ddd',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f0f8ff';
-                    e.currentTarget.style.borderColor = '#0066cc';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f9f9f9';
-                    e.currentTarget.style.borderColor = '#ddd';
+                    border: `2px solid ${isOverCapacity ? '#ef5350' : isNearCapacity ? '#ff9800' : '#e0e0e0'}`,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '24px', marginRight: '8px' }}>{route.icon}</span>
-                    <strong style={{ fontSize: '16px' }}>{route.label}</strong>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    {member.memberEmail}
                   </div>
-                  <code style={{
-                    display: 'block',
-                    fontSize: '12px',
-                    color: '#0066cc',
-                    marginBottom: '8px',
-                    padding: '4px 8px',
-                    background: 'white',
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                    {formatMinutes(member.plannedMinutes)} / {formatMinutes(member.capacityMinutes)}
+                  </div>
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    background: '#e0e0e0',
                     borderRadius: '4px',
-                    fontFamily: 'monospace',
+                    overflow: 'hidden',
                   }}>
-                    {displayPath}
-                  </code>
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#666',
-                    margin: 0,
-                  }}>
-                    {route.description}
-                  </p>
-                  {route.path.includes(':') && (
                     <div style={{
-                      marginTop: '8px',
-                      padding: '4px 8px',
-                      background: '#fff3cd',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: '#856404',
-                    }}>
-                      ⚠️ Dynamic route - requires parameter
-                    </div>
-                  )}
-                </Link>
+                      width: `${Math.min(member.utilizationPercent, 100)}%`,
+                      height: '100%',
+                      background: isOverCapacity ? '#ef5350' : isNearCapacity ? '#ff9800' : '#4caf50',
+                      transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    marginTop: '4px',
+                    color: isOverCapacity ? '#d32f2f' : isNearCapacity ? '#e65100' : '#666',
+                    fontWeight: isOverCapacity ? 'bold' : 'normal',
+                  }}>
+                    {member.utilizationPercent}% {isOverCapacity && '⚠️ OVERFLOW'}
+                  </div>
+                </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {/* Daily Deck */}
+      <div>
+        <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>
+          🎯 Today's Deck ({dailyDeck.items.length} {dailyDeck.items.length === 1 ? 'task' : 'tasks'})
+        </h3>
+
+        {dailyDeck.items.length === 0 ? (
+          <div style={{
+            padding: '40px 20px',
+            textAlign: 'center',
+            background: '#f9f9f9',
+            borderRadius: '8px',
+            color: '#666',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
+            <p style={{ fontSize: '16px' }}>No tasks in today's deck.</p>
+            <p style={{ fontSize: '14px', marginTop: '8px' }}>
+              {dailyDeck.summary.warnings?.[0] || 'All tasks are blocked, completed, or locked.'}
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {dailyDeck.items.map((item, idx) => (
+              <div
+                key={item.taskId}
+                style={{
+                  padding: '20px',
+                  background: 'white',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e0e0e0';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '20px' }}>{getStatusIcon(item.status)}</span>
+                      <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+                        {item.taskTitle}
+                      </h4>
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                      <strong>{item.questlineTitle}</strong> → {item.questTitle}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '4px 12px',
+                    background: getPriorityColor(item.priority),
+                    color: 'white',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                  }}>
+                    {item.priority}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '14px', color: '#666' }}>
+                  {item.phase && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{getPhaseIcon(item.phase)}</span>
+                      <span>Phase {item.phase}</span>
+                    </div>
+                  )}
+                  <div>⏱️ {formatMinutes(item.estimatedMinutes)}</div>
+                  {item.assignedToMemberEmail && (
+                    <div>👤 {item.assignedToMemberEmail}</div>
+                  )}
+                </div>
+
+                <div style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: '#f0f8ff',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#0066cc',
+                  borderLeft: '3px solid #667eea',
+                }}>
+                  💡 <strong>Why:</strong> {item.reason}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Summary Footer */}
+      <div style={{
+        marginTop: '30px',
+        padding: '20px',
+        background: '#f9f9f9',
+        borderRadius: '8px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '16px',
+      }}>
+        <div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Total Time Estimated</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            {formatMinutes(dailyDeck.summary.totalEstimatedMinutes)}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Tasks in Deck</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.totalTasks}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Generated At</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{formatTime(dailyDeck.generatedAt)}</div>
+        </div>
+        {counts && (
+          <div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Total Tasks</div>
+            <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{counts.tasks}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

@@ -12,6 +12,7 @@ import type {
   Task,
   Member,
   MemberQuestDeck,
+  DailyDeck,
   Org,
 } from "@sb/schemas";
 import {
@@ -31,13 +32,14 @@ const QUEST_KIND = "quests";
 const TASK_KIND = "tasks";
 const MEMBER_KIND = "members";
 const DECK_KIND = "member_quest_decks";
+const DAILY_DECK_KIND = "daily_decks";
 
 /**
  * Run Questmaster for an organization
  * Returns stats about what was processed
  */
 export async function runQuestmaster(
-  orgId: string, 
+  orgId: string,
   now: Date = new Date()
 ): Promise<{
   goals: number;
@@ -47,6 +49,8 @@ export async function runQuestmaster(
   decksGenerated: number;
   unlockedQuests: number;
   staleTasks: number;
+  dailyDeckTasks: number;
+  dailyDeckWarnings: number;
 }> {
   // 1. Get all active entities
   const goals = await storage.list<Goal>(GOAL_KIND, (g) => g.orgId === orgId);
@@ -188,7 +192,8 @@ export async function runQuestmaster(
             orgId: orgId,
             sourceApp: "questboard",
           }
-      );
+        );
+      }
     }
   }
 
@@ -198,6 +203,17 @@ export async function runQuestmaster(
     return updatedAt < staleThreshold;
   }).length;
 
+  // 7. Generate organization-wide Daily Deck (3-7 priority tasks)
+  const { dailyDeckTasks, dailyDeckWarnings } = await generateDailyDeck(
+    orgId,
+    today,
+    now,
+    tasks,
+    members,
+    quests,
+    questlines
+  );
+
   return {
     goals: goals.length,
     questlines: questlines.length,
@@ -206,6 +222,8 @@ export async function runQuestmaster(
     decksGenerated,
     unlockedQuests,
     staleTasks,
+    dailyDeckTasks,
+    dailyDeckWarnings,
   };
 }
 
@@ -335,5 +353,205 @@ async function sendMemberDigestEmail(
   const text = lines.join("\n");
   await sendEmail(member.email, subject, text);
 }
+
+/**
+ * Generate organization-wide Daily Deck
+ * Selects 3-7 unblocked, high-priority tasks across the team
+ */
+async function generateDailyDeck(
+  orgId: string,
+  date: string,
+  now: Date,
+  allTasks: Task[],
+  members: Member[],
+  quests: Quest[],
+  questlines: Questline[]
+): Promise<{ dailyDeckTasks: number; dailyDeckWarnings: number }> {
+  const warnings: string[] = [];
+
+  // Build lookup maps
+  const questMap = new Map(quests.map((q) => [q.id, q]));
+  const questlineMap = new Map(questlines.map((ql) => [ql.id, ql]));
+
+  // Build task -> quest mapping
+  const taskToQuestMap = new Map<string, Quest>();
+  for (const quest of quests) {
+    for (const taskId of quest.taskIds) {
+      taskToQuestMap.set(taskId, quest);
+    }
+  }
+
+  // Filter tasks: unblocked, not done, assigned or assignable
+  const candidateTasks = allTasks.filter((t) => {
+    if (t.status === "done") return false;
+    if (t.status === "blocked") return false;
+    if (t.blockers && t.blockers.length > 0) return false;
+
+    // Task must be part of an unlocked or in-progress quest
+    const quest = taskToQuestMap.get(t.id);
+    if (!quest) return false;
+    if (quest.state !== "unlocked" && quest.state !== "in-progress") return false;
+
+    return true;
+  });
+
+  // Priority scoring (higher is better)
+  const priorityScore = (task: Task): number => {
+    let score = 0;
+
+    // Priority weight
+    if (task.priority === "urgent") score += 100;
+    else if (task.priority === "high") score += 50;
+    else if (task.priority === "medium") score += 20;
+    else score += 10;
+
+    // In-progress tasks get a boost
+    if (task.status === "in-progress") score += 30;
+
+    // Smaller tasks get a slight boost (easier to complete)
+    const estimatedMinutes = task.estimatedMinutes || 60;
+    if (estimatedMinutes <= 30) score += 15;
+    else if (estimatedMinutes <= 60) score += 10;
+    else if (estimatedMinutes <= 120) score += 5;
+
+    return score;
+  };
+
+  // Sort by priority score
+  const sortedTasks = candidateTasks
+    .map((task) => ({
+      task,
+      score: priorityScore(task),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  // Select top 3-7 tasks
+  const minTasks = 3;
+  const maxTasks = 7;
+  const selectedCount = Math.min(maxTasks, Math.max(minTasks, sortedTasks.length));
+  const selectedTasks = sortedTasks.slice(0, selectedCount).map((s) => s.task);
+
+  // If we have fewer than 3 tasks, add a warning
+  if (selectedTasks.length < minTasks && candidateTasks.length === 0) {
+    warnings.push(
+      "No unblocked tasks found. All tasks are either completed, blocked, or locked."
+    );
+  } else if (selectedTasks.length < minTasks) {
+    warnings.push(
+      `Only ${selectedTasks.length} task(s) available. Consider unblocking more tasks or creating new quests.`
+    );
+  }
+
+  // Calculate team capacity
+  const teamCapacity = members
+    .filter((m) => m.workingGeniusProfile)
+    .map((member) => {
+      const capacityMinutes = member.dailyCapacityMinutes || 480;
+
+      // Calculate planned minutes (tasks assigned to this member in the deck)
+      const plannedMinutes = selectedTasks
+        .filter((t) => t.owner === member.id)
+        .reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
+
+      const utilizationPercent = capacityMinutes > 0
+        ? Math.round((plannedMinutes / capacityMinutes) * 100)
+        : 0;
+
+      // Warn if over capacity
+      if (utilizationPercent > 100) {
+        warnings.push(
+          `${member.email} is over capacity (${utilizationPercent}% utilization)`
+        );
+      }
+
+      return {
+        memberId: member.id,
+        memberEmail: member.email,
+        capacityMinutes,
+        plannedMinutes,
+        utilizationPercent,
+      };
+    });
+
+  // Build deck items
+  const deckItems = selectedTasks.map((task) => {
+    const quest = taskToQuestMap.get(task.id);
+    const questline = quest ? questlineMap.get(quest.questlineId) : undefined;
+
+    // Determine why this task is in the deck
+    let reason = "High priority and unblocked";
+    if (task.status === "in-progress") {
+      reason = "Already in progress";
+    } else if (task.priority === "urgent") {
+      reason = "Urgent priority";
+    } else if (task.priority === "high") {
+      reason = "High priority";
+    } else if ((task.estimatedMinutes || 60) <= 30) {
+      reason = "Quick win (≤30 min)";
+    }
+
+    const assignedMember = members.find((m) => m.id === task.owner);
+
+    return {
+      taskId: task.id,
+      taskTitle: task.title,
+      questId: quest?.id || "",
+      questTitle: quest?.title || "",
+      questlineId: questline?.id || "",
+      questlineTitle: questline?.title || "",
+      assignedToMemberId: task.owner,
+      assignedToMemberEmail: assignedMember?.email,
+      estimatedMinutes: task.estimatedMinutes || 60,
+      priority: task.priority || "medium",
+      phase: task.phase,
+      reason,
+      status: task.status,
+    };
+  });
+
+  // Create DailyDeck entity
+  const deckId = `daily-deck-${orgId}-${date}`;
+  const dailyDeck: DailyDeck = {
+    id: deckId,
+    orgId,
+    date,
+    generatedAt: now.toISOString(),
+    items: deckItems,
+    teamCapacity,
+    summary: {
+      totalTasks: selectedTasks.length,
+      totalEstimatedMinutes: selectedTasks.reduce(
+        (sum, t) => sum + (t.estimatedMinutes || 0),
+        0
+      ),
+      tasksConsidered: candidateTasks.length,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    },
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+
+  // Persist to storage
+  await storage.upsert(DAILY_DECK_KIND, dailyDeck);
+
+  // Emit event
+  await publish(
+    "daily.deck.generated",
+    {
+      orgId,
+      date,
+      taskCount: selectedTasks.length,
+      warningCount: warnings.length,
+    },
+    {
+      orgId,
+      sourceApp: "questboard",
+    }
+  );
+
+  return {
+    dailyDeckTasks: selectedTasks.length,
+    dailyDeckWarnings: warnings.length,
+  };
 }
 
