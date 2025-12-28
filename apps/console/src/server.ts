@@ -177,6 +177,91 @@ app.get("/api/dashboard/stats", (req, res) => {
   }
 });
 
+// Get active quests summary for the console dashboard (game-like view)
+app.get("/api/quests/active", async (req, res) => {
+  try {
+    const questboardBaseUrl = `http://localhost:${getSuiteApp("questboard").defaultPort}`;
+
+    // Fetch active questlines from questboard
+    const questlinesResponse = await fetch(`${questboardBaseUrl}/api/questlines?orgId=default-org`);
+    if (!questlinesResponse.ok) {
+      throw new Error(`Failed to fetch questlines: ${questlinesResponse.statusText}`);
+    }
+    const questlines = await questlinesResponse.json();
+
+    // Fetch all quests for these questlines
+    const questPromises = questlines.map(async (ql: any) => {
+      const questsResponse = await fetch(`${questboardBaseUrl}/api/questlines/${ql.id}/quests`);
+      if (!questsResponse.ok) return [];
+      return await questsResponse.json();
+    });
+    const questsArrays = await Promise.all(questPromises);
+    const allQuests = questsArrays.flat();
+
+    // Fetch tasks for all quests to calculate progress
+    const taskPromises = allQuests.map(async (quest: any) => {
+      const tasksResponse = await fetch(`${questboardBaseUrl}/api/quests/${quest.id}/tasks`);
+      if (!tasksResponse.ok) return { questId: quest.id, tasks: [] };
+      const tasks = await tasksResponse.json();
+      return { questId: quest.id, tasks };
+    });
+    const tasksByQuest = await Promise.all(taskPromises);
+    const taskMap = new Map(tasksByQuest.map(t => [t.questId, t.tasks]));
+
+    // Build quest summary with progress
+    const questSummary = questlines.map((ql: any) => {
+      const questlineQuests = allQuests.filter((q: any) => q.questlineId === ql.id);
+
+      const questProgress = questlineQuests.map((quest: any) => {
+        const tasks = taskMap.get(quest.id) || [];
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
+        const inProgressTasks = tasks.filter((t: any) => t.status === 'in-progress').length;
+
+        return {
+          id: quest.id,
+          title: quest.title,
+          objective: quest.objective,
+          state: quest.state,
+          totalTasks,
+          completedTasks,
+          inProgressTasks,
+          progress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+          unlockedAt: quest.unlockedAt,
+          completedAt: quest.completedAt,
+        };
+      });
+
+      const totalQuestlineTasks = questProgress.reduce((sum, q) => sum + q.totalTasks, 0);
+      const completedQuestlineTasks = questProgress.reduce((sum, q) => sum + q.completedTasks, 0);
+
+      return {
+        id: ql.id,
+        title: ql.title,
+        description: ql.description,
+        epic: ql.epic,
+        owner: ql.owner,
+        assignmentReason: ql.assignmentReason,
+        quests: questProgress,
+        totalTasks: totalQuestlineTasks,
+        completedTasks: completedQuestlineTasks,
+        progress: totalQuestlineTasks > 0 ? Math.round((completedQuestlineTasks / totalQuestlineTasks) * 100) : 0,
+      };
+    });
+
+    res.json({
+      questlines: questSummary,
+      totalQuestlines: questlines.length,
+      activeQuests: allQuests.filter((q: any) => q.state === 'unlocked' || q.state === 'in-progress').length,
+      completedQuests: allQuests.filter((q: any) => q.state === 'completed').length,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error fetching active quests:", error);
+    res.status(500).json({ error: "Failed to fetch active quests" });
+  }
+});
+
 // Serve index.html for all other routes (client-side routing)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
