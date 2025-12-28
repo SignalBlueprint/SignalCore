@@ -99,6 +99,8 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showRouteMap, setShowRouteMap] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedSuccess, setSeedSuccess] = useState(false);
 
   useEffect(() => {
     setPathname(location.pathname);
@@ -108,13 +110,39 @@ export default function TodayPage() {
     fetchActiveQuests();
   }, []);
 
+  const seedDemoData = async () => {
+    try {
+      setSeeding(true);
+      setError(null);
+      setSeedSuccess(false);
+
+      const response = await fetch('/api/seed-demo', { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const result = await response.json();
+      setSeedSuccess(true);
+
+      // Wait a moment to show success message, then reload with demo-org
+      setTimeout(() => {
+        window.location.href = '/today?orgId=demo-org';
+      }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to seed demo data');
+      setSeeding(false);
+    }
+  };
+
   const fetchActiveQuests = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Get orgId from URL or use default
+      const urlParams = new URLSearchParams(window.location.search);
+      const orgId = urlParams.get('orgId') || 'default-org';
+
       // Fetch all questlines with progress info
-      const response = await fetch('/api/questlines?orgId=default-org');
+      const response = await fetch(`/api/questlines?orgId=${orgId}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const allQuestlines = await response.json();
 
@@ -282,22 +310,55 @@ export default function TodayPage() {
               <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎮</div>
               <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>No Active Quests</h3>
               <p style={{ fontSize: '16px', marginBottom: '20px' }}>
-                Start by creating and decomposing a goal to generate quest lines!
+                Start by creating and decomposing a goal to generate quest lines, or try the demo!
               </p>
-              <Link
-                to="/goals"
-                style={{
-                  display: 'inline-block',
-                  padding: '12px 24px',
-                  background: '#667eea',
-                  color: 'white',
+              {seedSuccess && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '12px 20px',
+                  background: '#d4edda',
+                  color: '#155724',
                   borderRadius: '8px',
-                  textDecoration: 'none',
                   fontWeight: 'bold',
-                }}
-              >
-                Go to Goals →
-              </Link>
+                }}>
+                  ✓ Demo data created! Redirecting...
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={seedDemoData}
+                  disabled={seeding || seedSuccess}
+                  style={{
+                    padding: '14px 28px',
+                    background: seeding || seedSuccess ? '#ccc' : '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: seeding || seedSuccess ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    boxShadow: seeding || seedSuccess ? 'none' : '0 4px 6px rgba(255, 107, 107, 0.3)',
+                  }}
+                >
+                  {seeding ? '🌱 Seeding...' : seedSuccess ? '✓ Success!' : '🎲 Seed Demo Data'}
+                </button>
+                <Link
+                  to="/goals"
+                  style={{
+                    display: 'inline-block',
+                    padding: '14px 28px',
+                    background: '#667eea',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)',
+                  }}
+                >
+                  Create Goal →
+                </Link>
+              </div>
             </div>
           )}
 
