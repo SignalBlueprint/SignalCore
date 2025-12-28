@@ -69,7 +69,7 @@ import {
   compareSprintPlans,
 } from "./sprintplanner";
 import { storage, ConflictError } from "@sb/storage";
-import type { Org, Goal, Task, Quest } from "@sb/schemas";
+import type { Org, Goal, Task, Quest, DailyDeck } from "@sb/schemas";
 import {
   getAllTemplates,
   getTemplateById,
@@ -1583,6 +1583,45 @@ app.get("/api/today", async (req, res) => {
   } catch (error) {
     console.error("Get today screen error:", error);
     res.status(500).json({ error: "Failed to get today screen data" });
+  }
+});
+
+// Get Daily Deck endpoint
+app.get("/api/daily-deck", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const dateParam = req.query.date as string | undefined;
+    const today = dateParam || new Date().toISOString().split("T")[0];
+
+    // Try to fetch today's daily deck
+    const deckId = `daily-deck-${orgId}-${today}`;
+    const dailyDeck = await storage.get<DailyDeck>("daily_decks", deckId);
+
+    if (!dailyDeck) {
+      return res.json({
+        exists: false,
+        message: "No daily deck found. Run Questmaster to generate one.",
+        orgId,
+        date: today,
+      });
+    }
+
+    // Get last questmaster run
+    const lastQuestmasterRun = await getLastQuestmasterRun(orgId);
+
+    // Get entity counts for context
+    const counts = await getEntityCounts(orgId);
+
+    res.json({
+      exists: true,
+      dailyDeck,
+      lastQuestmasterRun,
+      counts,
+      orgId,
+    });
+  } catch (error) {
+    console.error("Get daily deck error:", error);
+    res.status(500).json({ error: "Failed to get daily deck" });
   }
 });
 
