@@ -16,6 +16,7 @@ import {
   updateGoal,
   createQuestline,
   getQuestlinesByGoalId,
+  getQuestlinesByOrgId,
   updateQuestline,
   createQuest,
   getQuestsByQuestlineId,
@@ -487,7 +488,7 @@ app.post("/api/goals/:id/decompose", async (req, res) => {
       
       // Assign tasks
       const assignments = assignTasks(allCreatedTasks, candidates);
-      
+
       // Update tasks with assignments and assignment reasons
       for (const task of allCreatedTasks) {
         const explanation = assignments.get(task.id);
@@ -503,8 +504,44 @@ app.post("/api/goals/:id/decompose", async (req, res) => {
           });
         }
       }
+
+      // Auto-assign questline owners based on majority task ownership and Working Genius fit
+      for (const questline of createdQuestlines) {
+        const questlineTasks = allCreatedTasks.filter(t => t.questlineId === questline.id);
+        if (questlineTasks.length === 0) continue;
+
+        // Count tasks by owner
+        const tasksByOwner = new Map<string, number>();
+        questlineTasks.forEach(task => {
+          if (task.owner) {
+            tasksByOwner.set(task.owner, (tasksByOwner.get(task.owner) || 0) + 1);
+          }
+        });
+
+        // Find owner with most tasks in this questline
+        let primaryOwner: string | undefined;
+        let maxTasks = 0;
+        for (const [ownerId, taskCount] of tasksByOwner.entries()) {
+          if (taskCount > maxTasks) {
+            maxTasks = taskCount;
+            primaryOwner = ownerId;
+          }
+        }
+
+        if (primaryOwner) {
+          const ownerMember = members.find(m => m.id === primaryOwner);
+          const ownerProfile = ownerMember ? profileMap.get(primaryOwner) : undefined;
+
+          await updateQuestline(questline.id, {
+            owner: ownerMember?.email,
+            assignmentReason: ownerProfile
+              ? `Primary owner of ${maxTasks}/${questlineTasks.length} tasks. Working Genius: ${ownerProfile.top2.join(', ')}`
+              : `Primary owner of ${maxTasks}/${questlineTasks.length} tasks`,
+          });
+        }
+      }
     }
-    
+
     const updated = await updateGoal(req.params.id, {
       decomposeOutput,
       status: "decomposed",
@@ -829,6 +866,18 @@ app.post("/api/tasks/:id/skip", async (req, res) => {
   } catch (error) {
     console.error("Skip task error:", error);
     res.status(500).json({ error: "Failed to skip task" });
+  }
+});
+
+// Get all questlines for an organization
+app.get("/api/questlines", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const questlines = await getQuestlinesByOrgId(orgId);
+    res.json(questlines);
+  } catch (error) {
+    console.error("Get questlines error:", error);
+    res.status(500).json({ error: "Failed to get questlines" });
   }
 });
 

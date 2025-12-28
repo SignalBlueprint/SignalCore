@@ -99,6 +99,9 @@ export interface Questline {
   description?: string;
   epic?: string; // High-level epic description
   questIds: string[]; // Array of quest IDs in this questline
+  owner?: string; // Email of assigned team member (primary owner)
+  assignmentReason?: string; // Why this questline was assigned to this owner
+  order?: number; // Display order within the goal (0-based)
   createdAt: string;
   updatedAt: string;
 }
