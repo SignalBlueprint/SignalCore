@@ -26,6 +26,7 @@ export type EventType =
   | "quest.updated"
   | "quest.checkpoint.passed"
   | "quest.deck.generated"
+  | "deck.generated"
   | "task.stale"
   | "task.blocked"
   | "audit.task.changed"
@@ -71,6 +72,7 @@ export const EventEnvelopeSchema = z.object({
     "quest.updated",
     "quest.checkpoint.passed",
     "quest.deck.generated",
+    "deck.generated",
     "task.stale",
     "task.blocked",
     "audit.task.changed",

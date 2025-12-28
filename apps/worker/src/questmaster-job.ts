@@ -60,6 +60,9 @@ export const dailyQuestmasterJob: Job = {
     }
 
     const startedAt = ctx.now.toISOString();
+    // Generate jobRunId upfront so we can link it to the DailyDeck
+    const jobRunId = `summary-daily.questmaster-${orgId}-${Date.now()}`;
+
     let stats = {
       goals: 0,
       questlines: 0,
@@ -68,15 +71,18 @@ export const dailyQuestmasterJob: Job = {
       decksGenerated: 0,
       unlockedQuests: 0,
       staleTasks: 0,
+      dailyDeckTasks: 0,
+      dailyDeckWarnings: 0,
     };
     let status: "success" | "failed" = "success";
     let error: string | undefined = undefined;
 
     try {
-      stats = await runQuestmaster(orgId, ctx.now);
+      // Pass jobRunId to runQuestmaster so it can link the DailyDeck
+      stats = await runQuestmaster(orgId, ctx.now, jobRunId);
       const finishedAt = new Date().toISOString();
 
-      // Save job run summary
+      // Save job run summary with the pre-generated ID
       await saveJobRunSummary({
         orgId,
         jobId: "daily.questmaster",
@@ -84,7 +90,7 @@ export const dailyQuestmasterJob: Job = {
         finishedAt,
         status,
         stats,
-      });
+      }, jobRunId);
 
       // Log final summary
       ctx.logger.info(
@@ -111,7 +117,7 @@ export const dailyQuestmasterJob: Job = {
           status,
           error,
           stats,
-        });
+        }, jobRunId);
       } catch (summaryError) {
         ctx.logger.error("Failed to save job run summary", { error: summaryError });
       }

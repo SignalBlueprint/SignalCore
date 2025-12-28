@@ -1380,13 +1380,16 @@ export async function spawnGoalFromTemplate(
 /**
  * Save a job run summary
  */
-export async function saveJobRunSummary(summary: Omit<JobRunSummary, "id" | "createdAt">): Promise<JobRunSummary> {
+export async function saveJobRunSummary(
+  summary: Omit<JobRunSummary, "id" | "createdAt">,
+  id?: string
+): Promise<JobRunSummary> {
   const jobSummary: JobRunSummary = {
     ...summary,
-    id: `summary-${summary.jobId}-${summary.orgId}-${Date.now()}`,
+    id: id || `summary-${summary.jobId}-${summary.orgId}-${Date.now()}`,
     createdAt: new Date().toISOString(),
   };
-  
+
   await storage.upsert(JOB_RUN_SUMMARY_KIND, jobSummary);
   return jobSummary;
 }
