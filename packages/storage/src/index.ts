@@ -500,3 +500,6 @@ export function getStorageInfo(): {
   };
 }
 
+// Export file storage functionality
+export * from "./file-storage";
+

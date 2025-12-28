@@ -123,3 +123,5 @@ export * from "./questboard";
 export * from "./openai-client";
 export * from "./schemas";
 export * from "./prompts";
+export * from "./vision";
+export * from "./image-generation";
