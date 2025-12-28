@@ -48,7 +48,11 @@ interface TeamSnapshot {
 export default function TeamPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [orgId] = useState('default-org');
+
+  // Get orgId from URL params or use default
+  const urlParams = new URLSearchParams(window.location.search);
+  const [orgId] = useState(urlParams.get('orgId') || 'default-org');
+
   const [teamSnapshot, setTeamSnapshot] = useState<TeamSnapshot | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);

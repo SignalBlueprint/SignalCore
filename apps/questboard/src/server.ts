@@ -1652,6 +1652,406 @@ app.post("/api/debug/run-questmaster", async (req, res) => {
   }
 });
 
+// Seed demo data endpoint
+app.post("/api/seed-demo", async (req, res) => {
+  try {
+    const orgId = "demo-org";
+    const now = new Date();
+
+    // 1. Create org
+    const org: Org = {
+      id: orgId,
+      name: "Demo Organization",
+      planName: "demo",
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    await storage.put("org", org);
+
+    // 2. Create 3 members
+    const members = [
+      {
+        id: "member-1",
+        email: "alice@demo.com",
+        role: "owner",
+        orgId,
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "member-2",
+        email: "bob@demo.com",
+        role: "member",
+        orgId,
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "member-3",
+        email: "charlie@demo.com",
+        role: "member",
+        orgId,
+        createdAt: now.toISOString(),
+      },
+    ];
+
+    for (const member of members) {
+      await storage.put("member", member);
+    }
+
+    // Create member profiles
+    const profiles = [
+      {
+        memberId: "member-1",
+        orgId,
+        top2: ["W", "I"] as [string, string],
+        competency2: ["D", "G"] as [string, string],
+        frustration2: ["E", "T"] as [string, string],
+        dailyCapacityMinutes: 360,
+        updatedAt: now.toISOString(),
+      },
+      {
+        memberId: "member-2",
+        orgId,
+        top2: ["G", "E"] as [string, string],
+        competency2: ["T", "W"] as [string, string],
+        frustration2: ["I", "D"] as [string, string],
+        dailyCapacityMinutes: 420,
+        updatedAt: now.toISOString(),
+      },
+      {
+        memberId: "member-3",
+        orgId,
+        top2: ["D", "T"] as [string, string],
+        competency2: ["E", "W"] as [string, string],
+        frustration2: ["G", "I"] as [string, string],
+        dailyCapacityMinutes: 400,
+        updatedAt: now.toISOString(),
+      },
+    ];
+
+    for (const profile of profiles) {
+      await storage.put("memberProfile", profile);
+    }
+
+    // 3. Create 1 goal
+    const goal: Goal = {
+      id: "goal-demo-1",
+      title: "Build modern task management platform",
+      orgId,
+      status: "decomposed",
+      createdAt: now.toISOString(),
+      approvedAt: now.toISOString(),
+      decomposedAt: now.toISOString(),
+      clarifyOutput: {
+        goal: "Build modern task management platform",
+        clarified: {
+          what: "A modern, real-time task management platform with team collaboration features",
+          why: "To improve team productivity and project visibility",
+          success: "Platform supports 100+ concurrent users with <2s response time",
+          constraints: ["Must integrate with Slack", "Budget: $50k", "Timeline: 3 months"],
+        },
+      },
+    };
+    await storage.put("goal", goal);
+
+    // 4. Create 3 questlines
+    const questlines = [
+      {
+        id: "questline-1",
+        title: "Foundation & Infrastructure",
+        epic: "Core Platform",
+        objective: "Set up the foundational architecture and infrastructure",
+        goalId: goal.id,
+        orgId,
+        state: "unlocked" as const,
+        createdAt: now.toISOString(),
+        unlockedAt: now.toISOString(),
+      },
+      {
+        id: "questline-2",
+        title: "User Interface & Experience",
+        epic: "Frontend Development",
+        objective: "Build responsive and intuitive user interfaces",
+        goalId: goal.id,
+        orgId,
+        state: "unlocked" as const,
+        createdAt: now.toISOString(),
+        unlockedAt: now.toISOString(),
+      },
+      {
+        id: "questline-3",
+        title: "Team Collaboration Features",
+        epic: "Advanced Features",
+        objective: "Implement real-time collaboration and notification system",
+        goalId: goal.id,
+        orgId,
+        state: "unlocked" as const,
+        createdAt: now.toISOString(),
+        unlockedAt: now.toISOString(),
+      },
+    ];
+
+    for (const questline of questlines) {
+      await storage.put("questline", questline);
+    }
+
+    // 5. Create quests (one per questline)
+    const quests = [
+      {
+        id: "quest-1",
+        title: "Backend Setup",
+        objective: "Initialize backend services and database",
+        questlineId: "questline-1",
+        orgId,
+        state: "in-progress" as const,
+        createdAt: now.toISOString(),
+        unlockedAt: now.toISOString(),
+      },
+      {
+        id: "quest-2",
+        title: "UI Components",
+        objective: "Build reusable React components",
+        questlineId: "questline-2",
+        orgId,
+        state: "unlocked" as const,
+        createdAt: now.toISOString(),
+        unlockedAt: now.toISOString(),
+      },
+      {
+        id: "quest-3",
+        title: "Real-time System",
+        objective: "Implement WebSocket connections",
+        questlineId: "questline-3",
+        orgId,
+        state: "locked" as const,
+        createdAt: now.toISOString(),
+      },
+    ];
+
+    for (const quest of quests) {
+      await storage.put("quest", quest);
+    }
+
+    // 6. Create 12 tasks with dependencies and phases
+    const tasks: Task[] = [
+      // Quest 1 tasks (Backend Setup) - phases: W, I, D, G
+      {
+        id: "task-1",
+        title: "Research database options",
+        description: "Evaluate PostgreSQL vs MongoDB for our use case",
+        questId: "quest-1",
+        orgId,
+        phase: "W",
+        status: "done",
+        assignedTo: "member-1",
+        assignmentReason: "Alice has top2 W (Wonder) - perfect for research",
+        estimatedMinutes: 120,
+        createdAt: now.toISOString(),
+        completedAt: now.toISOString(),
+      },
+      {
+        id: "task-2",
+        title: "Design database schema",
+        description: "Create ERD and migration scripts",
+        questId: "quest-1",
+        orgId,
+        phase: "I",
+        status: "done",
+        assignedTo: "member-1",
+        assignmentReason: "Alice has top2 I (Invention) - ideal for design work",
+        estimatedMinutes: 180,
+        prerequisiteTasks: ["task-1"],
+        createdAt: now.toISOString(),
+        completedAt: now.toISOString(),
+      },
+      {
+        id: "task-3",
+        title: "Review API architecture",
+        description: "Validate REST endpoint design",
+        questId: "quest-1",
+        orgId,
+        phase: "D",
+        status: "in-progress",
+        assignedTo: "member-3",
+        assignmentReason: "Charlie has top2 D (Discernment) - great for review",
+        estimatedMinutes: 90,
+        prerequisiteTasks: ["task-2"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-4",
+        title: "Implement authentication system",
+        description: "Set up JWT-based auth",
+        questId: "quest-1",
+        orgId,
+        phase: "G",
+        status: "todo",
+        assignedTo: "member-2",
+        assignmentReason: "Bob has top2 G (Galvanizing) - good for rallying implementation",
+        estimatedMinutes: 240,
+        prerequisiteTasks: ["task-3"],
+        createdAt: now.toISOString(),
+      },
+
+      // Quest 2 tasks (UI Components) - phases: E, T, W, I
+      {
+        id: "task-5",
+        title: "Set up component library",
+        description: "Configure Tailwind and base components",
+        questId: "quest-2",
+        orgId,
+        phase: "E",
+        status: "done",
+        assignedTo: "member-2",
+        assignmentReason: "Bob has top2 E (Enablement) - perfect for setup",
+        estimatedMinutes: 120,
+        createdAt: now.toISOString(),
+        completedAt: now.toISOString(),
+      },
+      {
+        id: "task-6",
+        title: "Build task list component",
+        description: "Create drag-and-drop task list",
+        questId: "quest-2",
+        orgId,
+        phase: "T",
+        status: "in-progress",
+        assignedTo: "member-3",
+        assignmentReason: "Charlie has top2 T (Tenacity) - excellent for execution",
+        estimatedMinutes: 300,
+        prerequisiteTasks: ["task-5"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-7",
+        title: "Research accessibility patterns",
+        description: "Ensure WCAG 2.1 AA compliance",
+        questId: "quest-2",
+        orgId,
+        phase: "W",
+        status: "todo",
+        assignedTo: "member-1",
+        assignmentReason: "Alice has top2 W (Wonder) - great for research",
+        estimatedMinutes: 90,
+        prerequisiteTasks: ["task-5"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-8",
+        title: "Design notification UI",
+        description: "Create toast and modal components",
+        questId: "quest-2",
+        orgId,
+        phase: "I",
+        status: "todo",
+        assignedTo: "member-1",
+        assignmentReason: "Alice has top2 I (Invention) - perfect for design",
+        estimatedMinutes: 150,
+        prerequisiteTasks: ["task-6"],
+        createdAt: now.toISOString(),
+      },
+
+      // Quest 3 tasks (Real-time System) - phases: D, G, E, T
+      {
+        id: "task-9",
+        title: "Evaluate WebSocket vs SSE",
+        description: "Choose real-time technology",
+        questId: "quest-3",
+        orgId,
+        phase: "D",
+        status: "todo",
+        assignedTo: "member-3",
+        assignmentReason: "Charlie has top2 D (Discernment) - ideal for evaluation",
+        estimatedMinutes: 120,
+        prerequisiteTasks: ["task-4"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-10",
+        title: "Plan WebSocket architecture",
+        description: "Design connection pools and message format",
+        questId: "quest-3",
+        orgId,
+        phase: "G",
+        status: "blocked",
+        assignedTo: "member-2",
+        assignmentReason: "Bob has top2 G (Galvanizing) - good for planning",
+        estimatedMinutes: 180,
+        prerequisiteTasks: ["task-9"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-11",
+        title: "Implement connection handler",
+        description: "Build WebSocket server logic",
+        questId: "quest-3",
+        orgId,
+        phase: "E",
+        status: "blocked",
+        assignedTo: "member-2",
+        assignmentReason: "Bob has top2 E (Enablement) - great for implementation",
+        estimatedMinutes: 240,
+        prerequisiteTasks: ["task-10"],
+        createdAt: now.toISOString(),
+      },
+      {
+        id: "task-12",
+        title: "Test under load",
+        description: "Verify 100+ concurrent connections",
+        questId: "quest-3",
+        orgId,
+        phase: "T",
+        status: "blocked",
+        assignedTo: "member-3",
+        assignmentReason: "Charlie has top2 T (Tenacity) - perfect for thorough testing",
+        estimatedMinutes: 180,
+        prerequisiteTasks: ["task-11"],
+        createdAt: now.toISOString(),
+      },
+    ];
+
+    for (const task of tasks) {
+      await storage.put("task", task);
+    }
+
+    // 7. Create a job run summary
+    const jobSummary = {
+      id: "job-run-demo-1",
+      jobType: "questmaster",
+      jobId: "questmaster-demo",
+      orgId,
+      status: "completed",
+      startedAt: new Date(now.getTime() - 3600000).toISOString(), // 1 hour ago
+      finishedAt: new Date(now.getTime() - 3000000).toISOString(), // 50 min ago
+      output: {
+        tasksAssigned: 12,
+        questsUnlocked: 2,
+        dailyDeckSize: 5,
+      },
+    };
+    await storage.put("jobRunSummary", jobSummary);
+
+    res.json({
+      success: true,
+      message: "Demo data seeded successfully!",
+      data: {
+        orgId,
+        members: members.length,
+        goals: 1,
+        questlines: questlines.length,
+        quests: quests.length,
+        tasks: tasks.length,
+        jobRuns: 1,
+      },
+    });
+  } catch (error) {
+    console.error("Seed demo error:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 // Serve static files from built React app in production
 const webDistPath = path.join(__dirname, "..", "dist", "web");
 if (process.env.NODE_ENV === "production" && fs.existsSync(webDistPath)) {
