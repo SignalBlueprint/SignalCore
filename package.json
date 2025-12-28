@@ -10,7 +10,8 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "format": "prettier -w .",
-    "check-boundaries": "tsx tooling/scripts/check-app-imports.ts"
+    "check-boundaries": "tsx tooling/scripts/check-app-imports.ts",
+    "sb": "tsx tooling/cli/src/index.ts"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

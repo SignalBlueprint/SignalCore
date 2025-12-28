@@ -11,6 +11,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "dependencies": {
+    "@sb/rbac": "workspace:*"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -22,4 +25,5 @@
     "typescript": "^5.0.0"
   }
 }
+
 

@@ -3,5 +3,10 @@
  * Shared schema definitions and type contracts
  */
 
-export const schemas = "schemas";
+export * from "./identity";
+export * from "./questboard";
+export * from "./domains/tasks";
+export * from "./domains/leads";
+export * from "./domains/catalog";
+
 

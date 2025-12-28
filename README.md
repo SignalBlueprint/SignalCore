@@ -14,10 +14,23 @@ packages/          # Shared libraries
   ui/              # Shared UI components
   db/              # Database utilities
   utils/           # Shared utilities
+  suite/           # Suite registry and metadata
 
 docs/              # Documentation
 .github/           # GitHub workflows and templates
 ```
+
+## Suite Apps
+
+This monorepo contains the Signal Blueprint suite of applications:
+- **Questboard** - Questline task system + Working Genius assignment
+- **LeadScout** - Lead discovery and qualification
+- **SiteForge** - Website generation and management
+- **Catalog** - Product catalog and inventory
+- **Outreach** - Outreach campaign management
+- **Console** - Unified admin console
+
+For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
 ## Quick Start
 
@@ -43,9 +56,11 @@ pnpm typecheck
 
 ## Documentation
 
+- [Suite Map](./docs/SUITE_MAP.md) - Complete suite overview and app registry
 - [Contributing Guide](./docs/CONTRIBUTING.md) - How to contribute
 - [Architecture](./docs/ARCHITECTURE.md) - Architecture principles and guidelines
 - [Environment Variables](./docs/ENV.md) - Environment setup
+- [Jobs System](./docs/JOBS.md) - How to add and run scheduled jobs
 
 ## Architecture Principles
 
@@ -53,4 +68,5 @@ pnpm typecheck
 - **Package Sharing**: Apps import shared code from `@sb/*` packages
 - **Schema-First**: Data contracts defined in `@sb/schemas`
 - **Event-Driven**: Inter-app communication via events (future)
+
 

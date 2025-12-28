@@ -38,3 +38,8 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 
+# Signal Blueprint
+.sb/
+# Note: .sb/events/events.jsonl contains event logs
+
+

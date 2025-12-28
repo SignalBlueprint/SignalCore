@@ -1,0 +1,21 @@
+{
+  "name": "@sb/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@sb/ai": "workspace:*",
+    "@sb/cache": "workspace:*",
+    "@sb/schemas": "workspace:*",
+    "@sb/suite": "workspace:*",
+    "@sb/telemetry": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

@@ -17,9 +17,16 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@sb/cache": "workspace:*",
+    "@sb/events": "workspace:*",
+    "@sb/schemas": "workspace:*",
+    "@sb/telemetry": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }
 }
+
 

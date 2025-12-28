@@ -17,9 +17,14 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@sb/config": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }
 }
+
 
