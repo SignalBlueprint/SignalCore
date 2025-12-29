@@ -41,6 +41,18 @@ export interface TaskAssignmentReason {
 export type TaskExpandState = "ready" | "expanded" | "locked";
 
 /**
+ * Task output - tangible deliverable submitted when completing a task
+ */
+export interface TaskOutput {
+  id: string;
+  type: "text" | "link" | "file" | "code" | "image";
+  content: string; // Text content, URL, file path, code snippet, or image URL
+  title?: string; // Optional title/description
+  submittedAt: string;
+  submittedBy?: string; // User ID who submitted
+}
+
+/**
  * Task entity
  */
 export interface Task {
@@ -68,6 +80,7 @@ export interface Task {
   approvedBy?: string; // User ID who approved
   syncToGithub?: boolean; // Whether to sync this task to GitHub
   github?: TaskGitHub; // GitHub issue metadata if synced
+  outputs?: TaskOutput[]; // Tangible deliverables submitted when completing
   createdAt: string;
   updatedAt: string;
 }

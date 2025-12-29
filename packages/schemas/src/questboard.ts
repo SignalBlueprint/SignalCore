@@ -122,6 +122,8 @@ export interface Quest {
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
+  goalId?: string | null; // Link to hierarchical goal
+  milestoneId?: string | null; // Link to milestone
 }
 
 /**
@@ -159,20 +161,147 @@ export interface DecomposeOutput {
 }
 
 /**
- * Goal entity
+ * Goal Spec - Complete strategic packet structure
+ */
+export interface GoalSpec {
+  title: string;
+  scope_level: "company" | "program" | "team" | "individual";
+  owner_role_id: string;
+  stakeholder_role_ids?: string[];
+  problem: string;
+  outcome: string;
+  metrics: Array<{
+    name: string;
+    target: number | string;
+    window: string; // e.g., "rolling_30d", "monthly", "quarterly"
+  }>;
+  milestones: Array<{
+    title: string;
+    due_date?: string;
+  }>;
+  plan_markdown: string;
+  dependencies?: string[];
+  risks?: string[];
+  required_outputs?: Array<{
+    type: "doc" | "code" | "template" | "asset" | "decision" | "metric_snapshot";
+    name: string;
+  }>;
+}
+
+/**
+ * Goal entity (supports both old clarify/decompose workflow and new Strategic Packets system)
  */
 export interface Goal {
   id: string;
   orgId?: string; // Optional for backward compatibility, but required for Supabase
   title: string;
   createdAt: string;
-  status: "draft" | "clarified_pending_approval" | "approved" | "denied" | "decomposed";
+  status: "draft" | "ready" | "clarified_pending_approval" | "approved" | "denied" | "decomposed" | "active" | "paused" | "done" | "archived";
   clarifyOutput?: ClarifyOutput;
   decomposeOutput?: DecomposeOutput;
   approvedAt?: string;
   deniedAt?: string;
   denialReason?: string; // Reason for denial
   decomposedAt?: string;
+  
+  // Strategic Packets fields (new system)
+  spec_json?: GoalSpec; // Complete Goal Spec stored as JSON
+  scope_level?: "company" | "program" | "team" | "individual";
+  owner_role_id?: string | null;
+  stakeholder_role_ids?: string[];
+  problem?: string | null;
+  outcome?: string | null;
+  metrics_json?: Array<{
+    name: string;
+    target: number | string;
+    window: string;
+  }>;
+  plan_markdown?: string | null;
+  dependencies_json?: string[];
+  risks_json?: string[];
+  required_outputs_json?: Array<{
+    type: "doc" | "code" | "template" | "asset" | "decision" | "metric_snapshot";
+    name: string;
+  }>;
+  cascade_plan_json?: any;
+  cascade_children_count?: number;
+  cascade_required_min?: number;
+  cascade_required_max?: number;
+  
+  // Legacy hierarchical goal fields (deprecated, use scope_level instead)
+  parentGoalId?: string | null;
+  level?: number; // 0-5, default 0 - DEPRECATED: use scope_level instead
+  ownerUserId?: string | null; // DEPRECATED: use owner_role_id instead
+  orderIndex?: number;
+  summary?: string | null; // Single sentence summary
+  successMetric?: string | null; // DEPRECATED: use metrics_json instead
+  targetValue?: string | null; // DEPRECATED: use metrics_json instead
+  dueDate?: string | null;
+  playbookMarkdown?: string | null;
+  risks?: any; // DEPRECATED: use risks_json instead
+  dependencies?: any; // DEPRECATED: use dependencies_json instead
+}
+
+/**
+ * Goal level (0-5 maturity ladder)
+ */
+export type GoalLevel = 0 | 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Milestone entity
+ */
+export interface Milestone {
+  id: string;
+  goalId: string;
+  title: string;
+  dueDate?: string | null;
+  status: "planned" | "in_progress" | "done";
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Goal rollup - cached progress metrics
+ */
+export interface GoalRollup {
+  goalId: string;
+  totalQuests: number;
+  doneQuests: number;
+  xp: number;
+  updatedAt: string;
+}
+
+/**
+ * Level Up response from AI generator
+ */
+export interface LevelUpResponse {
+  next_level: number;
+  summary: string;
+  goal_updates: {
+    outcome?: string;
+    success_metric?: string;
+    target_value?: string;
+    plan_markdown?: string;
+    playbook_markdown?: string;
+    risks?: string[];
+    dependencies?: string[];
+  };
+  milestones?: Array<{
+    title: string;
+    due_date?: string;
+  }>;
+  quests?: Array<{
+    title: string;
+    objective: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    points?: number;
+  }>;
+  child_goals?: Array<{
+    title: string;
+    level: number;
+  }>;
+  assumptions?: string[];
 }
 
 /**

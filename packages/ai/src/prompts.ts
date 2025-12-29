@@ -68,15 +68,16 @@ Clarification rules:
 export function buildClarifyPrompt(goalTitle: string): string;
 /**
  * Expanded signature:
- * buildClarifyPrompt({ title, context, knownConstraints })
+ * buildClarifyPrompt({ title, context, knownConstraints, orgContext })
  */
 export function buildClarifyPrompt(args: {
   title: string;
   context?: string;
   knownConstraints?: string[];
+  orgContext?: string;
 }): string;
 export function buildClarifyPrompt(
-  arg: string | { title: string; context?: string; knownConstraints?: string[] }
+  arg: string | { title: string; context?: string; knownConstraints?: string[]; orgContext?: string }
 ): string {
   if (typeof arg === "string") {
     const title = safeInline(arg);
@@ -90,12 +91,16 @@ Return ONLY valid JSON matching the schema.`;
   const title = safeInline(arg.title);
   const context = arg.context ? safeBlock(arg.context) : "";
   const known = compactList(arg.knownConstraints || [], 10);
+  const orgContext = arg.orgContext ? safeBlock(arg.orgContext) : "";
 
   return `Clarify this goal by providing structured information.
 
 Goal: "${title}"
 
-Context (optional):
+${orgContext ? `ORGANIZATIONAL CONTEXT (use this to inform your clarification):
+${orgContext}
+
+` : ""}Context (optional):
 ${context || "(none)"}
 
 Known constraints (optional):
@@ -169,6 +174,7 @@ export function buildDecomposePrompt(args: {
     };
   };
   teamSnapshotCompact: string;
+  orgContext?: string;
 }): string {
   const goal = safeBlock(args.clarifiedGoal.goal);
   const what = safeBlock(args.clarifiedGoal.clarified.what);
@@ -176,6 +182,7 @@ export function buildDecomposePrompt(args: {
   const success = safeBlock(args.clarifiedGoal.clarified.success);
   const constraints = compactList(args.clarifiedGoal.clarified.constraints || [], 10);
   const team = compactTeamSnapshot(args.teamSnapshotCompact);
+  const orgContext = args.orgContext ? safeBlock(args.orgContext) : "";
 
   return `DECOMPOSE THIS GOAL INTO QUESTLINES + TASKS.
 
@@ -194,7 +201,10 @@ ${success}
 CONSTRAINTS:
 ${constraints.length ? `- ${constraints.join("\n- ")}` : "(none)"}
 
-TEAM (use for phase-fit + capacity awareness):
+${orgContext ? `ORGANIZATIONAL CONTEXT (use this to inform decomposition - reference similar goals, patterns, and existing artifacts):
+${orgContext}
+
+` : ""}TEAM (use for phase-fit + capacity awareness):
 ${team}
 
 OUTPUT REQUIREMENTS:
@@ -204,6 +214,7 @@ OUTPUT REQUIREMENTS:
 - Identify up to 8 expansion_candidates (task ids) that would benefit from deeper breakdown
 - Each task must include: phase, estimate_min, acceptance_criteria, depends_on_task_ids (can be empty)
 - Assign tasks to questlines based on thematic fit (tasks in same questline should tell a coherent story)
+- Reference organizational patterns and existing artifacts when relevant
 `;
 }
 
@@ -392,6 +403,302 @@ export const EXPAND_SCHEMA = {
   }
 } as const;
 
+/* --------------------------- Level Up (Goal) ------------------------------ */
+
+export const LEVEL_UP_SYSTEM_PROMPT = `${SYSTEM_BASE}
+Level Up rules:
+- Generate the next level of goal maturity based on current level.
+- Level 0→1: Add outcome statement, success metric, target value.
+- Level 1→2: Add milestones (3-7), rough sequence, first 10 quests.
+- Level 2→3: Add dependencies, risks, resourcing estimate, blockers.
+- Level 3→4: Add playbook/SOPs, recurring maintenance quests, KPI dashboard spec.
+- Level 4→5: Add longer roadmap, strategic bets, contingency branches.
+- Keep outputs practical and actionable.
+- Do not invent data that isn't inferrable from the goal.
+`;
+
+export function buildLevelUpPrompt(goal: {
+  id: string;
+  title: string;
+  level?: number | null;
+  outcome?: string | null;
+  successMetric?: string | null;
+  planMarkdown?: string | null;
+  parentGoalId?: string | null;
+  summary?: string | null;
+  orgContext?: string;
+}): string {
+  const title = safeInline(goal.title);
+  const currentLevel = goal.level ?? 0;
+  const nextLevel = currentLevel + 1;
+  
+  let levelContext = "";
+  if (currentLevel === 0) {
+    levelContext = "This is a draft goal (Level 0) with only a title. Generate Level 1 content: a single-sentence summary, outcome statement, success metric, and target value.";
+  } else if (currentLevel === 1) {
+    levelContext = `Current Level 1 content:
+- Outcome: ${goal.outcome || "(none)"}
+- Success Metric: ${goal.successMetric || "(none)"}
+- Target Value: ${goal.successMetric ? "(to be set)" : "(none)"}
+
+Generate Level 2 content: milestones (3-7), rough sequence, and first 10 starter quests.`;
+  } else if (currentLevel === 2) {
+    levelContext = `Current Level 2 content:
+- Plan: ${goal.planMarkdown ? safeBlock(goal.planMarkdown).substring(0, 500) : "(none)"}
+
+Generate Level 3 content: dependencies, risks, resourcing estimate, and blockers list.`;
+  } else if (currentLevel === 3) {
+    levelContext = `Current Level 3 content:
+- Plan: ${goal.planMarkdown ? safeBlock(goal.planMarkdown).substring(0, 500) : "(none)"}
+
+Generate Level 4 content: playbook/SOPs, recurring maintenance quests, and KPI dashboard spec.`;
+  } else if (currentLevel === 4) {
+    levelContext = `Current Level 4 content:
+- Plan: ${goal.planMarkdown ? safeBlock(goal.planMarkdown).substring(0, 500) : "(none)"}
+
+Generate Level 5 content: longer roadmap, strategic bets, and contingency branches.`;
+  }
+  
+  const orgContext = goal.orgContext ? safeBlock(goal.orgContext) : "";
+
+  return `Level up this goal from Level ${currentLevel} to Level ${nextLevel}.
+
+Goal: "${title}"
+Goal ID: ${goal.id}
+${goal.parentGoalId ? `Parent Goal ID: ${goal.parentGoalId}` : "This is a top-level goal"}
+
+${orgContext ? `ORGANIZATIONAL CONTEXT (use this to inform level-up - reference similar goals, patterns, and organizational knowledge):
+${orgContext}
+
+` : ""}${levelContext}
+
+Return ONLY valid JSON matching the schema.`;
+}
+
+export const LEVEL_UP_SCHEMA = {
+  name: "level_up_goal_v1",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["next_level", "summary", "goal_updates", "milestones", "quests", "child_goals", "assumptions"],
+    properties: {
+      next_level: {
+        type: "integer",
+        minimum: 1,
+        maximum: 5,
+        description: "The target level (current + 1)"
+      },
+      summary: {
+        type: "string",
+        description: "A single sentence summary of the goal at its new level."
+      },
+      goal_updates: {
+        type: "object",
+        additionalProperties: false,
+        required: ["outcome", "success_metric", "target_value", "plan_markdown", "playbook_markdown", "risks", "dependencies"],
+        properties: {
+          outcome: { type: "string", description: "Outcome statement (for L1). Use empty string if not applicable." },
+          success_metric: { type: "string", description: "Success metric (for L1). Use empty string if not applicable." },
+          target_value: { type: "string", description: "Target value for metric (for L1). Use empty string if not applicable." },
+          plan_markdown: { type: "string", description: "Long plan in markdown (for L2+). Use empty string if not applicable." },
+          playbook_markdown: { type: "string", description: "SOPs/playbook in markdown (for L4+). Use empty string if not applicable." },
+          risks: {
+            type: "array",
+            items: { type: "string" },
+            maxItems: 10,
+            description: "List of risks (for L3+). Use empty array if not applicable."
+          },
+          dependencies: {
+            type: "array",
+            items: { type: "string" },
+            maxItems: 10,
+            description: "List of dependencies (for L3+). Use empty array if not applicable."
+          }
+        }
+      },
+      milestones: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "due_date"],
+          properties: {
+            title: { type: "string" },
+            due_date: { type: "string", description: "ISO date string (YYYY-MM-DD) or empty string if not applicable" }
+          }
+        },
+        maxItems: 7,
+        description: "Milestones for L2+. Use empty array if not applicable."
+      },
+      quests: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "objective", "priority", "points"],
+          properties: {
+            title: { type: "string" },
+            objective: { type: "string" },
+            priority: { type: "string", enum: ["low", "medium", "high", "urgent"], description: "Priority level" },
+            points: { type: "integer", minimum: 1, maximum: 5, description: "Point value (1-5)" }
+          }
+        },
+        maxItems: 10,
+        description: "Starter quests for L2+. Use empty array if not applicable."
+      },
+      child_goals: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "level"],
+          properties: {
+            title: { type: "string" },
+            level: { type: "integer", minimum: 0, maximum: 5 }
+          }
+        },
+        maxItems: 5,
+        description: "Suggested child goals (optional)"
+      },
+      assumptions: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 10,
+        description: "Key assumptions (for L3+)"
+      }
+    }
+  }
+} as const;
+
+/* --------------------------- Improve Goal Structure ----------------------- */
+
+export const IMPROVE_GOAL_SYSTEM_PROMPT = `${SYSTEM_BASE}
+Goal Structure Improvement rules:
+- Improve goal title to be clear, concise, and action-oriented (one sentence).
+- Ensure problem statement is specific and measurable.
+- Ensure outcome statement clearly defines success.
+- Suggest 2-5 metrics with realistic targets.
+- Identify scope level (company/program/team/individual) based on goal.
+- Suggest milestones that are achievable and time-bound.
+- Identify dependencies and risks realistically.
+- Reference organizational context to avoid duplication and align with existing goals.
+`;
+
+export function buildImproveGoalPrompt(args: {
+  goal: {
+    title: string;
+    problem?: string | null;
+    outcome?: string | null;
+    scope_level?: string;
+    spec_json?: any;
+  };
+  orgContext?: string;
+}): string {
+  const title = safeInline(args.goal.title);
+  const problem = args.goal.problem || args.goal.spec_json?.problem || "";
+  const outcome = args.goal.outcome || args.goal.spec_json?.outcome || "";
+  const scopeLevel = args.goal.scope_level || args.goal.spec_json?.scope_level || "program";
+  const orgContext = args.orgContext ? safeBlock(args.orgContext) : "";
+
+  return `Improve this goal's structure to make it clearer, more actionable, and better aligned with organizational context.
+
+CURRENT GOAL:
+Title: "${title}"
+Problem: ${problem || "(not specified)"}
+Outcome: ${outcome || "(not specified)"}
+Scope Level: ${scopeLevel}
+
+${orgContext ? `ORGANIZATIONAL CONTEXT (use this to improve alignment and avoid duplication):
+${orgContext}
+
+` : ""}IMPROVEMENT REQUIREMENTS:
+- Title: Make it a clear, concise one-sentence goal (action-oriented)
+- Problem: Specific, measurable problem statement
+- Outcome: Clear success definition
+- Metrics: 2-5 metrics with realistic targets
+- Scope: Appropriate scope level (company/program/team/individual)
+- Milestones: 3-7 achievable, time-bound milestones
+- Dependencies: Realistic dependencies
+- Risks: Key risks identified
+
+Return ONLY valid JSON matching the schema.`;
+}
+
+export const IMPROVE_GOAL_SCHEMA = {
+  name: "improve_goal_structure_v1",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["improved_title", "improved_problem", "improved_outcome", "metrics", "scope_level", "milestones", "dependencies", "risks", "summary"],
+    properties: {
+      improved_title: {
+        type: "string",
+        description: "Improved goal title (one clear sentence, action-oriented)"
+      },
+      improved_problem: {
+        type: "string",
+        description: "Improved problem statement (specific and measurable)"
+      },
+      improved_outcome: {
+        type: "string",
+        description: "Improved outcome statement (clear success definition)"
+      },
+      metrics: {
+        type: "array",
+        minItems: 2,
+        maxItems: 5,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["name", "target", "window"],
+          properties: {
+            name: { type: "string" },
+            target: { 
+              type: "string",
+              description: "Target value as a string (can be a number like '5' or a percentage like '20%')"
+            },
+            window: { type: "string" }
+          }
+        }
+      },
+      scope_level: {
+        type: "string",
+        enum: ["company", "program", "team", "individual"]
+      },
+      milestones: {
+        type: "array",
+        minItems: 3,
+        maxItems: 7,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "due_date"],
+          properties: {
+            title: { type: "string" },
+            due_date: { type: "string", description: "ISO date string (YYYY-MM-DD)" }
+          }
+        }
+      },
+      dependencies: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 10
+      },
+      risks: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 10
+      },
+      summary: {
+        type: "string",
+        description: "One-sentence summary of the improved goal"
+      }
+    }
+  }
+} as const;
+
 /* --------------------------- exports for callers -------------------------- */
 
 export const PROMPTS = {
@@ -407,5 +714,13 @@ export const PROMPTS = {
   expand: {
     system: EXPAND_SYSTEM_PROMPT,
     schema: EXPAND_SCHEMA
+  },
+  levelUp: {
+    system: LEVEL_UP_SYSTEM_PROMPT,
+    schema: LEVEL_UP_SCHEMA
+  },
+  improveGoal: {
+    system: IMPROVE_GOAL_SYSTEM_PROMPT,
+    schema: IMPROVE_GOAL_SCHEMA
   }
 };

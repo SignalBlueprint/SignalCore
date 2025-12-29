@@ -339,13 +339,23 @@ export class SupabaseStorage implements Storage {
       const errorMsg = error.message?.toLowerCase() || '';
       const errorCode = error.code || '';
       
-      if (errorMsg.includes('could not find the table') || 
-          errorMsg.includes('relation') ||
-          errorMsg.includes('does not exist') ||
-          errorMsg.includes('schema cache') ||
-          errorCode === 'PGRST116' ||
-          errorCode === '42P01' ||
-          errorCode === 'PGRST202') {
+      // Only treat as table-not-found if it's actually a table/relation error
+      // PGRST116 = row not found (not table not found) - don't fallback for this
+      // 42P01 = relation does not exist (actual table not found)
+      // PGRST202 = schema cache issue (might be table not found)
+      // PGRST301 = RLS policy violation (don't fallback)
+      // PGRST103 = permission denied (don't fallback)
+      const isTableNotFound = (
+        (errorMsg.includes('could not find the table') || 
+         (errorMsg.includes('relation') && errorMsg.includes('does not exist')) ||
+         errorCode === '42P01' ||
+         errorCode === 'PGRST202') &&
+        errorCode !== 'PGRST116' && // Row not found, not table not found
+        errorCode !== 'PGRST301' && // RLS violation
+        errorCode !== 'PGRST103'     // Permission denied
+      );
+      
+      if (isTableNotFound) {
         // Throw a specific error that can be caught to trigger fallback
         const fallbackError = new Error(`TABLE_NOT_FOUND: ${kind}`);
         (fallbackError as any).code = 'TABLE_NOT_FOUND';
@@ -442,6 +452,8 @@ export class SupabaseStorage implements Storage {
 // Cache for storage instance to avoid recreating
 let storageInstance: Storage | null = null;
 let storageMode: 'supabase' | 'local' = 'local';
+// Track which tables have failed (so we can fallback per-table)
+const failedTables = new Set<string>();
 
 export function getStorage(): Storage {
   // Return cached instance if available
@@ -449,11 +461,11 @@ export function getStorage(): Storage {
     return storageInstance;
   }
 
-  // Check if local storage is forced via environment variable
-  const forceLocal = process.env.STORAGE_MODE === 'local' || process.env.FORCE_LOCAL_STORAGE === 'true';
+  // Check if local storage is forced via environment variable or storageMode
+  const forceLocal = process.env.STORAGE_MODE === 'local' || process.env.FORCE_LOCAL_STORAGE === 'true' || storageMode === 'local';
   
   if (forceLocal) {
-    console.log("[@sb/storage] Using local storage (forced via STORAGE_MODE=local)");
+    console.log("[@sb/storage] Using local storage (forced via STORAGE_MODE=local or fallback)");
     storageInstance = new LocalJsonStorage();
     storageMode = 'local';
     return storageInstance;
@@ -484,6 +496,19 @@ export function getStorage(): Storage {
 export function resetStorage(): void {
   storageInstance = null;
   storageMode = 'local';
+  failedTables.clear();
+}
+
+/**
+ * Reset storage back to Supabase mode (if configured)
+ * Use this if you've run migrations and want to switch back from local storage
+ */
+export function resetToSupabase(): void {
+  storageInstance = null;
+  storageMode = 'supabase';
+  failedTables.clear();
+  // Force re-initialization
+  getStorage();
 }
 
 /**
@@ -496,37 +521,76 @@ class StorageWrapper implements Storage {
     this.instance = getStorage();
   }
 
-  private async handleTableError<T>(operation: () => Promise<T>): Promise<T> {
+  private async handleTableError<T>(operation: () => Promise<T>, retryOperation?: () => Promise<T>): Promise<T> {
     try {
       return await operation();
     } catch (error) {
       // Check if this is a table-not-found error and we're using Supabase
-      if (error instanceof Error && (error as any).code === 'TABLE_NOT_FOUND' && storageMode === 'supabase') {
+      if (error instanceof Error && ((error as any).code === 'TABLE_NOT_FOUND' || error.message.includes('TABLE_NOT_FOUND')) && storageMode === 'supabase') {
         const kind = (error as any).kind || 'unknown';
-        console.warn(`[@sb/storage] Table '${kind}' not found in Supabase. Falling back to local storage.`);
-        console.warn(`[@sb/storage] To use Supabase, run the migration script to create tables.`);
         
-        // Reset and switch to local storage
-        resetStorage();
-        this.instance = getStorage();
+        // Only fallback if we haven't already failed for this table
+        // This prevents infinite loops
+        if (!failedTables.has(kind)) {
+          failedTables.add(kind);
+          console.warn(`[@sb/storage] Table '${kind}' operation failed in Supabase.`);
+          console.warn(`[@sb/storage] Error: ${error.message}`);
+          console.warn(`[@sb/storage] This might be due to: missing table, RLS policies, or permissions.`);
+          console.warn(`[@sb/storage] Falling back to local storage for ALL tables.`);
+          console.warn(`[@sb/storage] NOTE: If your table exists, check RLS policies.`);
+          console.warn(`[@sb/storage] To reset back to Supabase, restart the server or call resetToSupabase().`);
+          
+          // Reset and switch to local storage globally
+          // This is simpler than per-table fallback, but means all tables use local storage
+          resetStorage();
+          this.instance = getStorage();
+        }
         
         // Retry the operation with local storage
-        return await operation();
+        try {
+          if (retryOperation) {
+            return await retryOperation();
+          }
+          // If no retry operation, try the original (it should now use the new instance)
+          return await operation();
+        } catch (retryError) {
+          // If retry also fails, throw the original error
+          throw error;
+        }
       }
       throw error;
     }
   }
 
   async get<T extends { id: string }>(kind: string, id: string): Promise<T | null> {
-    return this.instance.get(kind, id);
+    return this.handleTableError(
+      () => this.instance.get<T>(kind, id),
+      () => {
+        const currentInstance = this.instance;
+        return currentInstance.get<T>(kind, id);
+      }
+    );
   }
 
   async list<T extends { id: string }>(kind: string, filter?: StorageFilter<T>): Promise<T[]> {
-    return this.instance.list(kind, filter);
+    return this.handleTableError(
+      () => this.instance.list<T>(kind, filter),
+      () => {
+        const currentInstance = this.instance;
+        return currentInstance.list<T>(kind, filter);
+      }
+    );
   }
 
   async upsert<T extends { id: string }>(kind: string, entity: T): Promise<T> {
-    return this.handleTableError(() => this.instance.upsert(kind, entity));
+    return this.handleTableError(
+      () => this.instance.upsert(kind, entity),
+      () => {
+        // After fallback, this.instance will be the new local storage instance
+        const currentInstance = this.instance;
+        return currentInstance.upsert(kind, entity);
+      }
+    );
   }
 
   async updateWithVersion<T extends { id: string; updatedAt: string }>(
@@ -534,11 +598,23 @@ class StorageWrapper implements Storage {
     entity: T,
     expectedUpdatedAt: string
   ): Promise<T> {
-    return this.handleTableError(() => this.instance.updateWithVersion(kind, entity, expectedUpdatedAt));
+    return this.handleTableError(
+      () => this.instance.updateWithVersion(kind, entity, expectedUpdatedAt),
+      () => {
+        const currentInstance = this.instance;
+        return currentInstance.updateWithVersion(kind, entity, expectedUpdatedAt);
+      }
+    );
   }
 
   async remove(kind: string, id: string): Promise<boolean> {
-    return this.instance.remove(kind, id);
+    return this.handleTableError(
+      () => this.instance.remove(kind, id),
+      () => {
+        const currentInstance = this.instance;
+        return currentInstance.remove(kind, id);
+      }
+    );
   }
 }
 

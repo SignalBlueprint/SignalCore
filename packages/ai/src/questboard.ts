@@ -11,7 +11,7 @@ import OpenAI from "openai";
 import { hashInput, getJson, setJson } from "@sb/cache";
 import { publish } from "@sb/events";
 import { recordAiCall } from "@sb/telemetry";
-import type { ClarifyOutput, DecomposeOutput, TemplateQuestline, TeamSnapshot } from "@sb/schemas";
+import type { ClarifyOutput, DecomposeOutput, TemplateQuestline, TeamSnapshot, LevelUpResponse, Goal } from "@sb/schemas";
 import {
   CLARIFY_SYSTEM_PROMPT,
   buildClarifyPrompt,
@@ -20,7 +20,14 @@ import {
   buildDecomposePrompt,
   EXPAND_SYSTEM_PROMPT,
   buildExpandPrompt,
+  LEVEL_UP_SYSTEM_PROMPT,
+  buildLevelUpPrompt,
+  LEVEL_UP_SCHEMA,
+  IMPROVE_GOAL_SYSTEM_PROMPT,
+  buildImproveGoalPrompt,
+  IMPROVE_GOAL_SCHEMA,
 } from "./prompts";
+import { buildOrgContext, formatOrgContext } from "./org-context";
 
 // Reuse OpenAI client (will be initialized in openai-client.ts)
 // For clarify, we'll create our own instance to avoid circular dependencies
@@ -55,9 +62,26 @@ function parseJsonResponse<T>(text: string): T {
 /**
  * Clarify a goal - structure and validate the goal definition
  */
-export async function runClarifyGoal(input: string): Promise<ClarifyOutput> {
+export async function runClarifyGoal(
+  input: string,
+  options?: { orgId?: string }
+): Promise<ClarifyOutput> {
+  // Build org context if orgId provided
+  let orgContextText = "";
+  if (options?.orgId) {
+    try {
+      const context = await buildOrgContext(options.orgId, { maxActiveGoals: 8, maxCompletedGoals: 3 });
+      orgContextText = formatOrgContext(context, 2000);
+    } catch (error) {
+      console.warn("Failed to build org context for clarify:", error);
+    }
+  }
+
   const systemPrompt = CLARIFY_SYSTEM_PROMPT;
-  const userPrompt = buildClarifyPrompt(input);
+  const userPrompt = buildClarifyPrompt({
+    title: input,
+    orgContext: orgContextText || undefined,
+  });
 
   // Check cache first
   const cacheKey = `${systemPrompt}\n\n${userPrompt}`;
@@ -240,12 +264,30 @@ function buildTeamSnapshotCompact(teamSnapshot?: TeamSnapshot): string {
 export async function runDecomposeGoal(
   goalId: string,
   clarifiedGoal: ClarifyOutput,
-  teamSnapshot?: TeamSnapshot
+  teamSnapshot?: TeamSnapshot,
+  options?: { orgId?: string }
 ): Promise<DecomposeOutput> {
+  // Build org context if orgId provided
+  let orgContextText = "";
+  if (options?.orgId) {
+    try {
+      const context = await buildOrgContext(options.orgId, { 
+        maxActiveGoals: 10, 
+        maxCompletedGoals: 5,
+        maxActiveQuests: 15,
+        maxCompletedQuests: 10,
+      });
+      orgContextText = formatOrgContext(context, 2500);
+    } catch (error) {
+      console.warn("Failed to build org context for decompose:", error);
+    }
+  }
+
   const teamSnapshotCompact = buildTeamSnapshotCompact(teamSnapshot);
   const userPrompt = buildDecomposePrompt({
     clarifiedGoal,
     teamSnapshotCompact,
+    orgContext: orgContextText || undefined,
   });
 
   const result = await decomposeGoalStructured({
@@ -394,4 +436,246 @@ Return ONLY valid JSON in the exact structure of the 'questlineDefinition' from 
   }
 
   return parsed;
+}
+
+/**
+ * Level Up a goal - generate next level content
+ */
+export async function runLevelUpGoal(
+  goal: Goal,
+  options?: { orgId?: string }
+): Promise<LevelUpResponse> {
+  // Build org context if orgId provided
+  let orgContextText = "";
+  if (options?.orgId) {
+    try {
+      const context = await buildOrgContext(options.orgId, { 
+        maxActiveGoals: 10, 
+        maxCompletedGoals: 5,
+        maxKnowledgeCards: 10,
+      });
+      orgContextText = formatOrgContext(context, 2500);
+    } catch (error) {
+      console.warn("Failed to build org context for level up:", error);
+    }
+  }
+
+  const systemPrompt = LEVEL_UP_SYSTEM_PROMPT;
+  const userPrompt = buildLevelUpPrompt({
+    ...goal,
+    orgContext: orgContextText || undefined,
+  });
+
+  // Check cache first
+  const cacheKey = `${systemPrompt}\n\n${userPrompt}`;
+  const inputHash = hashInput(cacheKey);
+  const cached = getJson<LevelUpResponse>(inputHash);
+  if (cached !== null) {
+    recordAiCall({
+      model: "gpt-4o-mini",
+      inputHash,
+      cached: true,
+      duration: 0,
+    });
+    return cached;
+  }
+
+  const startTime = Date.now();
+
+  try {
+    const openai = getOpenAIClient();
+    
+    // Use structured outputs for level up
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: LEVEL_UP_SCHEMA,
+      },
+      max_tokens: 2000,
+      temperature: 0.3,
+    });
+
+    const choice = response.choices[0];
+    if (!choice) {
+      throw new Error("No choices in response");
+    }
+
+    let content = choice.message?.content;
+    if (!content) {
+      throw new Error("No content in response");
+    }
+
+    if (process.env.DEBUG_AI) {
+      console.log("[AI] Level Up response content:", content);
+    }
+
+    const result = parseJsonResponse<LevelUpResponse>(content);
+
+    // Store in cache
+    setJson(inputHash, result);
+
+    // Record AI call
+    const duration = Date.now() - startTime;
+    recordAiCall({
+      model: "gpt-4o-mini",
+      inputHash,
+      cached: false,
+      duration,
+    });
+
+    // Publish event
+    await publish("ai.level_up", {
+      goalId: goal.id,
+      currentLevel: goal.level || 0,
+      nextLevel: result.next_level,
+      cached: false,
+      duration,
+    }, {
+      sourceApp: "questboard",
+    });
+
+    return result;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error("[AI] Level Up failed:", error);
+    
+    await publish("ai.level_up.error", {
+      goalId: goal.id,
+      currentLevel: goal.level || 0,
+      error: error instanceof Error ? error.message : String(error),
+      duration,
+    }, {
+      sourceApp: "questboard",
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Improve goal structure - refine title, problem, outcome, metrics, etc.
+ */
+export async function runImproveGoal(
+  goal: Goal,
+  options?: { orgId?: string }
+): Promise<{
+  improved_title: string;
+  improved_problem: string;
+  improved_outcome: string;
+  metrics: Array<{ name: string; target: number | string; window: string }>;
+  scope_level: "company" | "program" | "team" | "individual";
+  milestones: Array<{ title: string; due_date: string }>;
+  dependencies: string[];
+  risks: string[];
+  summary: string;
+}> {
+  // Build org context if orgId provided
+  let orgContextText = "";
+  if (options?.orgId) {
+    try {
+      const context = await buildOrgContext(options.orgId, {
+        maxActiveGoals: 10,
+        maxCompletedGoals: 5,
+      });
+      orgContextText = formatOrgContext(context, 2500);
+    } catch (error) {
+      console.warn("Failed to build org context for improve goal:", error);
+    }
+  }
+
+  const systemPrompt = IMPROVE_GOAL_SYSTEM_PROMPT;
+  const userPrompt = buildImproveGoalPrompt({
+    goal: {
+      title: goal.title,
+      problem: goal.problem || goal.spec_json?.problem,
+      outcome: goal.outcome || goal.spec_json?.outcome,
+      scope_level: goal.scope_level || goal.spec_json?.scope_level,
+      spec_json: goal.spec_json,
+    },
+    orgContext: orgContextText || undefined,
+  });
+
+  // Check cache first
+  const cacheKey = `${systemPrompt}\n\n${userPrompt}`;
+  const inputHash = hashInput(cacheKey);
+  const cached = getJson<any>(inputHash);
+  if (cached !== null) {
+    recordAiCall({
+      model: "gpt-4o-mini",
+      inputHash,
+      cached: true,
+      duration: 0,
+    });
+    return cached;
+  }
+
+  const startTime = Date.now();
+
+  try {
+    const openai = getOpenAIClient();
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: IMPROVE_GOAL_SCHEMA,
+      },
+      max_tokens: 1500,
+      temperature: 0.3,
+    });
+
+    const choice = response.choices[0];
+    if (!choice) {
+      console.error("No choices in OpenAI response. Full response:", JSON.stringify(response, null, 2));
+      throw new Error("No choices in response");
+    }
+
+    let content = choice.message?.content;
+    
+    // With structured outputs, content should always be present and valid JSON
+    if (!content) {
+      console.error("No content in OpenAI response. Full response:", JSON.stringify(response, null, 2));
+      console.error("Choice object:", JSON.stringify(choice, null, 2));
+      throw new Error("No content in response");
+    }
+
+    // Log the raw response for debugging
+    if (process.env.DEBUG_AI) {
+      console.log("Improve goal raw response:", content);
+    }
+
+    const result = parseJsonResponse<any>(content);
+
+    // Cache result
+    setJson(inputHash, result);
+
+    const duration = Date.now() - startTime;
+    recordAiCall({
+      model: "gpt-4o-mini",
+      inputHash,
+      cached: false,
+      duration,
+    });
+
+    await publish("ai.improve_goal", {
+      goalId: goal.id,
+      title: goal.title,
+    }, {
+      sourceApp: "questboard",
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Improve goal error:", error);
+    throw error;
+  }
 }

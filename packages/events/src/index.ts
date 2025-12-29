@@ -22,11 +22,11 @@ export type EventType =
   | "task.approved"
   | "task.updated"
   | "task.assigned"
+  | "task.output.submitted"
   | "quest.unlocked"
   | "quest.updated"
   | "quest.checkpoint.passed"
   | "quest.deck.generated"
-  | "deck.generated"
   | "task.stale"
   | "task.blocked"
   | "audit.task.changed"
@@ -36,6 +36,8 @@ export type EventType =
   | "lead.scored"
   | "catalog.generated"
   | "ai.run"
+  | "ai.level_up"
+  | "ai.level_up.error"
   | "job.completed"
   | "job.failed"
   | "questmaster.dryrun.completed"
@@ -68,11 +70,11 @@ export const EventEnvelopeSchema = z.object({
     "task.approved",
     "task.updated",
     "task.assigned",
+    "task.output.submitted",
     "quest.unlocked",
     "quest.updated",
     "quest.checkpoint.passed",
     "quest.deck.generated",
-    "deck.generated",
     "task.stale",
     "task.blocked",
     "audit.task.changed",
@@ -82,6 +84,8 @@ export const EventEnvelopeSchema = z.object({
     "lead.scored",
     "catalog.generated",
     "ai.run",
+    "ai.level_up",
+    "ai.level_up.error",
     "job.completed",
     "job.failed",
     "questmaster.dryrun.completed",
@@ -143,6 +147,14 @@ export async function publish(
     correlationId?: string;
   }
 ): Promise<void> {
+  // Debug: Log if we see the old event type (check as string since it's not in the type anymore)
+  if ((type as string) === "deck.generated") {
+    console.error("[@sb/events] ERROR: Received 'deck.generated' - this should be 'quest.deck.generated'");
+    console.error("[@sb/events] Stack trace:", new Error().stack);
+    // Auto-fix for now
+    type = "quest.deck.generated" as EventType;
+  }
+
   // Create event envelope
   const envelope: EventEnvelope = {
     id: generateEventId(),
@@ -155,7 +167,14 @@ export async function publish(
   };
 
   // Validate with zod
-  const validated = EventEnvelopeSchema.parse(envelope);
+  let validated: EventEnvelope;
+  try {
+    validated = EventEnvelopeSchema.parse(envelope);
+  } catch (error) {
+    console.error("[@sb/events] Validation error for event type:", type);
+    console.error("[@sb/events] Envelope:", JSON.stringify(envelope, null, 2));
+    throw error;
+  }
 
   // Write to file log
   ensureEventsDir();
