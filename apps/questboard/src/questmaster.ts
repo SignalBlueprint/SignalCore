@@ -14,6 +14,10 @@ import type {
   MemberQuestDeck,
   DailyDeck,
   Org,
+  MemberProfile,
+  WorkingGeniusProfile,
+  WorkingGenius,
+  WGPhase,
 } from "@sb/schemas";
 import {
   getQuestsForUser,
@@ -23,6 +27,7 @@ import {
   getMembersByOrgId,
   updateTask,
   getOrgById,
+  getMemberProfilesByOrgId,
 } from "./store";
 import { publish } from "@sb/events";
 
@@ -62,6 +67,40 @@ export async function runQuestmaster(
   const quests = await storage.list<Quest>(QUEST_KIND, (q) => q.orgId === orgId);
   const tasks = await storage.list<Task>(TASK_KIND, (t) => t.orgId === orgId);
   const members = await getMembersByOrgId(orgId);
+  
+  // Get member profiles and merge them with members
+  const memberProfiles = await getMemberProfilesByOrgId(orgId);
+  const profileMap = new Map<string, MemberProfile>();
+  for (const profile of memberProfiles) {
+    profileMap.set(profile.memberId, profile);
+  }
+  
+  // Convert MemberProfile (WGPhase) to WorkingGeniusProfile (WorkingGenius) and attach to members
+  const phaseToGenius: Record<WGPhase, WorkingGenius> = {
+    'W': 'Wonder',
+    'I': 'Invention',
+    'D': 'Discernment',
+    'G': 'Galvanizing',
+    'E': 'Enablement',
+    'T': 'Tenacity',
+  };
+  
+  const membersWithProfiles = members.map(member => {
+    const profile = profileMap.get(member.id);
+    if (!profile) {
+      return member; // Return member as-is if no profile
+    }
+    // Convert WGPhase to WorkingGenius and attach to member
+    return {
+      ...member,
+      workingGeniusProfile: {
+        top2: [phaseToGenius[profile.top2[0]], phaseToGenius[profile.top2[1]]],
+        competency2: [phaseToGenius[profile.competency2[0]], phaseToGenius[profile.competency2[1]]],
+        frustration2: [phaseToGenius[profile.frustration2[0]], phaseToGenius[profile.frustration2[1]]],
+      },
+      dailyCapacityMinutes: profile.dailyCapacityMinutes,
+    };
+  });
 
   // 2. Recompute unlocks for all quests
   // Track unlocked quests before and after
@@ -475,16 +514,16 @@ async function generateDailyDeck(
     );
   }
 
-  // Check if team has profiles
-  const membersWithProfiles = members.filter((m) => m.workingGeniusProfile);
-  if (membersWithProfiles.length === 0 && members.length > 0) {
+  // Check if team has profiles (using the enriched members list)
+  const membersWithProfilesCount = membersWithProfiles.filter((m) => m.workingGeniusProfile).length;
+  if (membersWithProfilesCount === 0 && members.length > 0) {
     warnings.push(
       `No team members have Working Genius profiles. Visit /team to set up profiles for better task assignment.`
     );
   }
 
   // Calculate team capacity
-  const teamCapacity = members
+  const teamCapacity = membersWithProfiles
     .filter((m) => m.workingGeniusProfile)
     .map((member) => {
       const capacityMinutes = member.dailyCapacityMinutes || 480;
@@ -578,7 +617,7 @@ async function generateDailyDeck(
 
   // Emit event
   await publish(
-    "deck.generated",
+    "quest.deck.generated",
     {
       orgId,
       date,

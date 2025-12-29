@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useSearchParams, useNavigate } from 'react-router-dom';
 
 interface DailyDeckItem {
   taskId: string;
@@ -8,6 +8,8 @@ interface DailyDeckItem {
   questTitle: string;
   questlineId: string;
   questlineTitle: string;
+  goalId?: string | null;
+  goalPath?: Array<{ id: string; title: string }>;
   assignedToMemberId?: string;
   assignedToMemberEmail?: string;
   estimatedMinutes: number;
@@ -73,15 +75,18 @@ interface DailyDeckResponse {
 
 export default function TodayPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orgIdFromUrl = searchParams.get('orgId') || 'default-org';
   const [data, setData] = useState<DailyDeckResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [runningQuestmaster, setRunningQuestmaster] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
+  const [goalPaths, setGoalPaths] = useState<Map<string, Array<{ id: string; title: string }>>>(new Map());
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const orgId = urlParams.get('orgId') || 'default-org';
+  const orgId = orgIdFromUrl;
 
   useEffect(() => {
     fetchDailyDeck();
@@ -93,12 +98,58 @@ export default function TodayPage() {
       setError(null);
 
       const response = await fetch(`/api/daily-deck?orgId=${orgId}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[TodayPage] API error:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const result = await response.json();
+      console.log('[TodayPage] API response:', result);
+      
+      // Validate response structure
+      if (result.exists && !result.dailyDeck) {
+        console.warn('[TodayPage] API returned exists=true but no dailyDeck:', result);
+        setError('API returned invalid data structure (exists=true but no dailyDeck)');
+      }
+      
       setData(result);
+
+      // Fetch goal paths for quests that have goalId
+      if (result.dailyDeck?.items) {
+        const goalPathPromises: Promise<void>[] = [];
+        const pathMap = new Map<string, Array<{ id: string; title: string }>>();
+        
+        for (const item of result.dailyDeck.items) {
+          // Try to get goalId from quest
+          if (item.questId) {
+            goalPathPromises.push(
+              fetch(`/api/quests/${item.questId}`)
+                .then(res => res.ok ? res.json() : null)
+                .then(quest => {
+                  if (quest?.goalId) {
+                    return fetch(`/api/goals/${quest.goalId}/path`)
+                      .then(res => res.ok ? res.json() : [])
+                      .then(path => {
+                        if (path && path.length > 0) {
+                          pathMap.set(item.questId, path.map((g: any) => ({ id: g.id, title: g.title })));
+                        }
+                      })
+                      .catch(() => {});
+                  }
+                })
+                .catch(() => {})
+            );
+          }
+        }
+        
+        await Promise.all(goalPathPromises);
+        setGoalPaths(pathMap);
+      }
     } catch (err) {
+      console.error('[TodayPage] Fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch daily deck');
+      setData(null); // Clear data on error
     } finally {
       setLoading(false);
     }
@@ -236,8 +287,8 @@ export default function TodayPage() {
     );
   }
 
-  // Empty state: No org selected
-  if (!orgId || orgId === 'default-org') {
+  // Empty state: No org selected (only if orgId is actually empty/null)
+  if (!orgId) {
     return (
       <div style={{
         background: 'white',
@@ -278,7 +329,7 @@ export default function TodayPage() {
   }
 
   // Empty state: No data or no deck exists
-  if (!data || !data.exists) {
+  if (!data || !data.exists || !data.dailyDeck) {
     const hasNoData = data?.counts && data.counts.tasks === 0 && data.counts.quests === 0;
 
     return (
@@ -402,7 +453,118 @@ export default function TodayPage() {
     );
   }
 
+  // Safety check: ensure dailyDeck exists before rendering
+  if (!data.dailyDeck) {
+    return (
+      <div style={{
+        background: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: '#fff3cd',
+          borderRadius: '12px',
+          color: '#856404',
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
+          <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>Daily Deck Data Missing</h3>
+          <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+            The API returned exists=true but no dailyDeck data. This might be a data structure issue.
+          </p>
+          {error && (
+            <div style={{
+              marginTop: '20px',
+              padding: '12px',
+              background: '#ffebee',
+              borderRadius: '8px',
+              color: '#d32f2f',
+            }}>
+              <strong>Error:</strong> {error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check: ensure dailyDeck exists and has required properties
+  if (!data.dailyDeck) {
+    console.error('[TodayPage] Missing dailyDeck in data:', data);
+    return (
+      <div style={{
+        background: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: '#fff3cd',
+          borderRadius: '12px',
+          color: '#856404',
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
+          <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>Daily Deck Data Missing</h3>
+          <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+            The API returned exists=true but no dailyDeck data.
+          </p>
+          <pre style={{ textAlign: 'left', background: '#f5f5f5', padding: '12px', borderRadius: '4px', fontSize: '12px', overflow: 'auto' }}>
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+
   const { dailyDeck, lastQuestmasterRun, counts } = data;
+
+  // Validate dailyDeck structure
+  if (!dailyDeck.items || !Array.isArray(dailyDeck.items)) {
+    console.error('[TodayPage] Invalid dailyDeck.items:', dailyDeck);
+    return (
+      <div style={{
+        background: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          background: '#ffebee',
+          borderRadius: '12px',
+          color: '#d32f2f',
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>❌</div>
+          <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>Invalid Daily Deck Structure</h3>
+          <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+            The dailyDeck.items property is missing or not an array.
+          </p>
+          <pre style={{ textAlign: 'left', background: '#f5f5f5', padding: '12px', borderRadius: '4px', fontSize: '12px', overflow: 'auto', maxHeight: '300px' }}>
+            {JSON.stringify(dailyDeck, null, 2)}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure summary exists with safe defaults
+  const summary = dailyDeck.summary || {
+    totalTasks: dailyDeck.items.length,
+    totalEstimatedMinutes: dailyDeck.items.reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0),
+    tasksConsidered: dailyDeck.items.length,
+    warnings: undefined,
+  };
+
+  // Ensure teamCapacity is an array
+  const teamCapacity = Array.isArray(dailyDeck.teamCapacity) ? dailyDeck.teamCapacity : [];
+
+  // Ensure items is an array (already validated above, but double-check)
+  const items = Array.isArray(dailyDeck.items) ? dailyDeck.items : [];
 
   return (
     <div style={{
@@ -416,7 +578,7 @@ export default function TodayPage() {
         <div>
           <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
           <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
-            {formatDate(dailyDeck.date)} • {orgId}
+            {formatDate(dailyDeck.date || new Date().toISOString().split('T')[0])} • {orgId}
           </p>
         </div>
         <button
@@ -469,20 +631,20 @@ export default function TodayPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
             <div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Tasks Considered</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.tasksConsidered}</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{summary.tasksConsidered || 0}</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Tasks Selected</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.totalTasks}</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{summary.totalTasks || 0}</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Quests Unlocked</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{lastQuestmasterRun.stats.unlockedQuests || 0}</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{lastQuestmasterRun?.stats?.unlockedQuests || 0}</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Warnings</div>
               <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                {dailyDeck.summary.warnings?.length || 0}
+                {summary.warnings?.length || 0}
               </div>
             </div>
           </div>
@@ -490,7 +652,7 @@ export default function TodayPage() {
       )}
 
       {/* Warnings */}
-      {dailyDeck.summary.warnings && dailyDeck.summary.warnings.length > 0 && (
+      {summary.warnings && summary.warnings.length > 0 && (
         <div style={{
           padding: '16px 20px',
           background: '#fff3cd',
@@ -501,7 +663,7 @@ export default function TodayPage() {
         }}>
           <strong>⚠️ Warnings:</strong>
           <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-            {dailyDeck.summary.warnings.map((warning, idx) => (
+            {summary.warnings.map((warning, idx) => (
               <li key={idx}>{warning}</li>
             ))}
           </ul>
@@ -509,7 +671,7 @@ export default function TodayPage() {
       )}
 
       {/* Team Capacity */}
-      {dailyDeck.teamCapacity && dailyDeck.teamCapacity.length > 0 && (
+      {teamCapacity.length > 0 && (
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>👥 Team Capacity</h3>
           <div style={{
@@ -517,7 +679,7 @@ export default function TodayPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '16px',
           }}>
-            {dailyDeck.teamCapacity.map((member) => {
+            {teamCapacity.map((member) => {
               const isOverCapacity = member.utilizationPercent > 100;
               const isNearCapacity = member.utilizationPercent > 80 && member.utilizationPercent <= 100;
 
@@ -569,10 +731,10 @@ export default function TodayPage() {
       {/* Daily Deck */}
       <div>
         <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>
-          🎯 Today's Deck ({dailyDeck.items.length} {dailyDeck.items.length === 1 ? 'task' : 'tasks'})
+          🎯 Today's Deck ({items.length} {items.length === 1 ? 'task' : 'tasks'})
         </h3>
 
-        {dailyDeck.items.length === 0 ? (
+        {items.length === 0 ? (
           <div style={{
             padding: '40px 20px',
             textAlign: 'center',
@@ -583,14 +745,15 @@ export default function TodayPage() {
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
             <p style={{ fontSize: '16px' }}>No tasks in today's deck.</p>
             <p style={{ fontSize: '14px', marginTop: '8px' }}>
-              {dailyDeck.summary.warnings?.[0] || 'All tasks are blocked, completed, or locked.'}
+              {summary.warnings?.[0] || 'All tasks are blocked, completed, or locked.'}
             </p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
-            {dailyDeck.items.map((item, idx) => (
+            {items.map((item, idx) => (
               <div
                 key={item.taskId}
+                onClick={() => navigate(`/tasks/${item.taskId}?orgId=${orgId}`)}
                 style={{
                   padding: '20px',
                   background: 'white',
@@ -598,14 +761,17 @@ export default function TodayPage() {
                   borderRadius: '12px',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                   transition: 'all 0.2s',
+                  cursor: 'pointer',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = '#667eea';
                   e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#e0e0e0';
                   e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -617,6 +783,22 @@ export default function TodayPage() {
                       </h4>
                     </div>
                     <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                      {goalPaths.get(item.questId) && goalPaths.get(item.questId)!.length > 0 && (
+                        <span style={{ color: '#0066cc', marginRight: '8px' }}>
+                          {goalPaths.get(item.questId)!.map((g, i) => (
+                            <span key={g.id}>
+                              {i > 0 && ' → '}
+                              <Link
+                                to={`/goals-tree/${g.id}?orgId=${orgId}`}
+                                style={{ textDecoration: 'underline', color: '#0066cc' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {g.title}
+                              </Link>
+                            </span>
+                          ))} → 
+                        </span>
+                      )}
                       <strong>{item.questlineTitle}</strong> → {item.questTitle}
                     </div>
                   </div>
@@ -676,16 +858,16 @@ export default function TodayPage() {
         <div>
           <div style={{ fontSize: '12px', color: '#666' }}>Total Time Estimated</div>
           <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-            {formatMinutes(dailyDeck.summary.totalEstimatedMinutes)}
+            {formatMinutes(summary.totalEstimatedMinutes || 0)}
           </div>
         </div>
         <div>
           <div style={{ fontSize: '12px', color: '#666' }}>Tasks in Deck</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{dailyDeck.summary.totalTasks}</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{summary.totalTasks || 0}</div>
         </div>
         <div>
           <div style={{ fontSize: '12px', color: '#666' }}>Generated At</div>
-          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{formatTime(dailyDeck.generatedAt)}</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{formatTime(dailyDeck.generatedAt || new Date().toISOString())}</div>
         </div>
         {counts && (
           <div>

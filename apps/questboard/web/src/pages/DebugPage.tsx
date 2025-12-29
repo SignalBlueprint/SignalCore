@@ -32,6 +32,11 @@ interface DebugResponse {
     entityId: string;
     timestamp: string;
   }>;
+  orgContext?: {
+    raw: any;
+    formatted: string;
+    error?: string;
+  } | null;
 }
 
 export default function DebugPage() {
@@ -59,6 +64,8 @@ export default function DebugPage() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
+      // Debug: Log orgContext to console
+      console.log('Debug API Response - orgContext:', data.orgContext);
       setDebugInfo(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch debug info');
@@ -312,6 +319,104 @@ export default function DebugPage() {
           </div>
         </div>
       )}
+
+      {/* Organizational Knowledge Base Context */}
+      <div style={{ marginBottom: '30px' }}>
+        <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>🧠 Organizational Knowledge Base Context</h3>
+        {!debugInfo.orgContext ? (
+          <div style={{ padding: '16px', background: '#fff3cd', borderRadius: '8px', border: '1px solid #ffc107' }}>
+            <p style={{ color: '#856404', fontWeight: 'bold', margin: '0 0 4px 0' }}>⚠️ Context not available</p>
+            <p style={{ color: '#856404', margin: 0, fontSize: '14px' }}>
+              The organizational context could not be built. This might be because:
+              <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                <li>The org has no goals or quests yet</li>
+                <li>There was an error building the context (check server logs)</li>
+                <li>The context builder encountered an issue</li>
+              </ul>
+            </p>
+          </div>
+        ) : debugInfo.orgContext.error ? (
+          <div style={{ padding: '16px', background: '#ffebee', borderRadius: '8px', border: '1px solid #f44336' }}>
+            <p style={{ color: '#d32f2f', fontWeight: 'bold', margin: '0 0 4px 0' }}>❌ Error building context:</p>
+            <p style={{ color: '#d32f2f', margin: 0, fontSize: '14px' }}>{debugInfo.orgContext.error}</p>
+          </div>
+        ) : (
+            <div>
+              <div style={{ marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '16px', marginBottom: '8px' }}>Formatted Context (for AI prompts):</h4>
+                <pre style={{
+                  padding: '16px',
+                  background: '#f5f5f5',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  overflow: 'auto',
+                  maxHeight: '400px',
+                  border: '1px solid #ddd',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}>
+                  {debugInfo.orgContext.formatted || '(empty)'}
+                </pre>
+              </div>
+              <details style={{ marginTop: '16px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', color: '#0066cc', marginBottom: '8px' }}>
+                  View Raw Context Data
+                </summary>
+                <pre style={{
+                  padding: '16px',
+                  background: '#f9f9f9',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  overflow: 'auto',
+                  maxHeight: '300px',
+                  border: '1px solid #ddd',
+                }}>
+                  {JSON.stringify(debugInfo.orgContext.raw, null, 2)}
+                </pre>
+              </details>
+              <div style={{ marginTop: '12px', padding: '12px', background: '#e3f2fd', borderRadius: '8px', fontSize: '14px', color: '#1976d2' }}>
+                <strong>💡 What this is:</strong> This context is automatically included in AI prompts (clarify, decompose, level-up) to give the AI awareness of your organization's current goals, quests, outputs, and knowledge patterns.
+                <div style={{ marginTop: '8px', fontSize: '13px' }}>
+                  <strong>To test:</strong> Create or clarify a goal - the AI will use this context to make organization-specific recommendations.
+                </div>
+              </div>
+              {debugInfo.orgContext && debugInfo.orgContext.raw && (
+                <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {debugInfo.orgContext.raw.activeGoals?.length || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Active Goals</div>
+                  </div>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {debugInfo.orgContext.raw.completedGoals?.length || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Completed Goals</div>
+                  </div>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {debugInfo.orgContext.raw.activeQuests?.length || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Active Quests</div>
+                  </div>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {debugInfo.orgContext.raw.recentOutputs?.length || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Recent Outputs</div>
+                  </div>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {debugInfo.orgContext.raw.knowledgeCards?.length || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Knowledge Cards</div>
+                  </div>
+                </div>
+              )}
+            </div>
+        )}
+      </div>
 
       {/* Recent Events */}
       {debugInfo.recentEvents && debugInfo.recentEvents.length > 0 && (

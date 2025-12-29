@@ -7,23 +7,28 @@ import TeamPage from './pages/TeamPage';
 import TeamIntakePage from './pages/TeamIntakePage';
 import GoalsPage from './pages/GoalsPage';
 import AssignmentReviewPage from './pages/AssignmentReviewPage';
+import TaskDetailPage from './pages/TaskDetailPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      <Nav />
-      <Routes>
-        <Route path="/" element={<TodayPage />} />
-        <Route path="/today" element={<TodayPage />} />
-        <Route path="/sprint" element={<SprintPage />} />
-        <Route path="/team" element={<TeamPage />} />
-        <Route path="/team/intake" element={<TeamIntakePage />} />
-        <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/goals/:goalId" element={<GoalsPage />} />
-        <Route path="/goals/:goalId/assignment-review" element={<AssignmentReviewPage />} />
-        <Route path="/debug" element={<DebugPage />} />
-      </Routes>
-    </div>
+    <ErrorBoundary>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <Nav />
+        <Routes>
+          <Route path="/" element={<ErrorBoundary><TodayPage /></ErrorBoundary>} />
+          <Route path="/today" element={<ErrorBoundary><TodayPage /></ErrorBoundary>} />
+          <Route path="/sprint" element={<ErrorBoundary><SprintPage /></ErrorBoundary>} />
+          <Route path="/team" element={<ErrorBoundary><TeamPage /></ErrorBoundary>} />
+          <Route path="/team/intake" element={<ErrorBoundary><TeamIntakePage /></ErrorBoundary>} />
+          <Route path="/goals" element={<ErrorBoundary><GoalsPage /></ErrorBoundary>} />
+          <Route path="/goals/:goalId" element={<ErrorBoundary><GoalsPage /></ErrorBoundary>} />
+          <Route path="/goals/:goalId/assignment-review" element={<ErrorBoundary><AssignmentReviewPage /></ErrorBoundary>} />
+          <Route path="/tasks/:taskId" element={<ErrorBoundary><TaskDetailPage /></ErrorBoundary>} />
+          <Route path="/debug" element={<ErrorBoundary><DebugPage /></ErrorBoundary>} />
+        </Routes>
+      </div>
+    </ErrorBoundary>
   );
 }
 

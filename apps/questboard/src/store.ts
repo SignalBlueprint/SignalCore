@@ -4,7 +4,7 @@
 
 import { storage, ConflictError } from "@sb/storage";
 import { publish } from "@sb/events";
-import type { Goal, Questline, Quest, UnlockCondition, Member, Task, Org, Template, TemplateQuestline, JobRunSummary, MemberQuestDeck, SprintPlan, MemberProfile, TeamSnapshot, WGPhase } from "@sb/schemas";
+import type { Goal, Questline, Quest, UnlockCondition, Member, Task, Org, Template, TemplateQuestline, JobRunSummary, MemberQuestDeck, SprintPlan, MemberProfile, TeamSnapshot, WGPhase, Milestone, GoalRollup, WorkingGenius, WorkingGeniusProfile } from "@sb/schemas";
 import { assignTaskWithExplanation, assignTasks } from "@sb/assignment";
 
 const GOAL_KIND = "goals";
@@ -20,6 +20,8 @@ const DECK_KIND = "member_quest_decks";
 const SPRINT_PLAN_KIND = "sprint_plans";
 const MEMBER_PROFILE_KIND = "member_profiles";
 const ORG_SETTINGS_KIND = "org_settings";
+const MILESTONE_KIND = "milestones";
+const GOAL_ROLLUP_KIND = "goal_rollups";
 
 export async function getAllGoals(): Promise<Goal[]> {
   return storage.list<Goal>(GOAL_KIND);
@@ -30,7 +32,15 @@ export async function getGoalById(id: string): Promise<Goal | undefined> {
   return goal || undefined;
 }
 
-export async function createGoal(title: string, orgId: string = "default-org"): Promise<Goal> {
+export async function createGoal(
+  title: string, 
+  orgId: string = "default-org",
+  options?: {
+    scope_level?: "company" | "program" | "team" | "individual";
+    owner_role_id?: string;
+    parent_goal_id?: string | null;
+  }
+): Promise<Goal> {
   // Ensure the org exists before creating a goal (for foreign key constraints)
   const org = await storage.get<Org>(ORG_KIND, orgId);
   if (!org) {
@@ -42,12 +52,46 @@ export async function createGoal(title: string, orgId: string = "default-org"): 
     });
   }
 
+  const scopeLevel = options?.scope_level || "program"; // Default to program level
+  const now = new Date().toISOString();
+
+  // Create minimal Goal Spec structure
+  const spec_json: Goal["spec_json"] = {
+    title,
+    scope_level: scopeLevel,
+    owner_role_id: options?.owner_role_id || "", // Will need to be set
+    stakeholder_role_ids: [],
+    problem: "", // To be filled
+    outcome: "", // To be filled
+    metrics: [], // To be filled (need 2-5)
+    milestones: [],
+    plan_markdown: "", // To be filled
+    dependencies: [],
+    risks: [],
+    required_outputs: [],
+  };
+
   const goal: Goal = {
     id: `goal-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     title,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     status: "draft",
     orgId, // Add orgId for Supabase compatibility
+    // Strategic Packets fields
+    spec_json,
+    scope_level: scopeLevel,
+    owner_role_id: options?.owner_role_id || null,
+    stakeholder_role_ids: [],
+    problem: null,
+    outcome: null,
+    metrics_json: [],
+    plan_markdown: null,
+    dependencies_json: [],
+    risks_json: [],
+    required_outputs_json: [],
+    // Legacy fields for backward compatibility
+    parentGoalId: options?.parent_goal_id || null,
+    level: undefined, // Deprecated
   };
   
   await storage.upsert(GOAL_KIND, goal);
@@ -56,6 +100,7 @@ export async function createGoal(title: string, orgId: string = "default-org"): 
   await publish("quest.goal.created", {
     goalId: goal.id,
     title: goal.title,
+    scopeLevel: goal.scope_level,
   }, {
     sourceApp: "questboard",
   });
@@ -278,8 +323,41 @@ async function autoAssignTask(task: Task, orgId: string): Promise<void> {
   // Get all members in the org
   const members = await storage.list<Member>(MEMBER_KIND, (m) => m.orgId === orgId);
   
+  // Get member profiles and merge them
+  const memberProfiles = await getMemberProfilesByOrgId(orgId);
+  const profileMap = new Map<string, MemberProfile>();
+  for (const profile of memberProfiles) {
+    profileMap.set(profile.memberId, profile);
+  }
+  
+  // Convert MemberProfile to WorkingGeniusProfile and attach to members
+  const phaseToGenius: Record<WGPhase, WorkingGenius> = {
+    'W': 'Wonder',
+    'I': 'Invention',
+    'D': 'Discernment',
+    'G': 'Galvanizing',
+    'E': 'Enablement',
+    'T': 'Tenacity',
+  };
+  
+  const membersWithProfiles = members.map(member => {
+    const profile = profileMap.get(member.id);
+    if (!profile) {
+      return { ...member, workingGeniusProfile: undefined };
+    }
+    return {
+      ...member,
+      workingGeniusProfile: {
+        top2: [phaseToGenius[profile.top2[0]], phaseToGenius[profile.top2[1]]],
+        competency2: [phaseToGenius[profile.competency2[0]], phaseToGenius[profile.competency2[1]]],
+        frustration2: [phaseToGenius[profile.frustration2[0]], phaseToGenius[profile.frustration2[1]]],
+      },
+      dailyCapacityMinutes: profile.dailyCapacityMinutes,
+    };
+  });
+  
   // Filter to members with profiles
-  const candidates = members
+  const candidates = membersWithProfiles
     .filter((m) => m.workingGeniusProfile && m.dailyCapacityMinutes)
     .map((m) => {
       return {
@@ -315,9 +393,41 @@ export async function reassignTasks(orgId: string): Promise<void> {
     return;
   }
   
-  // Get all members with profiles
+  // Get all members and their profiles
   const members = await storage.list<Member>(MEMBER_KIND, (m) => m.orgId === orgId);
-  const candidates = members
+  const memberProfiles = await getMemberProfilesByOrgId(orgId);
+  const profileMap = new Map<string, MemberProfile>();
+  for (const profile of memberProfiles) {
+    profileMap.set(profile.memberId, profile);
+  }
+  
+  // Convert MemberProfile to WorkingGeniusProfile and attach to members
+  const phaseToGenius: Record<WGPhase, WorkingGenius> = {
+    'W': 'Wonder',
+    'I': 'Invention',
+    'D': 'Discernment',
+    'G': 'Galvanizing',
+    'E': 'Enablement',
+    'T': 'Tenacity',
+  };
+  
+  const membersWithProfiles = members.map(member => {
+    const profile = profileMap.get(member.id);
+    if (!profile) {
+      return { ...member, workingGeniusProfile: undefined };
+    }
+    return {
+      ...member,
+      workingGeniusProfile: {
+        top2: [phaseToGenius[profile.top2[0]], phaseToGenius[profile.top2[1]]],
+        competency2: [phaseToGenius[profile.competency2[0]], phaseToGenius[profile.competency2[1]]],
+        frustration2: [phaseToGenius[profile.frustration2[0]], phaseToGenius[profile.frustration2[1]]],
+      },
+      dailyCapacityMinutes: profile.dailyCapacityMinutes,
+    };
+  });
+  
+  const candidates = membersWithProfiles
     .filter((m) => m.workingGeniusProfile && m.dailyCapacityMinutes)
     .map((m) => ({
       userId: m.id,
@@ -379,8 +489,41 @@ export async function getTaskAssignmentExplanation(taskId: string, orgId: string
     return null;
   }
   
+  // Get all members and their profiles
   const members = await storage.list<Member>(MEMBER_KIND, (m) => m.orgId === orgId);
-  const candidates = members
+  const memberProfiles = await getMemberProfilesByOrgId(orgId);
+  const profileMap = new Map<string, MemberProfile>();
+  for (const profile of memberProfiles) {
+    profileMap.set(profile.memberId, profile);
+  }
+  
+  // Convert MemberProfile to WorkingGeniusProfile and attach to members
+  const phaseToGenius: Record<WGPhase, WorkingGenius> = {
+    'W': 'Wonder',
+    'I': 'Invention',
+    'D': 'Discernment',
+    'G': 'Galvanizing',
+    'E': 'Enablement',
+    'T': 'Tenacity',
+  };
+  
+  const membersWithProfiles = members.map(member => {
+    const profile = profileMap.get(member.id);
+    if (!profile) {
+      return { ...member, workingGeniusProfile: undefined };
+    }
+    return {
+      ...member,
+      workingGeniusProfile: {
+        top2: [phaseToGenius[profile.top2[0]], phaseToGenius[profile.top2[1]]],
+        competency2: [phaseToGenius[profile.competency2[0]], phaseToGenius[profile.competency2[1]]],
+        frustration2: [phaseToGenius[profile.frustration2[0]], phaseToGenius[profile.frustration2[1]]],
+      },
+      dailyCapacityMinutes: profile.dailyCapacityMinutes,
+    };
+  });
+  
+  const candidates = membersWithProfiles
     .filter((m) => m.workingGeniusProfile && m.dailyCapacityMinutes)
     .map((m) => {
       return {
@@ -1567,5 +1710,308 @@ export async function buildTeamSnapshot(orgId: string): Promise<TeamSnapshot> {
     teamNotes: orgSettings?.teamNotes,
     generatedAt: new Date().toISOString(),
   };
+}
+
+// ============================================================================
+// Hierarchical Goals System
+// ============================================================================
+
+/**
+ * Create a hierarchical goal
+ */
+export async function createHierarchicalGoal(
+  orgId: string,
+  title: string,
+  parentGoalId?: string | null,
+  level: number = 0,
+  options?: {
+    scope_level?: "company" | "program" | "team" | "individual";
+    owner_role_id?: string;
+  }
+): Promise<Goal> {
+  // Ensure the org exists before creating a goal (for foreign key constraints)
+  const org = await storage.get<Org>(ORG_KIND, orgId);
+  if (!org) {
+    // Create the org if it doesn't exist
+    await storage.upsert(ORG_KIND, {
+      id: orgId,
+      name: orgId === "default-org" ? "Default Organization" : orgId,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  // Map level to scope_level if not provided
+  let scopeLevel: "company" | "program" | "team" | "individual" = options?.scope_level || "program";
+  if (!options?.scope_level) {
+    // Legacy level mapping: 0=company, 1=program, 2=team, 3+=individual
+    if (level === 0) scopeLevel = "company";
+    else if (level === 1) scopeLevel = "program";
+    else if (level === 2) scopeLevel = "team";
+    else scopeLevel = "individual";
+  }
+
+  const now = new Date().toISOString();
+
+  // Create minimal Goal Spec structure
+  const spec_json: Goal["spec_json"] = {
+    title,
+    scope_level: scopeLevel,
+    owner_role_id: options?.owner_role_id || "",
+    stakeholder_role_ids: [],
+    problem: "",
+    outcome: "",
+    metrics: [],
+    milestones: [],
+    plan_markdown: "",
+    dependencies: [],
+    risks: [],
+    required_outputs: [],
+  };
+
+  const goal: Goal = {
+    id: `goal-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    orgId,
+    title,
+    createdAt: now,
+    status: "draft", // Start as draft until spec is complete
+    // Strategic Packets fields
+    spec_json,
+    scope_level: scopeLevel,
+    owner_role_id: options?.owner_role_id || null,
+    stakeholder_role_ids: [],
+    problem: null,
+    outcome: null,
+    metrics_json: [],
+    plan_markdown: null,
+    dependencies_json: [],
+    risks_json: [],
+    required_outputs_json: [],
+    // Legacy fields for backward compatibility
+    parentGoalId: parentGoalId || null,
+    level: level, // Keep for backward compatibility
+    orderIndex: 0,
+  };
+  
+  await storage.upsert(GOAL_KIND, goal);
+  
+  await publish("quest.goal.created", {
+    goalId: goal.id,
+    title: goal.title,
+    parentGoalId: parentGoalId,
+    scopeLevel: goal.scope_level,
+  }, {
+    sourceApp: "questboard",
+  });
+  
+  return goal;
+}
+
+/**
+ * Get goal tree for an org (all goals with hierarchy)
+ */
+export async function getGoalTree(orgId: string): Promise<Goal[]> {
+  return storage.list<Goal>(GOAL_KIND, (g) => g.orgId === orgId);
+}
+
+/**
+ * Get children of a goal
+ */
+export async function getGoalChildren(goalId: string): Promise<Goal[]> {
+  return storage.list<Goal>(GOAL_KIND, (g) => g.parentGoalId === goalId);
+}
+
+/**
+ * Get goal with full path (breadcrumb)
+ */
+export async function getGoalPath(goalId: string): Promise<Goal[]> {
+  const path: Goal[] = [];
+  let currentId: string | null = goalId;
+  
+  while (currentId) {
+    const goal = await storage.get<Goal>(GOAL_KIND, currentId);
+    if (!goal) break;
+    path.unshift(goal);
+    currentId = goal.parentGoalId || null;
+  }
+  
+  return path;
+}
+
+/**
+ * Update goal (hierarchical version)
+ */
+export async function updateHierarchicalGoal(
+  id: string,
+  updates: Partial<Goal>
+): Promise<Goal | null> {
+  const existing = await storage.get<Goal>(GOAL_KIND, id);
+  if (!existing) {
+    return null;
+  }
+  
+  const updated = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  await storage.upsert(GOAL_KIND, updated);
+  return updated;
+}
+
+/**
+ * Reorder goals within a parent
+ */
+export async function reorderGoals(
+  goalIds: string[],
+  parentGoalId?: string | null
+): Promise<void> {
+  for (let i = 0; i < goalIds.length; i++) {
+    const goal = await storage.get<Goal>(GOAL_KIND, goalIds[i]);
+    if (goal) {
+      await storage.upsert(GOAL_KIND, {
+        ...goal,
+        orderIndex: i,
+        parentGoalId: parentGoalId || null,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+/**
+ * Get goal rollup (progress metrics)
+ */
+export async function getGoalRollup(goalId: string): Promise<GoalRollup | null> {
+  return storage.get<GoalRollup>(GOAL_ROLLUP_KIND, goalId);
+}
+
+/**
+ * Get all rollups for an org
+ */
+export async function getGoalRollups(orgId: string): Promise<GoalRollup[]> {
+  // Get all goals for org, then get their rollups
+  const goals = await getGoalTree(orgId);
+  const rollups: GoalRollup[] = [];
+  
+  for (const goal of goals) {
+    const rollup = await getGoalRollup(goal.id);
+    if (rollup) {
+      rollups.push(rollup);
+    }
+  }
+  
+  return rollups;
+}
+
+/**
+ * Create milestone
+ */
+export async function createMilestone(
+  goalId: string,
+  title: string,
+  dueDate?: string | null,
+  orderIndex: number = 0
+): Promise<Milestone> {
+  const milestone: Milestone = {
+    id: `milestone-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    goalId,
+    title,
+    dueDate: dueDate || null,
+    status: "planned",
+    orderIndex,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  
+  await storage.upsert(MILESTONE_KIND, milestone);
+  return milestone;
+}
+
+/**
+ * Get milestones for a goal
+ */
+export async function getMilestonesByGoalId(goalId: string): Promise<Milestone[]> {
+  return storage.list<Milestone>(MILESTONE_KIND, (m) => m.goalId === goalId);
+}
+
+/**
+ * Update milestone
+ */
+export async function updateMilestone(
+  id: string,
+  updates: Partial<Milestone>
+): Promise<Milestone | null> {
+  const existing = await storage.get<Milestone>(MILESTONE_KIND, id);
+  if (!existing) {
+    return null;
+  }
+  
+  const updated = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  await storage.upsert(MILESTONE_KIND, updated);
+  return updated;
+}
+
+/**
+ * Link quest to goal (and optionally milestone)
+ */
+export async function linkQuestToGoal(
+  questId: string,
+  goalId: string | null,
+  milestoneId?: string | null
+): Promise<Quest | null> {
+  const quest = await storage.get<Quest>(QUEST_KIND, questId);
+  if (!quest) {
+    return null;
+  }
+  
+  const updated = {
+    ...quest,
+    goalId: goalId || null,
+    milestoneId: milestoneId || null,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  await storage.upsert(QUEST_KIND, updated);
+  return updated;
+}
+
+/**
+ * Get quests for a goal (including all descendant goals)
+ */
+export async function getQuestsForGoal(goalId: string): Promise<Quest[]> {
+  // Get all descendant goal IDs
+  const descendantIds = new Set<string>([goalId]);
+  let currentLevel = [goalId];
+  
+  while (currentLevel.length > 0) {
+    const nextLevel: string[] = [];
+    for (const id of currentLevel) {
+      const children = await getGoalChildren(id);
+      for (const child of children) {
+        descendantIds.add(child.id);
+        nextLevel.push(child.id);
+      }
+    }
+    currentLevel = nextLevel;
+  }
+  
+  // Get all quests linked to any of these goals
+  const allQuests = await storage.list<Quest>(QUEST_KIND);
+  return allQuests.filter((q) => q.goalId && descendantIds.has(q.goalId));
+}
+
+/**
+ * Get active goals for filtering quests
+ */
+export async function getActiveGoals(orgId: string): Promise<Goal[]> {
+  return storage.list<Goal>(GOAL_KIND, (g) => 
+    g.orgId === orgId && (g.status === "active" || g.status === "paused")
+  );
 }
 

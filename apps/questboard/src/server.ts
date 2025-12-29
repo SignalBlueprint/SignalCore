@@ -46,20 +46,34 @@ import {
   getLastQuestmasterRun,
   getEntityCounts,
   getJobRunSummaries,
-  getAllGoals,
   getReadyTasks,
   listOrgs,
   getMemberProfilesByOrgId,
+  updateQuest,
   getMemberProfile,
   saveMemberProfile,
   getOrgSettings,
   updateOrgSettings,
   buildTeamSnapshot,
+  createHierarchicalGoal,
+  getGoalTree,
+  getGoalChildren,
+  getGoalPath,
+  updateHierarchicalGoal,
+  reorderGoals,
+  getGoalRollup,
+  getGoalRollups,
+  createMilestone,
+  getMilestonesByGoalId,
+  updateMilestone,
+  linkQuestToGoal,
+  getQuestsForGoal,
+  getActiveGoals,
 } from "./store";
 import { getUserQuestDeck, assignTaskWithExplanation, assignTasks } from "@sb/assignment";
 import { publish, queryEventsByEntity, readEvents } from "@sb/events";
 import { getStorageInfo } from "@sb/storage";
-import { runClarifyGoal, runDecomposeGoal, runExpandTask } from "@sb/ai";
+import { runClarifyGoal, runDecomposeGoal, runExpandTask, runLevelUpGoal, runImproveGoal } from "@sb/ai";
 import { runQuestmaster } from "./questmaster";
 import {
   generateSprintPlan,
@@ -181,12 +195,24 @@ app.get("/api/goals/:id", async (req, res) => {
 
 // Create new goal
 app.post("/api/goals", async (req, res) => {
-  const { title, orgId } = req.body;
-  if (!title) {
-    return res.status(400).json({ error: "Title is required" });
+  try {
+    const { title, orgId, scope_level, owner_role_id, parent_goal_id } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    const goal = await createGoal(title, orgId || "default-org", {
+      scope_level,
+      owner_role_id,
+      parent_goal_id,
+    });
+    res.json(goal);
+  } catch (error) {
+    console.error("Create goal error:", error);
+    res.status(500).json({ 
+      error: "Failed to create goal",
+      details: error instanceof Error ? error.message : String(error)
+    });
   }
-  const goal = await createGoal(title, orgId || "default-org");
-  res.json(goal);
 });
 
 // Clarify goal
@@ -205,7 +231,9 @@ app.post("/api/goals/:id/clarify", async (req, res) => {
       });
     }
 
-    const clarifyOutput = await runClarifyGoal(goal.title);
+    const clarifyOutput = await runClarifyGoal(goal.title, { 
+      orgId: goal.orgId || undefined 
+    });
     
     // Re-clarify invalidates prior approval - clear approval fields
     const updates: Partial<Goal> = {
@@ -353,7 +381,9 @@ app.post("/api/goals/:id/decompose", async (req, res) => {
     const teamSnapshot = await buildTeamSnapshot(orgId);
     
     // Run decomposition with team snapshot
-    const decomposeOutput = await runDecomposeGoal(goal.id, goal.clarifyOutput, teamSnapshot);
+    const decomposeOutput = await runDecomposeGoal(goal.id, goal.clarifyOutput, teamSnapshot, {
+      orgId: goal.orgId || undefined,
+    });
     
     // Get all members with profiles for assignment
     const members = await getMembersByOrgId(orgId);
@@ -577,6 +607,471 @@ app.post("/api/goals/:id/decompose", async (req, res) => {
 app.get("/api/goals/:id/questlines", async (req, res) => {
   const questlines = await getQuestlinesByGoalId(req.params.id);
   res.json(questlines);
+});
+
+// ============================================================================
+// Hierarchical Goals API
+// ============================================================================
+
+// Get goal tree for an org
+app.get("/api/goals-tree", async (req, res) => {
+  try {
+    const orgId = req.query.orgId as string || "default-org";
+    // Try to get hierarchical goals, fallback to all goals if needed
+    let goals = await getGoalTree(orgId);
+    // If no goals found, try getting all goals (for backward compatibility)
+    if (goals.length === 0) {
+      const allGoals = await getAllGoals();
+      // Filter by orgId if possible, otherwise return all
+      goals = allGoals.filter(g => !g.orgId || g.orgId === orgId || orgId === "default-org");
+    }
+    res.json(goals);
+  } catch (error) {
+    console.error("Get goal tree error:", error);
+    // Fallback to old endpoint
+    try {
+      const allGoals = await getAllGoals();
+      res.json(allGoals);
+    } catch (fallbackError) {
+      res.status(500).json({ error: "Failed to get goal tree" });
+    }
+  }
+});
+
+// Get goal children
+app.get("/api/goals/:id/children", async (req, res) => {
+  try {
+    const children = await getGoalChildren(req.params.id);
+    res.json(children);
+  } catch (error) {
+    console.error("Get goal children error:", error);
+    res.status(500).json({ error: "Failed to get goal children" });
+  }
+});
+
+// Get goal path (breadcrumb)
+app.get("/api/goals/:id/path", async (req, res) => {
+  try {
+    const path = await getGoalPath(req.params.id);
+    res.json(path);
+  } catch (error) {
+    console.error("Get goal path error:", error);
+    res.status(500).json({ error: "Failed to get goal path" });
+  }
+});
+
+// Create hierarchical goal
+app.post("/api/goals-tree", async (req, res) => {
+  try {
+    const { orgId, title, parentGoalId, level } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: "Title is required", details: "The 'title' field is required to create a goal" });
+    }
+    const goal = await createHierarchicalGoal(
+      orgId || "default-org",
+      title,
+      parentGoalId || null,
+      level || 0
+    );
+    res.json(goal);
+  } catch (error) {
+    console.error("Create hierarchical goal error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ 
+      error: "Failed to create goal",
+      details: errorMessage
+    });
+  }
+});
+
+// Update hierarchical goal
+app.put("/api/goals-tree/:id", async (req, res) => {
+  try {
+    const updates = req.body;
+    const updated = await updateHierarchicalGoal(req.params.id, updates);
+    if (!updated) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("Update hierarchical goal error:", error);
+    res.status(500).json({ error: "Failed to update goal" });
+  }
+});
+
+// Reorder goals
+app.post("/api/goals-tree/reorder", async (req, res) => {
+  try {
+    const { goalIds, parentGoalId } = req.body;
+    if (!Array.isArray(goalIds)) {
+      return res.status(400).json({ error: "goalIds must be an array" });
+    }
+    await reorderGoals(goalIds, parentGoalId || null);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Reorder goals error:", error);
+    res.status(500).json({ error: "Failed to reorder goals" });
+  }
+});
+
+// Get goal rollup
+app.get("/api/goals/:id/rollup", async (req, res) => {
+  try {
+    const rollup = await getGoalRollup(req.params.id);
+    if (!rollup) {
+      return res.status(404).json({ error: "Rollup not found" });
+    }
+    res.json(rollup);
+  } catch (error) {
+    console.error("Get goal rollup error:", error);
+    res.status(500).json({ error: "Failed to get goal rollup" });
+  }
+});
+
+// Level Up goal
+app.post("/api/goals/:id/level-up", async (req, res) => {
+  try {
+    const goal = await getGoalById(req.params.id);
+    if (!goal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ 
+        error: "OpenAI API key not configured",
+        details: "Please set OPENAI_API_KEY environment variable"
+      });
+    }
+
+    // Normalize goal to ensure all required fields exist
+    const normalizedGoal: Goal = {
+      ...goal,
+      level: goal.level ?? 0,
+      status: goal.status ?? "active",
+      parentGoalId: goal.parentGoalId ?? null,
+    };
+
+    const levelUpResponse = await runLevelUpGoal(normalizedGoal, {
+      orgId: normalizedGoal.orgId || undefined,
+    });
+    res.json(levelUpResponse);
+  } catch (error) {
+    console.error("Level up error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    res.status(500).json({ 
+      error: "Failed to level up goal",
+      details: errorMessage,
+      ...(errorStack && process.env.NODE_ENV === "development" ? { stack: errorStack } : {})
+    });
+  }
+});
+
+// Improve goal structure
+app.post("/api/goals/:id/improve", async (req, res) => {
+  try {
+    const goal = await getGoalById(req.params.id);
+    if (!goal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ 
+        error: "OpenAI API key not configured",
+        details: "Please set OPENAI_API_KEY environment variable"
+      });
+    }
+
+    const improved = await runImproveGoal(goal, {
+      orgId: goal.orgId || undefined,
+    });
+    
+    res.json(improved);
+  } catch (error) {
+    console.error("Improve goal error:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ 
+      error: "Failed to improve goal",
+      details: errorMessage,
+    });
+  }
+});
+
+// Apply improved goal structure
+app.post("/api/goals/:id/apply-improve", async (req, res) => {
+  try {
+    const { improved } = req.body;
+    if (!improved) {
+      return res.status(400).json({ error: "improved structure is required" });
+    }
+
+    const goal = await getGoalById(req.params.id);
+    if (!goal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    // Update goal with improved structure
+    const updates: Partial<Goal> = {
+      title: improved.improved_title,
+      problem: improved.improved_problem,
+      outcome: improved.improved_outcome,
+      scope_level: improved.scope_level,
+      summary: improved.summary,
+      spec_json: {
+        ...(goal.spec_json || {}),
+        title: improved.improved_title,
+        problem: improved.improved_problem,
+        outcome: improved.improved_outcome,
+        scope_level: improved.scope_level,
+        metrics: improved.metrics,
+        milestones: improved.milestones,
+        dependencies: improved.dependencies,
+        risks: improved.risks,
+      },
+      metrics_json: improved.metrics,
+      dependencies_json: improved.dependencies,
+      risks_json: improved.risks,
+    };
+
+    const updated = await updateGoal(req.params.id, updates);
+    if (!updated) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    // Create milestones if provided
+    let milestonesCreated = 0;
+    if (improved.milestones && improved.milestones.length > 0) {
+      for (let i = 0; i < improved.milestones.length; i++) {
+        const m = improved.milestones[i];
+        try {
+          await createMilestone(req.params.id, m.title, m.due_date || null, i);
+          milestonesCreated++;
+        } catch (error) {
+          console.warn(`Failed to create milestone ${m.title}:`, error);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      goal: updated,
+      milestonesCreated,
+    });
+  } catch (error) {
+    console.error("Apply improve error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ 
+      error: "Failed to apply improved structure",
+      details: errorMessage,
+    });
+  }
+});
+
+// Apply Level Up (create milestones, quests, update goal)
+app.post("/api/goals/:id/apply-level-up", async (req, res) => {
+  try {
+    const { levelUpResponse } = req.body;
+    if (!levelUpResponse) {
+      return res.status(400).json({ error: "levelUpResponse is required" });
+    }
+
+    const goal = await getGoalById(req.params.id);
+    if (!goal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    const orgId = goal.orgId || "default-org";
+    const updates: Partial<Goal> = {
+      level: levelUpResponse.next_level,
+      ...(levelUpResponse.summary && levelUpResponse.summary.trim() && { summary: levelUpResponse.summary }),
+      ...(levelUpResponse.goal_updates.outcome && levelUpResponse.goal_updates.outcome.trim() && { outcome: levelUpResponse.goal_updates.outcome }),
+      ...(levelUpResponse.goal_updates.success_metric && levelUpResponse.goal_updates.success_metric.trim() && { successMetric: levelUpResponse.goal_updates.success_metric }),
+      ...(levelUpResponse.goal_updates.target_value && levelUpResponse.goal_updates.target_value.trim() && { targetValue: levelUpResponse.goal_updates.target_value }),
+      ...(levelUpResponse.goal_updates.plan_markdown && levelUpResponse.goal_updates.plan_markdown.trim() && { planMarkdown: levelUpResponse.goal_updates.plan_markdown }),
+      ...(levelUpResponse.goal_updates.playbook_markdown && levelUpResponse.goal_updates.playbook_markdown.trim() && { playbookMarkdown: levelUpResponse.goal_updates.playbook_markdown }),
+      ...(levelUpResponse.goal_updates.risks && levelUpResponse.goal_updates.risks.length > 0 && { risks: levelUpResponse.goal_updates.risks }),
+      ...(levelUpResponse.goal_updates.dependencies && levelUpResponse.goal_updates.dependencies.length > 0 && { dependencies: levelUpResponse.goal_updates.dependencies }),
+    };
+
+    // Update goal
+    const updatedGoal = await updateHierarchicalGoal(req.params.id, updates);
+    if (!updatedGoal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+
+    // Create milestones
+    const milestoneIds: string[] = [];
+    if (levelUpResponse.milestones && levelUpResponse.milestones.length > 0) {
+      for (let i = 0; i < levelUpResponse.milestones.length; i++) {
+        const m = levelUpResponse.milestones[i];
+        if (m.title && m.title.trim()) {
+          const milestone = await createMilestone(
+            req.params.id,
+            m.title,
+            (m.due_date && m.due_date.trim()) ? m.due_date : null,
+            i
+          );
+          milestoneIds.push(milestone.id);
+        }
+      }
+    }
+
+    // Create quests (link to goal, optionally to first milestone)
+    const questIds: string[] = [];
+    if (levelUpResponse.quests && levelUpResponse.quests.length > 0) {
+      // We need a questline to create quests - create a default one or use existing
+      const questlines = await getQuestlinesByGoalId(req.params.id);
+      let questline = questlines[0];
+      if (!questline) {
+        questline = await createQuestline(orgId, req.params.id, `${goal.title} - Level ${levelUpResponse.next_level} Quests`);
+      }
+
+      for (const q of levelUpResponse.quests) {
+        if (q.title && q.title.trim() && q.objective && q.objective.trim()) {
+          const quest = await createQuest(
+            orgId,
+            questline.id,
+            q.title,
+            q.objective,
+            []
+          );
+          // Link quest to goal and optionally to first milestone
+          await linkQuestToGoal(
+            quest.id,
+            req.params.id,
+            milestoneIds[0] || null
+          );
+          questIds.push(quest.id);
+          
+          // Create an initial task for the quest so it shows up in questmaster decks
+          // Use the quest objective as the task description
+          try {
+            const initialTask = await createTask(
+              orgId,
+              quest.id,
+              `Start: ${q.title}`,
+              q.objective,
+              true // Auto-assign
+            );
+            console.log(`[Level Up] Created initial task "${initialTask.title}" for quest "${q.title}"`);
+          } catch (taskError) {
+            console.error(`[Level Up] Failed to create initial task for quest "${q.title}":`, taskError);
+            // Don't fail the whole operation if task creation fails
+          }
+        }
+      }
+    }
+
+    // Create child goals if specified
+    const childGoalIds: string[] = [];
+    if (levelUpResponse.child_goals && levelUpResponse.child_goals.length > 0) {
+      for (const cg of levelUpResponse.child_goals) {
+        if (cg.title && cg.title.trim()) {
+          const childGoal = await createHierarchicalGoal(
+            orgId,
+            cg.title,
+            req.params.id,
+            cg.level || 0
+          );
+          childGoalIds.push(childGoal.id);
+        }
+      }
+    }
+
+    res.json({
+      goal: updatedGoal,
+      milestonesCreated: milestoneIds.length,
+      questsCreated: questIds.length,
+      childGoalsCreated: childGoalIds.length,
+    });
+  } catch (error) {
+    console.error("Apply level up error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ 
+      error: "Failed to apply level up",
+      details: errorMessage
+    });
+  }
+});
+
+// Get milestones for a goal
+app.get("/api/goals/:id/milestones", async (req, res) => {
+  try {
+    const milestones = await getMilestonesByGoalId(req.params.id);
+    res.json(milestones);
+  } catch (error) {
+    console.error("Get milestones error:", error);
+    res.status(500).json({ error: "Failed to get milestones" });
+  }
+});
+
+// Create milestone
+app.post("/api/milestones", async (req, res) => {
+  try {
+    const { goalId, title, dueDate, orderIndex } = req.body;
+    if (!goalId || !title) {
+      return res.status(400).json({ error: "goalId and title are required" });
+    }
+    const milestone = await createMilestone(goalId, title, dueDate || null, orderIndex || 0);
+    res.json(milestone);
+  } catch (error) {
+    console.error("Create milestone error:", error);
+    res.status(500).json({ error: "Failed to create milestone" });
+  }
+});
+
+// Update milestone
+app.put("/api/milestones/:id", async (req, res) => {
+  try {
+    const updates = req.body;
+    const updated = await updateMilestone(req.params.id, updates);
+    if (!updated) {
+      return res.status(404).json({ error: "Milestone not found" });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("Update milestone error:", error);
+    res.status(500).json({ error: "Failed to update milestone" });
+  }
+});
+
+// Link quest to goal
+app.post("/api/quests/:id/link-goal", async (req, res) => {
+  try {
+    const { goalId, milestoneId } = req.body;
+    const updated = await linkQuestToGoal(req.params.id, goalId || null, milestoneId || null);
+    if (!updated) {
+      return res.status(404).json({ error: "Quest not found" });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("Link quest to goal error:", error);
+    res.status(500).json({ error: "Failed to link quest to goal" });
+  }
+});
+
+// Get quests for a goal
+app.get("/api/goals/:id/quests", async (req, res) => {
+  try {
+    const quests = await getQuestsForGoal(req.params.id);
+    res.json(quests);
+  } catch (error) {
+    console.error("Get quests for goal error:", error);
+    res.status(500).json({ error: "Failed to get quests for goal" });
+  }
+});
+
+// Get active goals (for filtering)
+app.get("/api/active-goals", async (req, res) => {
+  try {
+    const orgId = req.query.orgId as string || "default-org";
+    const goals = await getActiveGoals(orgId);
+    res.json(goals);
+  } catch (error) {
+    console.error("Get active goals error:", error);
+    res.status(500).json({ error: "Failed to get active goals" });
+  }
 });
 
 // Get assignment review for a goal (after decomposition)
@@ -914,6 +1409,32 @@ app.post("/api/quests/:id/tasks", async (req, res) => {
   res.json(task);
 });
 
+// Get task by ID
+app.get("/api/tasks/:id", async (req, res) => {
+  try {
+    const task = await getTaskById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+    
+    // Find which quest this task belongs to
+    const orgId = task.orgId;
+    const allQuests = await storage.list<Quest>("quests", (q) => q.orgId === orgId);
+    const quest = allQuests.find(q => q.taskIds.includes(task.id));
+    
+    // Add questId to task response for convenience
+    const taskWithQuest = {
+      ...task,
+      questId: quest?.id,
+    };
+    
+    res.json(taskWithQuest);
+  } catch (error) {
+    console.error("Get task error:", error);
+    res.status(500).json({ error: "Failed to get task" });
+  }
+});
+
 // Update task endpoint with optimistic concurrency
 app.put("/api/tasks/:id", async (req, res) => {
   try {
@@ -1045,6 +1566,139 @@ app.post("/api/tasks/:id/approve", async (req, res) => {
     console.error("Approve task error:", error);
     const message = error instanceof Error ? error.message : "Failed to approve task";
     res.status(400).json({ error: message });
+  }
+});
+
+// Submit task output endpoint
+app.post("/api/tasks/:id/outputs", async (req, res) => {
+  try {
+    const task = await getTaskById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const { type, content, title } = req.body;
+    if (!type || !content || !content.trim()) {
+      return res.status(400).json({ error: "Type and content are required" });
+    }
+
+    if (!['text', 'link', 'file', 'code', 'image'].includes(type)) {
+      return res.status(400).json({ error: "Invalid output type" });
+    }
+
+    // Create output
+    const output = {
+      id: `output-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      type,
+      content: content.trim(),
+      title: title?.trim() || undefined,
+      submittedAt: new Date().toISOString(),
+      submittedBy: undefined, // TODO: Get from auth context
+    };
+
+    // Add output to task
+    const existingOutputs = task.outputs || [];
+    const updatedOutputs = [...existingOutputs, output];
+
+    // Update task with new output
+    // Only auto-complete if task is not already done
+    const updates: Partial<Task> = {
+      outputs: updatedOutputs,
+    };
+    if (task.status !== 'done') {
+      updates.status = 'done'; // Auto-complete when output is submitted
+    }
+    const updated = await updateTask(req.params.id, updates);
+
+    if (!updated) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Publish event
+    await publish("task.output.submitted", {
+      taskId: task.id,
+      taskTitle: task.title,
+      outputId: output.id,
+      outputType: output.type,
+    }, {
+      orgId: task.orgId,
+      sourceApp: "questboard",
+    });
+
+    res.json({
+      output,
+      task: updated,
+    });
+  } catch (error) {
+    console.error("Submit output error:", error);
+    res.status(500).json({ error: "Failed to submit output" });
+  }
+});
+
+// AI Help endpoint for tasks
+app.post("/api/tasks/:id/ai-help", async (req, res) => {
+  try {
+    const task = await getTaskById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const { type } = req.body;
+    if (!type || !['hints', 'breakdown', 'next-actions', 'blockers'].includes(type)) {
+      return res.status(400).json({ error: "Invalid help type. Must be: hints, breakdown, next-actions, or blockers" });
+    }
+
+    // For now, return a simple response structure
+    // In the future, this could call AI to generate actual help
+    let content = '';
+    let hints: string[] = [];
+    let nextActions: string[] = [];
+    let subtasks: Array<{ title: string; description?: string }> = [];
+
+    switch (type) {
+      case 'hints':
+        hints = [
+          `Break down "${task.title}" into smaller steps if it feels overwhelming`,
+          `Focus on the acceptance criteria: ${task.acceptanceCriteria?.join(', ') || task.dod || 'Complete the task objectives'}`,
+          `Consider the Working Genius phase: ${task.phase || 'N/A'}`,
+          `Estimated time: ${task.estimatedMinutes || 60} minutes - plan accordingly`,
+        ];
+        break;
+      case 'breakdown':
+        subtasks = [
+          { title: 'Review task requirements', description: 'Understand what needs to be done' },
+          { title: 'Gather necessary resources', description: 'Collect any materials, information, or tools needed' },
+          { title: 'Execute the main work', description: task.description || 'Complete the primary objective' },
+          { title: 'Verify completion', description: `Check against: ${task.acceptanceCriteria?.join(', ') || task.dod || 'task requirements'}` },
+        ];
+        break;
+      case 'next-actions':
+        nextActions = [
+          task.status === 'todo' ? 'Start by reviewing the task description and acceptance criteria' : 'Continue from where you left off',
+          task.blockers && task.blockers.length > 0 ? `Address blockers: ${task.blockers.join(', ')}` : 'No blockers to address',
+          `Work towards: ${task.acceptanceCriteria?.[0] || task.dod || 'completing the task'}`,
+          `Remember: This task is part of "${task.questId ? 'a quest' : 'your work'}"`,
+        ];
+        break;
+      case 'blockers':
+        if (task.blockers && task.blockers.length > 0) {
+          content = `Current blockers:\n${task.blockers.map(b => `- ${b}`).join('\n')}\n\nSuggestions:\n- Break down blockers into smaller issues\n- Identify who or what can help resolve each blocker\n- Consider alternative approaches if blocked`;
+        } else {
+          content = 'No blockers identified. You\'re ready to proceed!';
+        }
+        break;
+    }
+
+    res.json({
+      type,
+      content,
+      hints: hints.length > 0 ? hints : undefined,
+      nextActions: nextActions.length > 0 ? nextActions : undefined,
+      subtasks: subtasks.length > 0 ? subtasks : undefined,
+    });
+  } catch (error) {
+    console.error("AI help error:", error);
+    res.status(500).json({ error: "Failed to get AI help" });
   }
 });
 
@@ -1597,20 +2251,21 @@ app.get("/api/daily-deck", async (req, res) => {
     const deckId = `daily-deck-${orgId}-${today}`;
     const dailyDeck = await storage.get<DailyDeck>("daily_decks", deckId);
 
+    // Get entity counts for context (even if no deck exists)
+    const counts = await getEntityCounts(orgId);
+
     if (!dailyDeck) {
       return res.json({
         exists: false,
         message: "No daily deck found. Run Questmaster to generate one.",
         orgId,
         date: today,
+        counts, // Include counts so UI can show helpful info
       });
     }
 
     // Get last questmaster run
     const lastQuestmasterRun = await getLastQuestmasterRun(orgId);
-
-    // Get entity counts for context
-    const counts = await getEntityCounts(orgId);
 
     res.json({
       exists: true,
@@ -1636,6 +2291,52 @@ app.get("/api/debug", async (req, res) => {
     const jobSummaries = await getJobRunSummaries(orgId, 10);
     const recentEvents = readEvents(50);
 
+    // Build org context for knowledge base debugging
+    let orgContext = null;
+    let orgContextFormatted = null;
+    let orgContextError = null;
+    try {
+      console.log(`[Debug] Building org context for orgId: ${orgId}`);
+      const { buildOrgContext, formatOrgContext } = await import("@sb/ai");
+      console.log(`[Debug] Successfully imported buildOrgContext and formatOrgContext`);
+      
+      orgContext = await buildOrgContext(orgId, {
+        maxActiveGoals: 10,
+        maxCompletedGoals: 5,
+        maxActiveQuests: 15,
+        maxCompletedQuests: 10,
+        maxOutputs: 10,
+        maxKnowledgeCards: 10,
+      });
+      console.log(`[Debug] buildOrgContext returned:`, {
+        activeGoals: orgContext?.activeGoals?.length || 0,
+        completedGoals: orgContext?.completedGoals?.length || 0,
+        activeQuests: orgContext?.activeQuests?.length || 0,
+        completedQuests: orgContext?.completedQuests?.length || 0,
+        recentOutputs: orgContext?.recentOutputs?.length || 0,
+        knowledgeCards: orgContext?.knowledgeCards?.length || 0,
+      });
+      
+      if (orgContext) {
+        orgContextFormatted = formatOrgContext(orgContext, 5000);
+        console.log(`[Debug] Formatted context length: ${orgContextFormatted?.length || 0} chars`);
+      } else {
+        console.warn(`[Debug] buildOrgContext returned null/undefined`);
+        orgContextError = "buildOrgContext returned null or undefined";
+      }
+    } catch (error) {
+      orgContextError = error instanceof Error ? error.message : String(error);
+      console.error("[Debug] Failed to build org context for debug:", error);
+      // Log full error details for debugging
+      if (error instanceof Error) {
+        console.error("[Debug] Error name:", error.name);
+        console.error("[Debug] Error message:", error.message);
+        if (error.stack) {
+          console.error("[Debug] Error stack:", error.stack);
+        }
+      }
+    }
+
     res.json({
       storage: storageInfo,
       orgId,
@@ -1643,10 +2344,86 @@ app.get("/api/debug", async (req, res) => {
       counts,
       jobSummaries,
       recentEvents,
+      orgContext: {
+        raw: orgContext,
+        formatted: orgContextFormatted,
+        error: orgContextError || undefined,
+      },
     });
   } catch (error) {
     console.error("Get debug info error:", error);
     res.status(500).json({ error: "Failed to get debug info" });
+  }
+});
+
+// Reset storage to Supabase endpoint
+app.post("/api/debug/reset-storage", async (req, res) => {
+  try {
+    const { resetToSupabase } = await import("@sb/storage");
+    resetToSupabase();
+    res.json({ 
+      success: true, 
+      message: "Storage reset to Supabase mode. Restart server for changes to take effect.",
+      storageInfo: getStorageInfo()
+    });
+  } catch (error) {
+    console.error("Reset storage error:", error);
+    res.status(500).json({ error: "Failed to reset storage" });
+  }
+});
+
+// Create tasks for quests that don't have any
+app.post("/api/debug/create-quest-tasks", async (req, res) => {
+  try {
+    const orgId = req.body.orgId as string || "default-org";
+    
+    // Get all quests for this org
+    const quests = await storage.list<Quest>("quests", (q) => q.orgId === orgId);
+    
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const quest of quests) {
+      // Skip if quest already has tasks
+      if (quest.taskIds && quest.taskIds.length > 0) {
+        skipped++;
+        continue;
+      }
+      
+      // Create an initial task for this quest
+      try {
+        const initialTask = await createTask(
+          orgId,
+          quest.id,
+          `Start: ${quest.title}`,
+          quest.objective || `Work on ${quest.title}`,
+          true // Auto-assign
+        );
+        created++;
+        console.log(`[Debug] Created task "${initialTask.title}" for quest "${quest.title}"`);
+      } catch (taskError) {
+        const errorMsg = taskError instanceof Error ? taskError.message : String(taskError);
+        errors.push(`Quest "${quest.title}": ${errorMsg}`);
+        console.error(`[Debug] Failed to create task for quest "${quest.title}":`, taskError);
+      }
+    }
+    
+    res.json({
+      success: true,
+      orgId,
+      created,
+      skipped,
+      total: quests.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Create quest tasks error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to create quest tasks",
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
