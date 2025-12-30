@@ -939,3 +939,194 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// ============================================================================
+// Lookbooks / Collections Functionality
+// ============================================================================
+
+let allLookbooks = [];
+let currentLookbook = null;
+
+// Show section (products, lookbooks, or lookbook detail)
+function showSection(section) {
+  const productsSection = document.getElementById('productsMainSection');
+  const lookbooksSection = document.getElementById('lookbooksMainSection');
+  const lookbookDetailSection = document.getElementById('lookbookDetailSection');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  // Hide all sections
+  productsSection.style.display = 'none';
+  lookbooksSection.style.display = 'none';
+  lookbookDetailSection.style.display = 'none';
+
+  // Update nav links
+  navLinks.forEach(link => link.classList.remove('active'));
+
+  if (section === 'products') {
+    productsSection.style.display = 'block';
+    navLinks[0]?.classList.add('active');
+  } else if (section === 'lookbooks') {
+    lookbooksSection.style.display = 'block';
+    navLinks[1]?.classList.add('active');
+    loadLookbooks();
+  } else if (section === 'lookbook-detail') {
+    lookbookDetailSection.style.display = 'block';
+    navLinks[1]?.classList.add('active');
+  }
+}
+
+// Load lookbooks
+async function loadLookbooks() {
+  const container = document.getElementById('lookbooksGrid');
+  container.innerHTML = '<div class="loading"><div class="loading-spinner">⏳</div><p>Loading collections...</p></div>';
+
+  try {
+    const response = await fetch(`/api/store/${orgId}/lookbooks`);
+
+    if (response.status === 403) {
+      container.innerHTML = '<div style="padding: 60px 20px; text-align: center;"><p style="color: #6b7280;">This store is not public yet.</p></div>';
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error('Failed to load lookbooks');
+    }
+
+    allLookbooks = await response.json();
+    displayLookbooks(allLookbooks);
+  } catch (error) {
+    console.error('Error loading lookbooks:', error);
+    container.innerHTML = '<div style="padding: 60px 20px; text-align: center;"><p style="color: #ef4444;">Failed to load collections</p></div>';
+  }
+}
+
+// Display lookbooks
+function displayLookbooks(lookbooks) {
+  const container = document.getElementById('lookbooksGrid');
+  const countElement = document.getElementById('lookbookCount');
+
+  if (countElement) {
+    countElement.textContent = lookbooks.length;
+  }
+
+  if (lookbooks.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 60px 20px; text-align: center; grid-column: 1 / -1;">
+        <div style="font-size: 64px; margin-bottom: 20px;">📚</div>
+        <h3 style="font-size: 24px; color: #1f2937; margin-bottom: 10px;">No Collections Yet</h3>
+        <p style="color: #6b7280;">Check back soon for curated product collections</p>
+      </div>
+    `;
+    return;
+  }
+
+  const html = lookbooks.map(lookbook => {
+    const coverHtml = lookbook.coverImage
+      ? `<img src="${lookbook.coverImage}" alt="${lookbook.title}">`
+      : '<div style="font-size: 64px;">📚</div>';
+
+    return `
+      <div class="lookbook-card" onclick="showLookbookDetail('${lookbook.id}')">
+        <div class="lookbook-cover">
+          ${coverHtml}
+        </div>
+        <div class="lookbook-card-body">
+          <h3 class="lookbook-card-title">${lookbook.title}</h3>
+          ${lookbook.description ? `<p class="lookbook-card-description">${lookbook.description}</p>` : ''}
+          <div class="lookbook-card-meta">
+            <span class="lookbook-card-products">${lookbook.products.length} ${lookbook.products.length === 1 ? 'product' : 'products'}</span>
+            <span>View Collection →</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+// Show lookbook detail
+async function showLookbookDetail(lookbookId) {
+  const container = document.getElementById('lookbookDetailContent');
+  container.innerHTML = '<div class="loading"><div class="loading-spinner">⏳</div><p>Loading collection...</p></div>';
+
+  showSection('lookbook-detail');
+
+  try {
+    const response = await fetch(`/api/store/${orgId}/lookbooks/${lookbookId}`);
+
+    if (!response.ok) {
+      throw new Error('Failed to load lookbook');
+    }
+
+    currentLookbook = await response.json();
+    displayLookbookDetail(currentLookbook);
+  } catch (error) {
+    console.error('Error loading lookbook detail:', error);
+    container.innerHTML = '<div style="padding: 60px 20px; text-align: center;"><p style="color: #ef4444;">Failed to load collection</p></div>';
+  }
+}
+
+// Display lookbook detail
+function displayLookbookDetail(lookbook) {
+  const container = document.getElementById('lookbookDetailContent');
+
+  const coverHtml = lookbook.coverImage
+    ? `<img src="${lookbook.coverImage}" alt="${lookbook.title}">`
+    : '<div class="lookbook-detail-cover-placeholder">📚</div>';
+
+  const productsHtml = lookbook.productDetails && lookbook.productDetails.length > 0
+    ? lookbook.productDetails.map(product => {
+        const image = product.images && product.images.length > 0
+          ? product.images[0].url
+          : '';
+
+        const price = product.price
+          ? `${getCurrencySymbol(product.currency)}${product.price.toFixed(2)}`
+          : 'Price not available';
+
+        return `
+          <div class="product-card" onclick="showProductDetail('${product.id}')">
+            <div class="product-image">
+              ${image ? `<img src="${image}" alt="${product.name}">` : '<div style="background: #e5e7eb; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px;">📦</div>'}
+            </div>
+            <div class="product-info">
+              <h3 class="product-title">${product.name}</h3>
+              ${product.description ? `<p class="product-description">${product.description}</p>` : ''}
+              <div class="product-footer">
+                <span class="product-price">${price}</span>
+                <button class="btn-add-to-cart" onclick="event.stopPropagation(); addToCart('${product.id}')">Add to Cart</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<div style="padding: 60px 20px; text-align: center; grid-column: 1 / -1;"><p style="color: #6b7280;">No products in this collection</p></div>';
+
+  const html = `
+    <div class="lookbook-detail-header">
+      <div class="lookbook-detail-cover">
+        ${coverHtml}
+      </div>
+      <h1 class="lookbook-detail-title">${lookbook.title}</h1>
+      ${lookbook.description ? `<p class="lookbook-detail-description">${lookbook.description}</p>` : ''}
+      <p class="lookbook-detail-count">${lookbook.productDetails?.length || 0} ${lookbook.productDetails?.length === 1 ? 'product' : 'products'}</p>
+    </div>
+    <div class="lookbook-products-grid">
+      ${productsHtml}
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// Helper function to get currency symbol
+function getCurrencySymbol(currency) {
+  const symbols = {
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥'
+  };
+  return symbols[currency] || currency + ' ';
+}

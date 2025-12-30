@@ -13,6 +13,11 @@
       <div class="header-content">
         <h1 class="logo">Catalog Store</h1>
 
+        <nav class="nav-links">
+          <a href="#" class="nav-link active" onclick="showSection('products'); return false;">Products</a>
+          <a href="#" class="nav-link" onclick="showSection('lookbooks'); return false;">Collections</a>
+        </nav>
+
         <div class="search-bar">
           <input type="text" id="searchInput" placeholder="Search products..." />
           <button class="search-btn">🔍</button>
@@ -32,7 +37,8 @@
 
   <!-- Main Content -->
   <main class="main">
-    <div class="container">
+    <!-- Products Section -->
+    <div id="productsMainSection" class="container">
       <!-- Filters -->
       <aside class="filters">
         <h3>Filters</h3>
@@ -80,6 +86,31 @@
           </div>
         </div>
       </section>
+    </div>
+
+    <!-- Lookbooks Section -->
+    <div id="lookbooksMainSection" class="container" style="display: none;">
+      <section class="lookbooks-section">
+        <div class="lookbooks-header">
+          <h2>Collections</h2>
+          <p class="lookbooks-count"><span id="lookbookCount">0</span> collections</p>
+        </div>
+
+        <div id="lookbooksGrid" class="lookbooks-grid">
+          <div class="loading">
+            <div class="loading-spinner">⏳</div>
+            <p>Loading collections...</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Lookbook Detail Section -->
+    <div id="lookbookDetailSection" class="container" style="display: none;">
+      <div class="lookbook-detail">
+        <button class="back-btn" onclick="showSection('lookbooks')">← Back to Collections</button>
+        <div id="lookbookDetailContent"></div>
+      </div>
     </div>
   </main>
 

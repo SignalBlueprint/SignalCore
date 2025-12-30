@@ -708,5 +708,323 @@ window.addEventListener('keydown', (event) => {
     if (modal.classList.contains('active')) {
       closeProductModal();
     }
+    const lookbookModal = document.getElementById('lookbookModal');
+    if (lookbookModal && lookbookModal.classList.contains('active')) {
+      closeLookbookModal();
+    }
   }
+});
+
+// ============================================================================
+// Lookbooks Functionality
+// ============================================================================
+
+let allLookbooks = [];
+let allProductsForSelector = [];
+
+// Switch between Products and Lookbooks tabs
+function switchTab(tab) {
+  const productsTab = document.querySelector('.nav-tab:nth-child(1)');
+  const lookbooksTab = document.querySelector('.nav-tab:nth-child(2)');
+  const productsSection = document.getElementById('productsSection');
+  const lookbooksSection = document.getElementById('lookbooksSection');
+  const productsStats = document.getElementById('productsStats');
+  const lookbooksStats = document.getElementById('lookbooksStats');
+
+  if (tab === 'products') {
+    productsTab.classList.add('active');
+    lookbooksTab.classList.remove('active');
+    productsSection.style.display = 'block';
+    lookbooksSection.style.display = 'none';
+    productsStats.style.display = 'flex';
+    lookbooksStats.style.display = 'none';
+  } else if (tab === 'lookbooks') {
+    productsTab.classList.remove('active');
+    lookbooksTab.classList.add('active');
+    productsSection.style.display = 'none';
+    lookbooksSection.style.display = 'block';
+    productsStats.style.display = 'none';
+    lookbooksStats.style.display = 'flex';
+    loadLookbooks();
+  }
+}
+
+// Load lookbooks
+async function loadLookbooks() {
+  const container = document.getElementById('lookbooksContainer');
+  container.innerHTML = '<div class="loading"><div class="loading-spinner">⏳</div><div style="margin-top: 15px;">Loading lookbooks...</div></div>';
+
+  try {
+    const response = await fetch(`/api/lookbooks?orgId=${currentOrgId}`);
+    if (!response.ok) throw new Error('Failed to load lookbooks');
+
+    allLookbooks = await response.json();
+    displayLookbooks(allLookbooks);
+    updateLookbooksStats(allLookbooks);
+  } catch (error) {
+    console.error('Error loading lookbooks:', error);
+    container.innerHTML = '<div style="padding: 40px; text-align: center; color: #6b7280;">❌ Failed to load lookbooks</div>';
+  }
+}
+
+// Display lookbooks
+function displayLookbooks(lookbooks) {
+  const container = document.getElementById('lookbooksContainer');
+
+  if (lookbooks.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 60px 20px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 15px;">📚</div>
+        <div style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">No lookbooks yet</div>
+        <div style="color: #6b7280; margin-bottom: 25px;">Create your first lookbook to organize products into collections</div>
+        <button class="btn btn-primary" onclick="openAddLookbookModal()">
+          <span>+</span>
+          <span>Create Lookbook</span>
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const grid = lookbooks.map(lookbook => {
+    const coverImageHtml = lookbook.coverImage
+      ? `<img src="${lookbook.coverImage}" alt="${lookbook.title}">`
+      : '📚';
+
+    const visibility = lookbook.isPublic ? 'Public' : 'Private';
+    const visibilityClass = lookbook.isPublic ? '' : 'private';
+
+    return `
+      <div class="lookbook-card" onclick="openEditLookbookModal('${lookbook.id}')">
+        <div class="lookbook-cover">
+          ${coverImageHtml}
+        </div>
+        <div class="lookbook-body">
+          <div class="lookbook-title">${lookbook.title}</div>
+          ${lookbook.description ? `<div class="lookbook-description">${lookbook.description}</div>` : ''}
+          <div class="lookbook-meta">
+            <div class="lookbook-products-count">
+              ${lookbook.products.length} product${lookbook.products.length !== 1 ? 's' : ''}
+            </div>
+            <div class="lookbook-visibility ${visibilityClass}">${visibility}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `<div class="lookbooks-grid">${grid}</div>`;
+}
+
+// Update lookbooks stats
+function updateLookbooksStats(lookbooks) {
+  const total = lookbooks.length;
+  const publicCount = lookbooks.filter(l => l.isPublic).length;
+  const privateCount = total - publicCount;
+
+  document.getElementById('totalLookbooks').textContent = total;
+  document.getElementById('publicLookbooks').textContent = publicCount;
+  document.getElementById('privateLookbooks').textContent = privateCount;
+}
+
+// Load products for selector
+async function loadProductsForSelector() {
+  try {
+    const response = await fetch(`/api/products?orgId=${currentOrgId}`);
+    if (!response.ok) throw new Error('Failed to load products');
+
+    allProductsForSelector = await response.json();
+    displayProductSelector();
+  } catch (error) {
+    console.error('Error loading products for selector:', error);
+    document.getElementById('productSelector').innerHTML = '<div style="padding: 20px; text-align: center; color: #ef4444;">Failed to load products</div>';
+  }
+}
+
+// Display product selector
+function displayProductSelector(selectedProducts = []) {
+  const container = document.getElementById('productSelector');
+
+  if (allProductsForSelector.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No products available. Create products first.</div>';
+    return;
+  }
+
+  const html = allProductsForSelector.map(product => {
+    const isSelected = selectedProducts.includes(product.id);
+    const image = product.images && product.images.length > 0
+      ? `<img src="${product.images[0].url}" alt="${product.name}">`
+      : '<div style="width: 50px; height: 50px; background: #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: center;">📦</div>';
+
+    const price = product.price
+      ? `${product.currency === 'USD' ? '$' : product.currency === 'EUR' ? '€' : product.currency} ${product.price.toFixed(2)}`
+      : 'N/A';
+
+    return `
+      <div class="product-selector-item" onclick="toggleProductSelection('${product.id}')">
+        <input type="checkbox" ${isSelected ? 'checked' : ''} data-product-id="${product.id}" onclick="event.stopPropagation(); toggleProductSelection('${product.id}')">
+        ${image}
+        <div class="product-selector-item-info">
+          <div class="product-selector-item-name">${product.name}</div>
+          <div class="product-selector-item-price">${price}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+// Toggle product selection
+function toggleProductSelection(productId) {
+  const checkbox = document.querySelector(`input[data-product-id="${productId}"]`);
+  if (checkbox) {
+    checkbox.checked = !checkbox.checked;
+  }
+}
+
+// Open add lookbook modal
+async function openAddLookbookModal() {
+  document.getElementById('lookbookModalTitle').textContent = 'Create Lookbook';
+  document.getElementById('lookbookSubmitBtnText').textContent = 'Create Lookbook';
+  document.getElementById('lookbookForm').reset();
+  document.getElementById('lookbookId').value = '';
+  document.getElementById('deleteLookbookBtn').style.display = 'none';
+
+  // Load products for selector
+  await loadProductsForSelector();
+  displayProductSelector([]);
+
+  document.getElementById('lookbookModal').classList.add('active');
+}
+
+// Open edit lookbook modal
+async function openEditLookbookModal(lookbookId) {
+  const lookbook = allLookbooks.find(l => l.id === lookbookId);
+  if (!lookbook) return;
+
+  document.getElementById('lookbookModalTitle').textContent = 'Edit Lookbook';
+  document.getElementById('lookbookSubmitBtnText').textContent = 'Save Changes';
+  document.getElementById('lookbookId').value = lookbook.id;
+  document.getElementById('lookbookTitle').value = lookbook.title;
+  document.getElementById('lookbookDescription').value = lookbook.description || '';
+  document.getElementById('lookbookCoverImage').value = lookbook.coverImage || '';
+  document.getElementById('lookbookIsPublic').checked = lookbook.isPublic;
+  document.getElementById('deleteLookbookBtn').style.display = 'block';
+
+  // Load products and select current ones
+  await loadProductsForSelector();
+  displayProductSelector(lookbook.products);
+
+  document.getElementById('lookbookModal').classList.add('active');
+}
+
+// Close lookbook modal
+function closeLookbookModal() {
+  document.getElementById('lookbookModal').classList.remove('active');
+  document.getElementById('lookbookForm').reset();
+}
+
+// Handle lookbook submit
+async function handleLookbookSubmit(event) {
+  event.preventDefault();
+
+  const lookbookId = document.getElementById('lookbookId').value;
+  const title = document.getElementById('lookbookTitle').value.trim();
+  const description = document.getElementById('lookbookDescription').value.trim();
+  const coverImage = document.getElementById('lookbookCoverImage').value.trim();
+  const isPublic = document.getElementById('lookbookIsPublic').checked;
+
+  // Get selected products
+  const selectedProducts = Array.from(document.querySelectorAll('#productSelector input[type="checkbox"]:checked'))
+    .map(cb => cb.dataset.productId);
+
+  const lookbookData = {
+    title,
+    description: description || undefined,
+    coverImage: coverImage || undefined,
+    isPublic,
+    products: selectedProducts,
+    orgId: currentOrgId,
+  };
+
+  const submitBtn = document.getElementById('lookbookSubmitBtn');
+  const originalText = document.getElementById('lookbookSubmitBtnText').textContent;
+  submitBtn.disabled = true;
+  document.getElementById('lookbookSubmitBtnText').textContent = lookbookId ? 'Saving...' : 'Creating...';
+
+  try {
+    const url = lookbookId ? `/api/lookbooks/${lookbookId}` : '/api/lookbooks';
+    const method = lookbookId ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lookbookData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to save lookbook');
+    }
+
+    closeLookbookModal();
+    await loadLookbooks();
+  } catch (error) {
+    console.error('Error saving lookbook:', error);
+    alert(`Error: ${error.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    document.getElementById('lookbookSubmitBtnText').textContent = originalText;
+  }
+}
+
+// Handle delete lookbook
+async function handleDeleteLookbook() {
+  const lookbookId = document.getElementById('lookbookId').value;
+  if (!lookbookId) return;
+
+  const lookbook = allLookbooks.find(l => l.id === lookbookId);
+  if (!confirm(`Are you sure you want to delete "${lookbook.title}"?`)) {
+    return;
+  }
+
+  const deleteBtn = document.getElementById('deleteLookbookBtn');
+  deleteBtn.disabled = true;
+  deleteBtn.textContent = 'Deleting...';
+
+  try {
+    const response = await fetch(`/api/lookbooks/${lookbookId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete lookbook');
+    }
+
+    closeLookbookModal();
+    await loadLookbooks();
+  } catch (error) {
+    console.error('Error deleting lookbook:', error);
+    alert(`Error: ${error.message}`);
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'Delete';
+  }
+}
+
+// Lookbook search
+document.getElementById('lookbookSearchInput')?.addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase().trim();
+
+  if (!query) {
+    displayLookbooks(allLookbooks);
+    return;
+  }
+
+  const filtered = allLookbooks.filter(lookbook =>
+    lookbook.title.toLowerCase().includes(query) ||
+    (lookbook.description && lookbook.description.toLowerCase().includes(query))
+  );
+
+  displayLookbooks(filtered);
 });
