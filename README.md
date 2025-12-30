@@ -38,13 +38,42 @@ docs/              # Documentation
 - Event system integration for activity tracking
 - Storage abstraction layer with template system
 
-**Next Tasks:**
-- Add comprehensive test coverage (unit + integration)
-- Implement authentication/authorization
-- Build real-time collaboration features
-- Improve mobile-responsive design
-- Create user onboarding flow
-- Add data export/import functionality
+**Next Steps:**
+1. **Testing & Quality**
+   - Add unit tests for core business logic (questmaster, sprint planner, assignment engine)
+   - Add integration tests for API endpoints
+   - Add E2E tests for critical user flows (create quest, assign tasks, review sprint)
+   - Set up CI/CD pipeline with automated testing
+
+2. **Authentication & Security**
+   - Implement user authentication (JWT or session-based)
+   - Add role-based access control (admin, team lead, member)
+   - Secure API endpoints with auth middleware
+   - Add org/team isolation for multi-tenancy
+
+3. **Real-time Collaboration**
+   - Add WebSocket/SSE for live updates
+   - Show when other users are viewing/editing
+   - Real-time task status updates
+   - Live notifications for assignments and completions
+
+4. **Mobile & UX**
+   - Improve mobile-responsive layouts for all pages
+   - Add touch-optimized interactions
+   - Create PWA manifest for installable app
+   - Improve loading states and error handling
+
+5. **Onboarding & Documentation**
+   - Create interactive onboarding flow for new users
+   - Add in-app tooltips and guides
+   - Build admin setup wizard
+   - Create video tutorials
+
+6. **Data Management**
+   - Add bulk data export (CSV, JSON)
+   - Add data import from other tools
+   - Implement data backup and restore
+   - Add data archival for completed quests
 
 ---
 
@@ -62,15 +91,49 @@ docs/              # Documentation
 - Lookbook/collection system
 - Public storefront API
 - Comprehensive documentation (README + CATALOG_GUIDE)
+- Basic upload test UI (upload-test.html)
 
-**Next Tasks:**
-- Build React frontend for catalog management
-- Create mobile-friendly upload interface
-- Add batch upload and CSV import/export
-- Implement payment processing integration
-- Build order management system
-- Create analytics dashboard
-- Add category management
+**Next Steps:**
+1. **Admin UI Development**
+   - Build full React admin dashboard for catalog management
+   - Create product listing page with search/filter
+   - Add product detail/edit pages
+   - Build image gallery manager with drag-and-drop
+   - Create lookbook/collection builder UI
+
+2. **Upload & Import**
+   - Build mobile-friendly product upload interface
+   - Add batch upload with progress tracking
+   - Implement CSV import with field mapping
+   - Add image URL bulk import
+   - Create template download for CSV format
+
+3. **Search & Discovery**
+   - Build semantic search UI leveraging vector embeddings
+   - Add faceted search/filtering (category, price, status, tags)
+   - Implement "similar products" recommendations
+   - Add saved searches and alerts
+
+4. **E-commerce Features**
+   - Integrate payment processing (Stripe/Square)
+   - Build shopping cart functionality
+   - Add order management system
+   - Implement checkout flow
+   - Add order tracking and fulfillment status
+
+5. **Analytics & Reporting**
+   - Create analytics dashboard (views, sales, inventory)
+   - Add product performance metrics
+   - Build inventory alerts (low stock, out of stock)
+   - Generate sales reports
+   - Track AI usage and costs
+
+6. **Category & Organization**
+   - Build category management system with hierarchy
+   - Add tag management and auto-tagging
+   - Implement product variants (size, color, etc.)
+   - Add SKU management
+   - Create bulk edit capabilities
 
 ---
 
@@ -87,14 +150,51 @@ docs/              # Documentation
 - Dashboard statistics and metrics
 - Active quests integration with Questboard
 
-**Next Tasks:**
-- Connect team data to real database (currently mock)
-- Add authentication/authorization
-- Implement real-time updates (WebSocket/SSE)
-- Add notification system
-- Build team member CRUD operations
-- Create role-based access control
-- Add data export functionality
+**Next Steps:**
+1. **Data Persistence**
+   - Migrate team data from mock to persistent storage (@sb/storage)
+   - Add settings/configuration persistence
+   - Implement user preferences storage
+   - Add audit log storage for admin actions
+
+2. **Authentication & Authorization**
+   - Implement admin authentication system
+   - Add role-based access control (super admin, admin, viewer)
+   - Create API key management for apps
+   - Add session management and security
+
+3. **Real-time Monitoring**
+   - Add WebSocket/SSE for live updates
+   - Build real-time app status monitoring
+   - Create live event stream viewer
+   - Add real-time metrics dashboard (CPU, memory, requests)
+
+4. **Notification System**
+   - Build notification center with alerts
+   - Add email notifications for critical events
+   - Implement Slack/Discord webhook integrations
+   - Create configurable alert rules (app down, high AI costs, errors)
+
+5. **Team Management**
+   - Build complete team member CRUD interface
+   - Add team member invitation system
+   - Implement Working Genius assessment flow
+   - Add team analytics and insights
+   - Create team calendar and availability
+
+6. **Suite Orchestration**
+   - Add ability to start/stop apps from Console
+   - Build deployment management interface
+   - Add environment variable management
+   - Create suite-wide configuration panel
+   - Implement backup and restore functionality
+
+7. **Reporting & Analytics**
+   - Build comprehensive analytics dashboard
+   - Add cost tracking and forecasting
+   - Create usage reports per app
+   - Add data export (CSV, JSON, PDF reports)
+   - Build custom report builder
 
 ---
 
@@ -112,119 +212,331 @@ docs/              # Documentation
 - Org-specific job execution
 - Command-line interface for manual execution
 
-**Next Tasks:**
-- Add actual cron scheduler (currently manual)
-- Implement job queue with retry logic
-- Build job monitoring dashboard
-- Add email notification jobs
-- Create data backup/export jobs
-- Add job execution history tracking
-- Implement job failure alerts
+**Next Steps:**
+1. **Scheduling System**
+   - Implement actual cron scheduler (replace manual execution)
+   - Add job scheduling configuration (YAML or database)
+   - Support multiple schedule formats (cron, interval, specific times)
+   - Add timezone support for scheduled jobs
+   - Implement job dependency chains
+
+2. **Job Queue & Reliability**
+   - Build persistent job queue with @sb/storage
+   - Implement retry logic with exponential backoff
+   - Add dead letter queue for failed jobs
+   - Create job priority system
+   - Add job cancellation capability
+
+3. **Monitoring & Observability**
+   - Build job monitoring dashboard (integrate with Console)
+   - Add job execution history tracking
+   - Create job performance metrics (duration, success rate)
+   - Implement detailed logging with log levels
+   - Add job output/result storage
+
+4. **Alerting & Notifications**
+   - Implement job failure alerts (email, Slack, Discord)
+   - Add success/completion notifications
+   - Create custom alert rules per job
+   - Build escalation policies for critical failures
+   - Add health check endpoint for monitoring tools
+
+5. **New Jobs to Implement**
+   - Email notification jobs (digest, alerts, reports)
+   - Data backup/export jobs for all apps
+   - Database cleanup/archival jobs
+   - Analytics aggregation jobs
+   - Report generation jobs (weekly summaries, metrics)
+   - Lead enrichment jobs (for LeadScout)
+   - Campaign sending jobs (for Outreach)
+
+6. **Developer Experience**
+   - Create job template/generator CLI
+   - Add job testing framework
+   - Build job debugging tools
+   - Implement job preview/dry-run mode for all jobs
+   - Add job documentation generator
 
 ---
 
 ### Basic/Functional Apps
 
-#### 🟡 LeadScout (Port 4021)
-**Status:** Basic - Functional API, needs UI and database
+#### 🟢 LeadScout (Port 4021)
+**Status:** Functional - Complete API + UI with persistent storage
 **Description:** Lead discovery and qualification system
 
 **Current State:**
 - Complete REST API with CRUD operations
-- In-memory repository with filtering (status, source, score)
+- Persistent storage using @sb/storage (StorageLeadRepository)
+- Full web UI with lead management dashboard
+- Filtering by status, source, and score
+- Lead statistics (total leads, average score)
+- Add/edit lead forms with validation
 - Zod schema validation
-- Filter support and seed endpoint
-- Full API documentation
+- Seed endpoint for demo data
 
-**Next Tasks:**
-- Swap in-memory storage for persistent database (@sb/storage)
-- Build React UI for lead management dashboard
-- Add automatic lead scoring based on criteria
-- Implement CSV import/export
-- Add lead enrichment API integrations (email, contact info)
-- Connect to Outreach app for campaign targeting
-- Add web scraping for lead discovery
+**Next Steps:**
+1. **Lead Scoring & Intelligence**
+   - Implement automatic lead scoring algorithm based on criteria
+   - Add AI-powered lead qualification
+   - Create scoring rules engine (configurable weights)
+   - Add lead health indicators and signals
+   - Build lead prioritization system
+
+2. **Data Import/Export**
+   - Implement CSV import with field mapping
+   - Add CSV export with filters
+   - Create bulk upload from URLs/lists
+   - Add integration with LinkedIn Sales Navigator
+   - Build import from CRM systems (HubSpot, Salesforce)
+
+3. **Lead Enrichment**
+   - Integrate email finding APIs (Hunter.io, Apollo)
+   - Add company data enrichment (Clearbit, FullContact)
+   - Implement social profile discovery
+   - Add contact information validation
+   - Build automated enrichment workflow
+
+4. **Web Scraping & Discovery**
+   - Build web scraping engine for lead discovery
+   - Add Google/Bing search integration for prospecting
+   - Implement competitor analysis scraping
+   - Create custom scraping rules builder
+   - Add LinkedIn company discovery
+
+5. **Campaign Integration**
+   - Connect to Outreach app for campaign targeting
+   - Add "Send to Campaign" functionality
+   - Build lead list exports for outreach
+   - Create segmentation for targeted campaigns
+   - Add campaign performance tracking back to leads
+
+6. **Advanced Features**
+   - Build lead deduplication system
+   - Add lead lifecycle tracking (new → qualified → customer)
+   - Implement lead assignment to team members
+   - Create lead activity timeline
+   - Add notes and collaboration on leads
+   - Build lead recommendations engine
 
 ---
 
 #### 🟡 Outreach (Port 4025)
-**Status:** Basic - Campaign management, needs email sending and UI
+**Status:** Functional - Complete UI + campaign management, needs email sending & storage
 **Description:** Outreach campaign management and automation
 
 **Current State:**
-- HTTP server with campaign management
-- Message template system with variable substitution ({{business_name}}, etc.)
-- Audience filtering: industry, score range, tags
-- Template compilation engine with personalization
+- Complete REST API with campaign CRUD
+- Full web UI for campaign management
+- Message template system with variable substitution ({{business_name}}, {{domain}}, {{pain_point}}, {{industry}})
+- Audience filtering by industry, score range, tags
+- Template compilation and preview
+- Campaign message preview showing personalized messages
 - Mock lead provider for testing
+- In-memory campaign storage
 
-**Next Tasks:**
-- Integrate email service provider (SendGrid, AWS SES, etc.)
-- Build campaign management UI
-- Add email template builder with WYSIWYG editor
-- Implement campaign scheduling
-- Add email tracking and analytics (opens, clicks)
-- Build contact list import/management
-- Add Loom video integration
-- Implement A/B testing framework
+**Next Steps:**
+1. **Email Service Integration**
+   - Integrate email service provider (SendGrid, AWS SES, Postmark)
+   - Implement actual email sending functionality
+   - Add email queue with rate limiting
+   - Build email delivery tracking
+   - Add bounce and complaint handling
+   - Implement email warmup system
+
+2. **Data Persistence**
+   - Migrate from in-memory to @sb/storage
+   - Add campaign execution history storage
+   - Store sent messages and delivery status
+   - Implement campaign analytics data storage
+   - Add persistent campaign schedules
+
+3. **Template Builder**
+   - Build rich text WYSIWYG email editor
+   - Add pre-built template library
+   - Create template preview with live variable substitution
+   - Implement HTML email templates
+   - Add plain text fallback generation
+   - Build template versioning system
+
+4. **Campaign Scheduling & Automation**
+   - Implement campaign scheduling (send now, schedule, recurring)
+   - Add drip campaign sequences
+   - Build follow-up automation rules
+   - Create trigger-based campaigns
+   - Add send time optimization (best time to send)
+   - Implement campaign pausing and resuming
+
+5. **Analytics & Tracking**
+   - Add email open tracking
+   - Implement click tracking with link wrapping
+   - Build reply detection and tracking
+   - Create campaign analytics dashboard
+   - Add A/B testing framework
+   - Generate campaign performance reports
+
+6. **Contact & Lead Integration**
+   - Connect to LeadScout for lead import
+   - Build contact list management
+   - Add contact segmentation
+   - Implement contact import from CSV
+   - Add contact deduplication
+   - Create contact tagging system
+
+7. **Advanced Features**
+   - Add Loom video integration for personalized videos
+   - Implement AI-powered subject line generation
+   - Build email warmup and deliverability monitoring
+   - Add unsubscribe management
+   - Create email validation and verification
+   - Implement sender reputation monitoring
 
 ---
 
 ### Early Stage Apps
 
-#### 🔴 SiteForge (Port 4024)
-**Status:** Skeleton - Basic project management only
+#### 🟡 SiteForge (Port 4024)
+**Status:** Basic - UI + persistent storage, needs generation pipeline
 **Description:** Website generation and management platform
 
 **Current State:**
-- Basic HTTP server with project CRUD
-- In-memory storage (Map-based)
-- Generation job queue skeleton (TODO)
-- Basic project schema: businessName, domain, niche, status
+- Complete REST API with project CRUD
+- Persistent storage using @sb/storage (ProjectRepository, GenerationJobRepository)
+- Full web UI for project management
+- Project creation with business details (name, domain, niche, notes)
+- Project status tracking (draft, queued, generating, complete, failed)
+- Project statistics dashboard
+- Generation job queue system (skeleton)
+- Generation job endpoint (queued, not implemented)
 
-**Next Tasks:**
-- Implement actual website generation pipeline
-- Build template library (React, Next.js, static HTML)
-- Create frontend UI for project management
-- Add visual page builder component
-- Implement deployment to hosting platforms (Vercel, Netlify)
-- Add preview/staging environments
-- Create asset upload and management
-- Add custom domain configuration
+**Next Steps:**
+1. **Website Generation Pipeline**
+   - Implement actual website generation engine
+   - Build AI-powered content generation (copy, images)
+   - Create page structure generator based on niche
+   - Add component library for common sections
+   - Implement responsive design generation
+   - Add SEO optimization (meta tags, structure)
+
+2. **Template System**
+   - Build template library (React, Next.js, static HTML, WordPress)
+   - Create industry-specific templates (SaaS, E-commerce, Portfolio, etc.)
+   - Add template customization engine
+   - Implement theme system (colors, fonts, layout)
+   - Build template preview functionality
+   - Add template versioning
+
+3. **Visual Builder**
+   - Create drag-and-drop page builder
+   - Add component palette (hero, features, pricing, testimonials)
+   - Implement real-time preview
+   - Build section customization (text, images, styles)
+   - Add undo/redo functionality
+   - Create mobile responsive preview
+
+4. **Deployment & Hosting**
+   - Integrate with Vercel for deployment
+   - Add Netlify deployment option
+   - Implement static file hosting (S3, Cloudflare)
+   - Build preview/staging environments
+   - Add production deployment workflow
+   - Implement rollback functionality
+
+5. **Asset Management**
+   - Build asset upload system (images, videos, files)
+   - Add image optimization and CDN
+   - Implement stock photo integration (Unsplash, Pexels)
+   - Create favicon generator
+   - Add logo upload and management
+   - Build media library
+
+6. **Domain & DNS**
+   - Add custom domain configuration
+   - Implement DNS management
+   - Add SSL certificate provisioning
+   - Build domain verification workflow
+   - Add subdomain support
+   - Create domain health monitoring
+
+7. **Advanced Features**
+   - Implement multi-page site generation
+   - Add blog/CMS functionality
+   - Build contact form generation
+   - Add analytics integration (Google Analytics, Plausible)
+   - Implement A/B testing for landing pages
+   - Create performance optimization (lazy loading, minification)
 
 ---
 
 #### 🔴 Demoapp
 **Status:** Placeholder - No functionality
-**Description:** Purpose undefined
+**Description:** Purpose undefined - needs definition or removal
 
 **Current State:**
 - Minimal package.json
 - Single index.ts with console.log only
 - Empty README template
 
-**Next Tasks:**
-- Define purpose of this app or remove if not needed
-- Update README with description
-- Implement functionality based on defined purpose
+**Next Steps:**
+1. **Define Purpose**
+   - Determine if this app is needed or should be removed
+   - If keeping, define clear purpose and use case
+   - Update package.json with proper metadata
+
+2. **Potential Use Cases** (if keeping):
+   - Demo/sandbox app for testing suite features
+   - Example app for documentation/tutorials
+   - Template app for creating new suite apps
+   - Integration testing playground
+
+3. **Implementation** (if purpose defined):
+   - Implement core functionality based on defined purpose
+   - Add proper README with documentation
+   - Create example code and usage patterns
+   - Add to suite registry with proper metadata
 
 ---
 
 ## Suite Status Summary
 
-**Fully Functional:** Questboard, Catalog, Console, Worker
-**Basic/Functional:** LeadScout, Outreach
-**Skeleton/Early:** SiteForge, Demoapp
+**🟢 Fully Functional (Production-Ready):** Questboard, Catalog, Console, Worker, LeadScout
+**🟡 Basic/Functional (Needs Core Features):** Outreach, SiteForge
+**🔴 Placeholder/Early Stage:** Demoapp
 
-**Critical Next Steps for Suite Completeness:**
-1. Add persistent database layer to apps using in-memory storage (LeadScout, SiteForge)
-2. Build frontend UIs for apps missing them (LeadScout, SiteForge, Outreach, Catalog)
-3. Implement core website generation in SiteForge
-4. Add email sending to Outreach
-5. Add authentication/authorization across all apps
-6. Create integration points between apps (LeadScout → Outreach flow)
-7. Add comprehensive testing across all apps
-8. Implement proper scheduling for Worker jobs
+### Progress Since Last Update
+- ✅ **LeadScout**: Upgraded to fully functional - added persistent storage (@sb/storage) and complete UI
+- ✅ **Outreach**: Added complete campaign management UI with message preview
+- ✅ **SiteForge**: Added persistent storage (@sb/storage) and complete project management UI
+
+### Critical Next Steps for Suite Completeness
+
+**Priority 1 - Core Functionality:**
+1. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
+2. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
+3. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
+
+**Priority 2 - Authentication & Security:**
+4. Add authentication/authorization across all apps
+5. Implement API key management and app-to-app security
+6. Add role-based access control for multi-user support
+
+**Priority 3 - Integration & Automation:**
+7. Create LeadScout → Outreach integration flow (lead to campaign)
+8. Implement proper cron scheduling for Worker jobs
+9. Build job monitoring dashboard in Console
+10. Add real-time updates (WebSocket/SSE) to Console and Questboard
+
+**Priority 4 - Quality & Reliability:**
+11. Add comprehensive testing across all apps (unit, integration, E2E)
+12. Implement error handling and monitoring
+13. Add data backup and recovery systems
+14. Build CI/CD pipelines
+
+**Priority 5 - User Experience:**
+15. Build React admin UI for Catalog (currently only has backend + upload test)
+16. Improve mobile responsiveness across all UIs
+17. Add onboarding flows and documentation
+18. Implement user analytics and tracking
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
