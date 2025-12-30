@@ -49,12 +49,17 @@ docs/              # Documentation
 - Task assignment with Working Genius-based AI explanations
 - Event system integration for activity tracking
 - Storage abstraction layer with template system
+- ✅ **Test Suite** - Comprehensive testing with Vitest (48 tests passing)
+  - Monorepo-wide Vitest workspace configuration
+  - 31 schema tests (@sb/schemas) covering all type definitions, Working Genius types, Quest/Questline/Goal entities, Strategic Packets, GoalSpec, DailyDeck, SprintPlan, and JobRunSummary
+  - 17 AI function tests (@sb/ai) covering runClarifyGoal, runDecomposeGoal, runExpandTask, runLevelUpGoal, and runImproveGoal with mocked OpenAI calls
+  - Full test coverage for caching, org context, team snapshots, error handling, and edge cases
 
 **Next Steps:**
 1. **Testing & Quality**
-   - Add unit tests for core business logic (questmaster, sprint planner, assignment engine)
    - Add integration tests for API endpoints
    - Add E2E tests for critical user flows (create quest, assign tasks, review sprint)
+   - Add tests for questmaster and sprint planner business logic
    - Set up CI/CD pipeline with automated testing
 
 2. **Authentication & Security**
@@ -119,6 +124,17 @@ docs/              # Documentation
   - Inventory restoration on cancellations/refunds
   - Customer order history and lookup (by order number or email)
   - Shipping and tracking number support
+- ✅ **Customer Storefront UI** - Modern, responsive shopping experience
+  - Product browsing with responsive grid layout
+  - Advanced search and filtering (category, price range, text search)
+  - Product detail pages with image galleries and zoom
+  - Shopping cart sidebar with real-time updates
+  - Complete checkout flow with customer information form
+  - Order confirmation with order number and tracking
+  - Order lookup system (by email or order number)
+  - Mobile-optimized responsive design
+  - Clean, modern UI with smooth animations
+  - Routes: / or /store for customers, /admin for management
 - Comprehensive documentation (README + CATALOG_GUIDE)
 
 **Next Steps:**
@@ -128,28 +144,21 @@ docs/              # Documentation
    - Implement secure payment flow
    - Add payment webhooks for order confirmation
    - Build payment reconciliation and reporting
+   - Connect payment processing to checkout UI
 
-2. **Customer-Facing Storefront UI**
-   - Build public storefront web interface (currently API-only)
-   - Create product browsing and category pages
-   - Add product detail pages with image galleries
-   - Implement shopping cart UI
-   - Build checkout and order confirmation pages
-   - Add customer account and order history pages
-
-3. **Semantic Search UI**
+2. **Semantic Search UI**
    - Build search UI leveraging existing vector embeddings
    - Implement "similar products" recommendations
    - Add visual similarity search using images
    - Create saved searches and search history
 
-4. **Lookbook & Collections UI**
+3. **Lookbook & Collections UI**
    - Build visual lookbook/collection builder interface
    - Add drag-and-drop product organization
    - Create public lookbook gallery view
    - Implement collection sharing and embedding
 
-5. **Analytics & Insights**
+4. **Analytics & Insights**
    - Create analytics dashboard (product views, conversions, revenue)
    - Add product performance metrics and recommendations
    - Build inventory alerts (low stock, reorder points)
@@ -157,7 +166,7 @@ docs/              # Documentation
    - Track AI usage costs and ROI
    - Add sales forecasting and trends
 
-6. **Advanced Product Management**
+5. **Advanced Product Management**
    - Implement product variants (size, color, style) with variant-specific inventory
    - Build category management with hierarchy
    - Add advanced tag management and auto-tagging
@@ -304,8 +313,8 @@ docs/              # Documentation
 ### Basic/Functional Apps
 
 #### 🟢 LeadScout (Port 4021)
-**Status:** Functional - Complete API + UI with persistent storage
-**Description:** Lead discovery and qualification system
+**Status:** Fully Functional - Complete API + UI with AI-powered scoring and intelligence
+**Description:** Lead discovery and qualification system with automatic scoring and AI analysis
 
 **Current State:**
 - Complete REST API with CRUD operations
@@ -316,28 +325,43 @@ docs/              # Documentation
 - Add/edit lead forms with validation
 - Zod schema validation
 - Seed endpoint for demo data
+- ✅ **Lead Scoring Engine** - Configurable rules-based scoring system
+  - Source-based scoring with customizable weights (manual, import, scrape, referral, partner)
+  - Recency scoring (newer leads valued higher with decay over time)
+  - URL quality scoring (custom domains, HTTPS, professional TLDs)
+  - Company name presence scoring
+  - Scoring breakdown and transparency features
+- ✅ **AI-Powered Intelligence** - OpenAI GPT-4o-mini lead analysis
+  - Company size and industry classification
+  - Estimated revenue and funding status
+  - Qualification level (high/medium/low) with reasoning
+  - Technology stack detection
+  - Risk factors and opportunities identification
+  - Recommended sales actions
+  - Intelligence-boosted scoring combining base + AI insights
+  - Caching and telemetry integration
 
 **Next Steps:**
-1. **Lead Scoring & Intelligence**
-   - Implement automatic lead scoring algorithm based on criteria
-   - Add AI-powered lead qualification
-   - Create scoring rules engine (configurable weights)
-   - Add lead health indicators and signals
-   - Build lead prioritization system
+1. **UI Integration for Scoring & Intelligence**
+   - Add scoring breakdown display in lead detail view
+   - Show AI intelligence insights in UI
+   - Add "Analyze Lead" button to trigger intelligence analysis
+   - Display qualification level badges and visual indicators
+   - Show recommended actions in lead cards
 
-2. **Data Import/Export**
+2. **Lead Enrichment**
+   - Integrate email finding APIs (Hunter.io, Apollo)
+   - Add company data enrichment (Clearbit, FullContact)
+   - Implement social profile discovery
+   - Add contact information validation
+   - Build automated enrichment workflow with scheduled jobs
+
+3. **Data Import/Export**
    - Implement CSV import with field mapping
    - Add CSV export with filters
    - Create bulk upload from URLs/lists
    - Add integration with LinkedIn Sales Navigator
    - Build import from CRM systems (HubSpot, Salesforce)
-
-3. **Lead Enrichment**
-   - Integrate email finding APIs (Hunter.io, Apollo)
-   - Add company data enrichment (Clearbit, FullContact)
-   - Implement social profile discovery
-   - Add contact information validation
-   - Build automated enrichment workflow
 
 4. **Web Scraping & Discovery**
    - Build web scraping engine for lead discovery
@@ -559,44 +583,52 @@ docs/              # Documentation
 - ⚠️ Outreach (campaigns not persisted - lost on restart)
 
 ### Progress Since Last Update
-- ✅ **Worker**: Now production-ready with full cron scheduling system - added daemon mode, YAML configuration, timezone support, and automated job execution
-- ✅ **Worker**: Implemented scheduler using node-cron with graceful shutdown, config validation, and comprehensive CLI commands
-- ✅ **Catalog**: Now a complete e-commerce platform - added shopping cart, order management, checkout flow, batch upload, and CSV import/export
-- ✅ **Catalog**: Previously added comprehensive admin UI with product management dashboard, drag-and-drop uploads, and AI feature integration
-- ✅ **LeadScout**: Upgraded to fully functional - added persistent storage (@sb/storage) and complete UI
-- ✅ **Outreach**: Added complete campaign management UI with message preview
-- ✅ **SiteForge**: Added persistent storage (@sb/storage) and complete project management UI
+- ✅ **LeadScout**: Implemented lead scoring engine with configurable rules-based scoring (source, recency, URL quality, company name)
+- ✅ **LeadScout**: Added AI-powered intelligence service using GPT-4o-mini for lead analysis, qualification, and recommendations
+- ✅ **LeadScout**: Intelligence-boosted scoring combines base score with AI insights for better lead prioritization
+- ✅ **Questboard**: Added comprehensive test suite with 48 passing tests (31 schema tests + 17 AI function tests) using Vitest
+- ✅ **Questboard**: Set up monorepo-wide Vitest workspace configuration for testing framework
+- ✅ **Catalog**: Implemented complete customer storefront UI with product browsing, search, cart, checkout, and order tracking
+- ✅ **Catalog**: Mobile-optimized responsive design with modern UI and smooth animations
+
+**Previous Updates:**
+- ✅ **Worker**: Production-ready with full cron scheduling system - daemon mode, YAML configuration, timezone support, automated job execution
+- ✅ **Catalog**: Complete e-commerce platform - shopping cart, order management, checkout flow, batch upload, CSV import/export
+- ✅ **Catalog**: Comprehensive admin UI with product management dashboard, drag-and-drop uploads, AI feature integration
+- ✅ **LeadScout**: Upgraded to fully functional - persistent storage (@sb/storage) and complete UI
+- ✅ **Outreach**: Complete campaign management UI with message preview
+- ✅ **SiteForge**: Persistent storage (@sb/storage) and complete project management UI
 
 ### Critical Next Steps for Suite Completeness
 
 **Priority 1 - Core Functionality:**
-1. **Catalog Payment Integration**: Integrate Stripe/PayPal for payment processing (e-commerce foundation is complete)
+1. **Catalog Payment Integration**: Integrate Stripe/PayPal for payment processing and connect to checkout UI (e-commerce foundation is complete)
 2. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
-3. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
-4. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
+3. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
+4. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
+5. **LeadScout UI Integration**: Add scoring breakdown and AI intelligence insights display in lead management UI
 
-**Priority 2 - Authentication & Security:**
-5. Add authentication/authorization across all apps
-6. Implement API key management and app-to-app security
-7. Add role-based access control for multi-user support
+**Priority 2 - Integration & Automation:**
+6. Create LeadScout → Outreach integration flow (lead to campaign)
+7. Build job monitoring dashboard in Console
+8. Add lead enrichment job for automated data enhancement (integrate with Worker)
+9. Add real-time updates (WebSocket/SSE) to Console and Questboard
 
-**Priority 3 - Integration & Automation:**
-8. Create LeadScout → Outreach integration flow (lead to campaign)
-9. ✅ ~~Implement proper cron scheduling for Worker jobs~~ **COMPLETED**
-10. Build job monitoring dashboard in Console
-11. Add real-time updates (WebSocket/SSE) to Console and Questboard
+**Priority 3 - Authentication & Security:**
+10. Add authentication/authorization across all apps
+11. Implement API key management and app-to-app security
+12. Add role-based access control for multi-user support
 
 **Priority 4 - Quality & Reliability:**
-12. Add comprehensive testing across all apps (unit, integration, E2E)
-13. Implement error handling and monitoring
-14. Add data backup and recovery systems
-15. Build CI/CD pipelines
+13. ✅ ~~Add comprehensive testing for Questboard~~ **COMPLETED** - expand to other apps (unit, integration, E2E)
+14. Implement error handling and monitoring across all apps
+15. Add data backup and recovery systems
+16. Build CI/CD pipelines with automated testing
 
 **Priority 5 - User Experience:**
-16. Build customer-facing storefront UI for Catalog
 17. Build semantic search UI for Catalog to leverage vector embeddings
-18. Improve mobile responsiveness across all UIs
-19. Add onboarding flows and documentation
+18. Improve mobile responsiveness across all UIs (Questboard, Console, Admin dashboards)
+19. Add onboarding flows and in-app documentation
 20. Implement user analytics and tracking
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
