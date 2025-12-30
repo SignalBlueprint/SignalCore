@@ -12,6 +12,7 @@ import {
   type MessageTemplate,
 } from "@sb/schemas";
 import { getSuiteApp } from "@sb/suite";
+import { StorageCampaignRepository } from "./campaignRepository";
 
 interface LeadProfile {
   id: string;
@@ -70,7 +71,7 @@ class MockLeadProvider implements LeadProvider {
 const suiteApp = getSuiteApp("outreach");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 const leadProvider = new MockLeadProvider();
-const campaigns: Campaign[] = [];
+const repository = new StorageCampaignRepository();
 
 const createCampaignSchema = z.object({
   name: z.string().min(1),
@@ -163,27 +164,6 @@ function compileMessage(
   };
 }
 
-function createCampaign(
-  name: string,
-  audienceFilters: AudienceFilters,
-  template: MessageTemplate
-): Campaign {
-  const now = new Date().toISOString();
-  const campaign: Campaign = {
-    id: randomUUID(),
-    name,
-    audienceFilters,
-    template,
-    createdAt: now,
-    updatedAt: now,
-  };
-  campaigns.push(campaign);
-  return campaign;
-}
-
-function findCampaign(id: string): Campaign | undefined {
-  return campaigns.find((campaign) => campaign.id === id);
-}
 
 function extractCampaignId(pathname: string): string | null {
   const match = pathname.match(/^\/campaigns\/([^/]+)$/);
@@ -242,23 +222,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const campaign = createCampaign(
-      parsed.data.name,
-      parsed.data.audienceFilters ?? {},
-      parsed.data.template
-    );
+    const campaign = await repository.create({
+      name: parsed.data.name,
+      audienceFilters: parsed.data.audienceFilters,
+      template: parsed.data.template,
+    });
     sendJson(res, 201, { campaign });
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/campaigns") {
+    const campaigns = await repository.list();
     sendJson(res, 200, { campaigns });
     return;
   }
 
   const compileId = extractCompileCampaignId(url.pathname);
   if (req.method === "POST" && compileId) {
-    const campaign = findCampaign(compileId);
+    const campaign = await repository.getById(compileId);
     if (!campaign) {
       sendNotFound(res);
       return;
@@ -274,7 +255,7 @@ const server = http.createServer(async (req, res) => {
 
   const campaignId = extractCampaignId(url.pathname);
   if (req.method === "GET" && campaignId) {
-    const campaign = findCampaign(campaignId);
+    const campaign = await repository.getById(campaignId);
     if (!campaign) {
       sendNotFound(res);
       return;

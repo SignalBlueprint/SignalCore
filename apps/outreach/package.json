@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@sb/config": "workspace:*",
+    "@sb/events": "workspace:*",
     "@sb/schemas": "workspace:*",
+    "@sb/storage": "workspace:*",
     "@sb/suite": "workspace:*",
     "express": "^4.18.2",
     "zod": "^3.22.4"
