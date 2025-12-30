@@ -14,10 +14,10 @@ Catalog is a complete e-commerce solution that lets you build an online store by
 - **Image Generation**: Generate clean product shots using DALL-E 3
 - **Vector Search**: Semantic product search using OpenAI embeddings
 - **Inventory Management**: Real-time stock tracking with auto-status updates
-- **Shopping Cart**: Full cart management with session support
+- **Customer Storefront**: Modern, responsive shopping experience with product browsing, search, cart, and checkout
+- **Shopping Cart**: Full cart management with session support and real-time UI updates
 - **Order Management**: Complete order processing and fulfillment workflow
-- **Checkout**: Customer checkout with inventory validation
-- **Public Storefront**: Customer-facing API for online stores
+- **Checkout**: Customer checkout with inventory validation and order tracking
 - **Lookbooks**: Organize products into curated collections
 - **Admin UI**: Comprehensive web interface for product management
 
@@ -93,11 +93,26 @@ pnpm dev
 
 Server runs on `http://localhost:4023`
 
+### Accessing the Application
+
+- **Customer Storefront**: `http://localhost:4023` or `http://localhost:4023/store`
+- **Admin Dashboard**: `http://localhost:4023/admin`
+
 ## Usage Example
+
+### Using the Customer Storefront
+
+1. Open `http://localhost:4023` in your browser
+2. Browse products in a modern, responsive grid layout
+3. Use search and filters to find specific products
+4. Click on any product to view detailed information and image gallery
+5. Add products to your shopping cart
+6. Proceed to checkout and complete your order
+7. Track your order using the order number or email
 
 ### Using the Admin UI
 
-1. Open `http://localhost:4023` in your browser
+1. Open `http://localhost:4023/admin` in your browser
 2. Click "Add Product" button
 3. Upload product images (drag-and-drop or click to upload)
 4. Enable AI features:
@@ -205,10 +220,16 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - Visual product cards with images, pricing, and status badges
 - Mobile-responsive design
 
-**Public Storefront API**
-- Customer-facing product API
+**Customer Storefront** ✨ NEW
+- Complete customer-facing web UI
+- Responsive product grid with search and filters
+- Product detail pages with image galleries
+- Shopping cart sidebar with real-time updates
+- Complete checkout flow with customer information
+- Order confirmation and tracking
+- Order history lookup by email or order number
+- Mobile-optimized responsive design
 - Public/private store toggle
-- Active products filtering
 - Store settings and branding
 
 **Lookbooks & Collections**
@@ -240,6 +261,12 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - [x] Order management system
 - [x] Customer checkout flow
 - [x] Order tracking and fulfillment
+- [x] Customer storefront web interface
+- [x] Product browsing and search UI
+- [x] Product detail pages with galleries
+- [x] Shopping cart UI with real-time updates
+- [x] Checkout form and order confirmation
+- [x] Order tracking by email or order number
 - [ ] Payment gateway integration (Stripe, PayPal) - Ready for integration
 
 **Phase 3: Advanced Product Features**
