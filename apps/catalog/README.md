@@ -1,10 +1,10 @@
 # Catalog
 
-AI-powered product catalog and inventory management system with automatic image analysis, product shot generation, vector search, and public storefront capabilities.
+AI-powered product catalog and e-commerce platform with automatic image analysis, product shot generation, vector search, shopping cart, and order management.
 
 ## Purpose
 
-Catalog helps teams organize product information by simply taking photos on their phones. The system uses AI to automatically extract product metadata, generate clean product shots, enable semantic search, track inventory, and provide a customer-facing online store API.
+Catalog is a complete e-commerce solution that lets you build an online store by simply taking photos on your phone. The system uses AI to automatically extract product metadata, generate clean product shots, enable semantic search, manage inventory, process orders, and provide a customer-facing storefront—all with minimal manual data entry.
 
 ## Features
 
@@ -14,6 +14,9 @@ Catalog helps teams organize product information by simply taking photos on thei
 - **Image Generation**: Generate clean product shots using DALL-E 3
 - **Vector Search**: Semantic product search using OpenAI embeddings
 - **Inventory Management**: Real-time stock tracking with auto-status updates
+- **Shopping Cart**: Full cart management with session support
+- **Order Management**: Complete order processing and fulfillment workflow
+- **Checkout**: Customer checkout with inventory validation
 - **Public Storefront**: Customer-facing API for online stores
 - **Lookbooks**: Organize products into curated collections
 - **Admin UI**: Comprehensive web interface for product management
@@ -55,6 +58,7 @@ Catalog helps teams organize product information by simply taking photos on thei
 
 ## Typical User Journey
 
+**For Store Owners:**
 1. **Capture**: Take product photos on mobile device (or use existing images)
 2. **Upload**: Use admin UI or API to upload images (single or batch)
 3. **AI Analysis**: System automatically extracts name, description, category, price, tags, and generates embeddings
@@ -62,7 +66,14 @@ Catalog helps teams organize product information by simply taking photos on thei
 5. **Enhance**: Optionally generate clean product shots with DALL-E 3
 6. **Publish**: Set status to "active" to make products visible in public storefront
 7. **Manage**: Track inventory, update stock levels, organize into lookbooks
-8. **Discover**: Customers use semantic search to find products naturally
+8. **Fulfill**: Process orders, update shipping status, manage customer communications
+
+**For Customers:**
+1. **Discover**: Browse products or use semantic search to find items naturally
+2. **Shop**: Add products to cart with automatic inventory validation
+3. **Checkout**: Complete purchase with shipping information
+4. **Track**: Receive order confirmation with order number and tracking info
+5. **Receive**: Get notified when order ships and is delivered
 
 ## Quick Start
 
@@ -127,6 +138,7 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 
 ## API Endpoints
 
+**Product Management**
 - `POST /api/products/upload` - Upload and analyze product image
 - `POST /api/products/upload/batch` - Batch upload multiple product images
 - `GET /api/products` - List products with filters
@@ -134,6 +146,24 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 - `PUT /api/products/:id/inventory` - Update inventory
 - `GET /api/products/export/csv` - Export products to CSV
 - `POST /api/products/import/csv` - Import products from CSV
+
+**Shopping Cart**
+- `GET /api/cart/:sessionId` - Get cart for a session
+- `POST /api/cart/:sessionId/items` - Add item to cart
+- `PUT /api/cart/:sessionId/items/:productId` - Update item quantity
+- `DELETE /api/cart/:sessionId/items/:productId` - Remove item from cart
+- `DELETE /api/cart/:sessionId` - Clear cart
+
+**Order Management**
+- `POST /api/orders` - Create order (checkout)
+- `GET /api/orders` - List all orders (admin)
+- `GET /api/orders/:id` - Get order by ID
+- `GET /api/orders/number/:orderNumber` - Get order by order number
+- `GET /api/orders/customer/:email` - Get customer orders
+- `PUT /api/orders/:id/status` - Update order status
+- `PUT /api/orders/:id` - Update order details
+
+**Public Storefront**
 - `GET /api/store/:orgId/products` - Public storefront API
 
 See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
@@ -186,6 +216,17 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - Public/private lookbook toggle
 - Product organization and showcasing
 
+**E-commerce & Orders** ✨ NEW
+- Shopping cart with session management
+- Complete order processing workflow
+- Order status tracking (pending, confirmed, processing, shipped, delivered, cancelled, refunded)
+- Payment status management
+- Automatic inventory deduction on orders
+- Inventory restoration on cancellations
+- Customer order history
+- Order lookup by order number or email
+- Shipping and tracking number support
+
 ### 🚀 Next Steps & Roadmap
 
 **Phase 1: Mobile Experience**
@@ -194,12 +235,12 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - [ ] Offline mode with sync capabilities
 - [ ] Mobile-optimized upload flow
 
-**Phase 2: E-commerce Integration**
-- [ ] Shopping cart functionality
-- [ ] Payment gateway integration (Stripe, PayPal)
-- [ ] Order management system
-- [ ] Customer checkout flow
-- [ ] Order tracking and fulfillment
+**Phase 2: E-commerce Integration** ✅ COMPLETED
+- [x] Shopping cart functionality
+- [x] Order management system
+- [x] Customer checkout flow
+- [x] Order tracking and fulfillment
+- [ ] Payment gateway integration (Stripe, PayPal) - Ready for integration
 
 **Phase 3: Advanced Product Features**
 - [ ] Product variants (sizes, colors, options)
