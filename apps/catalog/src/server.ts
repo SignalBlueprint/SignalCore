@@ -1493,7 +1493,7 @@ app.get("/api/lookbooks", async (req, res) => {
 // Create lookbook
 app.post("/api/lookbooks", async (req, res) => {
   try {
-    const { orgId = "default-org", title, description, products, isPublic = false } = req.body;
+    const { orgId = "default-org", title, description, products, coverImage, isPublic = false } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
@@ -1505,6 +1505,7 @@ app.post("/api/lookbooks", async (req, res) => {
       title,
       description,
       products: products || [],
+      coverImage,
       isPublic,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1514,6 +1515,98 @@ app.post("/api/lookbooks", async (req, res) => {
     res.status(201).json(lookbook);
   } catch (error) {
     console.error("Create lookbook error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get lookbook by ID
+app.get("/api/lookbooks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lookbook = await storage.get<Lookbook>("lookbooks", id);
+
+    if (!lookbook) {
+      return res.status(404).json({ error: "Lookbook not found" });
+    }
+
+    res.json(lookbook);
+  } catch (error) {
+    console.error("Get lookbook error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Update lookbook
+app.put("/api/lookbooks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lookbook = await storage.get<Lookbook>("lookbooks", id);
+
+    if (!lookbook) {
+      return res.status(404).json({ error: "Lookbook not found" });
+    }
+
+    const updatedLookbook: Lookbook = {
+      ...lookbook,
+      ...req.body,
+      id, // Ensure ID doesn't change
+      orgId: lookbook.orgId, // Ensure orgId doesn't change
+      createdAt: lookbook.createdAt, // Preserve creation date
+      updatedAt: new Date().toISOString(),
+    };
+
+    await storage.upsert("lookbooks", updatedLookbook);
+    res.json(updatedLookbook);
+  } catch (error) {
+    console.error("Update lookbook error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Delete lookbook
+app.delete("/api/lookbooks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lookbook = await storage.get<Lookbook>("lookbooks", id);
+
+    if (!lookbook) {
+      return res.status(404).json({ error: "Lookbook not found" });
+    }
+
+    await storage.delete("lookbooks", id);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Delete lookbook error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Update lookbook products
+app.put("/api/lookbooks/:id/products", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { products } = req.body;
+
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ error: "Products must be an array" });
+    }
+
+    const lookbook = await storage.get<Lookbook>("lookbooks", id);
+
+    if (!lookbook) {
+      return res.status(404).json({ error: "Lookbook not found" });
+    }
+
+    const updatedLookbook: Lookbook = {
+      ...lookbook,
+      products,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await storage.upsert("lookbooks", updatedLookbook);
+    res.json(updatedLookbook);
+  } catch (error) {
+    console.error("Update lookbook products error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
@@ -1625,6 +1718,70 @@ app.get("/api/store/:orgId/products/:productId", async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error("Get public product error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get public lookbooks
+app.get("/api/store/:orgId/lookbooks", async (req, res) => {
+  try {
+    const { orgId } = req.params;
+
+    // Check if store is public
+    const settings = await storage.get<StoreSettings>("store_settings", orgId);
+    if (!settings?.isPublic) {
+      return res.status(403).json({ error: "Store is not public" });
+    }
+
+    // Get public lookbooks only
+    const lookbooks = await storage.list<Lookbook>(
+      "lookbooks",
+      (l) => l.orgId === orgId && l.isPublic === true
+    );
+
+    res.json(lookbooks);
+  } catch (error) {
+    console.error("Get public lookbooks error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get public lookbook by ID with products
+app.get("/api/store/:orgId/lookbooks/:lookbookId", async (req, res) => {
+  try {
+    const { orgId, lookbookId } = req.params;
+
+    const settings = await storage.get<StoreSettings>("store_settings", orgId);
+    if (!settings?.isPublic) {
+      return res.status(403).json({ error: "Store is not public" });
+    }
+
+    const lookbook = await storage.get<Lookbook>("lookbooks", lookbookId);
+    if (!lookbook || lookbook.orgId !== orgId || !lookbook.isPublic) {
+      return res.status(404).json({ error: "Lookbook not found" });
+    }
+
+    // Fetch all products in the lookbook
+    const products = await Promise.all(
+      lookbook.products.map(async (productId) => {
+        const product = await storage.get<Product>("products", productId);
+        // Only return active products
+        if (product && product.status === "active") {
+          return product;
+        }
+        return null;
+      })
+    );
+
+    // Filter out null values (products that don't exist or aren't active)
+    const activeProducts = products.filter((p) => p !== null);
+
+    res.json({
+      ...lookbook,
+      productDetails: activeProducts,
+    });
+  } catch (error) {
+    console.error("Get public lookbook error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
