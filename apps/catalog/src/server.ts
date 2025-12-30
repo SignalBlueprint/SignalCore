@@ -37,6 +37,45 @@ const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 const app = express();
 
+// ============================================================================
+// Search Analytics
+// ============================================================================
+
+interface SearchAnalyticsEntry {
+  id: string;
+  query: string;
+  searchMode: "semantic" | "text";
+  resultCount: number;
+  threshold?: number;
+  filters?: {
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  };
+  timestamp: string;
+  orgId: string;
+}
+
+// In-memory analytics storage (would be replaced with database in production)
+const searchAnalytics: SearchAnalyticsEntry[] = [];
+
+// Helper function to track search
+function trackSearch(entry: Omit<SearchAnalyticsEntry, "id" | "timestamp">) {
+  const analyticsEntry: SearchAnalyticsEntry = {
+    id: randomUUID(),
+    ...entry,
+    timestamp: new Date().toISOString(),
+  };
+  searchAnalytics.push(analyticsEntry);
+
+  // Keep only last 1000 entries to prevent memory overflow
+  if (searchAnalytics.length > 1000) {
+    searchAnalytics.shift();
+  }
+
+  return analyticsEntry;
+}
+
 // Serve static files from public directory
 app.use(express.static(join(__dirname, "../public")));
 
@@ -584,7 +623,17 @@ app.post("/api/products/:id/generate-image", async (req, res) => {
 // Search products by text (using embeddings)
 app.post("/api/products/search", async (req, res) => {
   try {
-    const { query, orgId = "default-org", limit = 10 } = req.body;
+    const {
+      query,
+      orgId = "default-org",
+      limit = 10,
+      threshold = 0.5,
+      category,
+      minPrice,
+      maxPrice,
+      status,
+      includeOutOfStock = false,
+    } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: "Search query is required" });
@@ -594,7 +643,28 @@ app.post("/api/products/search", async (req, res) => {
     const queryEmbedding = await generateProductEmbedding(query);
 
     // Get all products for org
-    const allProducts = await storage.list<Product>("products", (p) => p.orgId === orgId);
+    let allProducts = await storage.list<Product>("products", (p) => p.orgId === orgId);
+
+    // Apply filters
+    if (category) {
+      allProducts = allProducts.filter((p) => p.category === category);
+    }
+
+    if (minPrice !== undefined) {
+      allProducts = allProducts.filter((p) => (p.price || 0) >= minPrice);
+    }
+
+    if (maxPrice !== undefined) {
+      allProducts = allProducts.filter((p) => (p.price || 0) <= maxPrice);
+    }
+
+    if (status) {
+      allProducts = allProducts.filter((p) => p.status === status);
+    }
+
+    if (!includeOutOfStock) {
+      allProducts = allProducts.filter((p) => p.status !== "out_of_stock");
+    }
 
     // Calculate cosine similarity and sort
     const results = allProducts
@@ -603,19 +673,144 @@ app.post("/api/products/search", async (req, res) => {
         product: p,
         similarity: cosineSimilarity(queryEmbedding, p.embedding!),
       }))
-      .filter((r) => r.similarity > 0.5) // Threshold
+      .filter((r) => r.similarity > threshold)
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
 
+    // Track search analytics
+    trackSearch({
+      query,
+      searchMode: "semantic",
+      resultCount: results.length,
+      threshold,
+      filters: {
+        category,
+        minPrice,
+        maxPrice,
+      },
+      orgId,
+    });
+
     res.json({
       query,
+      total: results.length,
+      threshold,
+      filters: {
+        category: category || null,
+        minPrice: minPrice || null,
+        maxPrice: maxPrice || null,
+        status: status || null,
+      },
       results: results.map((r) => ({
         ...r.product,
         _similarity: r.similarity,
+        _relevanceScore: Math.round(r.similarity * 100),
       })),
     });
   } catch (error) {
     console.error("Search products error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Find similar products based on a product ID
+app.get("/api/products/:id/similar", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 5;
+    const threshold = parseFloat(req.query.threshold as string) || 0.6;
+
+    // Get the source product
+    const sourceProduct = await storage.get<Product>("products", id);
+    if (!sourceProduct) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (!sourceProduct.embedding || sourceProduct.embedding.length === 0) {
+      return res.status(400).json({ error: "Product does not have an embedding for similarity search" });
+    }
+
+    // Get all products in the same org (excluding the source product)
+    const allProducts = await storage.list<Product>(
+      "products",
+      (p) => p.orgId === sourceProduct.orgId && p.id !== id && p.status !== "out_of_stock"
+    );
+
+    // Calculate cosine similarity and sort
+    const results = allProducts
+      .filter((p) => p.embedding && p.embedding.length > 0)
+      .map((p) => ({
+        product: p,
+        similarity: cosineSimilarity(sourceProduct.embedding!, p.embedding!),
+      }))
+      .filter((r) => r.similarity > threshold)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
+
+    res.json({
+      sourceProduct: {
+        id: sourceProduct.id,
+        name: sourceProduct.name,
+        category: sourceProduct.category,
+      },
+      total: results.length,
+      threshold,
+      results: results.map((r) => ({
+        ...r.product,
+        _similarity: r.similarity,
+        _relevanceScore: Math.round(r.similarity * 100),
+      })),
+    });
+  } catch (error) {
+    console.error("Find similar products error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get search analytics
+app.get("/api/analytics/search", async (req, res) => {
+  try {
+    const { orgId = "default-org", limit = 100 } = req.query;
+
+    // Filter analytics by org and limit
+    const filtered = searchAnalytics
+      .filter((entry) => entry.orgId === orgId)
+      .slice(-Number(limit));
+
+    // Calculate summary statistics
+    const totalSearches = filtered.length;
+    const semanticSearches = filtered.filter((e) => e.searchMode === "semantic").length;
+    const textSearches = filtered.filter((e) => e.searchMode === "text").length;
+
+    // Get top queries (grouped by query text)
+    const queryCounts: Record<string, number> = {};
+    filtered.forEach((entry) => {
+      queryCounts[entry.query] = (queryCounts[entry.query] || 0) + 1;
+    });
+
+    const topQueries = Object.entries(queryCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([query, count]) => ({ query, count }));
+
+    // Average results per search
+    const avgResults =
+      totalSearches > 0
+        ? filtered.reduce((sum, entry) => sum + entry.resultCount, 0) / totalSearches
+        : 0;
+
+    res.json({
+      summary: {
+        totalSearches,
+        semanticSearches,
+        textSearches,
+        avgResults: Math.round(avgResults * 10) / 10,
+      },
+      topQueries,
+      recentSearches: filtered.slice(-20).reverse(),
+    });
+  } catch (error) {
+    console.error("Get search analytics error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
