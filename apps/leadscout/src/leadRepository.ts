@@ -1,6 +1,8 @@
 import { Lead, LeadSource, LeadStatus } from "@sb/schemas";
 import { storage } from "@sb/storage";
 import { randomUUID } from "crypto";
+import { publish } from "@sb/events";
+import { calculateLeadScore } from "./scoring/scoringEngine";
 
 export interface LeadCreateInput {
   orgId: string;
@@ -16,6 +18,7 @@ export interface LeadUpdateInput {
   status?: LeadStatus;
   score?: number;
   notes?: string;
+  intelligence?: Lead["intelligence"];
 }
 
 export interface LeadFilters {
@@ -105,13 +108,22 @@ export class StorageLeadRepository implements LeadRepository {
 
   async create(input: LeadCreateInput): Promise<Lead> {
     const now = new Date().toISOString();
+
+    // Calculate automatic score if not provided
+    const autoScore = calculateLeadScore({
+      url: input.url,
+      companyName: input.companyName,
+      source: input.source,
+      createdAt: now,
+    });
+
     const lead: Lead = {
       id: `lead-${randomUUID()}`,
       orgId: input.orgId,
       url: input.url,
       companyName: input.companyName,
       source: input.source,
-      score: input.score,
+      score: input.score ?? autoScore, // Use provided score or auto-calculated
       status: input.status ?? "new",
       notes: input.notes,
       createdAt: now,
@@ -119,6 +131,22 @@ export class StorageLeadRepository implements LeadRepository {
     };
 
     await storage.upsert(this.kind, lead);
+
+    // Publish lead.scored event
+    await publish(
+      "lead.scored",
+      {
+        leadId: lead.id,
+        score: lead.score,
+        source: lead.source,
+        autoScored: !input.score, // Was it auto-scored or manual?
+      },
+      {
+        sourceApp: "leadscout",
+        orgId: lead.orgId,
+      }
+    );
+
     return lead;
   }
 
@@ -156,10 +184,30 @@ export class StorageLeadRepository implements LeadRepository {
       status: update.status ?? existing.status,
       score: update.score ?? existing.score,
       notes: update.notes ?? existing.notes,
+      intelligence: update.intelligence ?? existing.intelligence,
       updatedAt: new Date().toISOString(),
     };
 
     await storage.upsert(this.kind, updated);
+
+    // Publish lead.scored event if score was updated
+    if (update.score !== undefined && update.score !== existing.score) {
+      await publish(
+        "lead.scored",
+        {
+          leadId: updated.id,
+          score: updated.score,
+          previousScore: existing.score,
+          source: updated.source,
+          autoScored: false,
+        },
+        {
+          sourceApp: "leadscout",
+          orgId: updated.orgId,
+        }
+      );
+    }
+
     return updated;
   }
 }

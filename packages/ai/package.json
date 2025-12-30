@@ -21,6 +21,7 @@
     "@sb/cache": "workspace:*",
     "@sb/events": "workspace:*",
     "@sb/schemas": "workspace:*",
+    "@sb/storage": "workspace:*",
     "@sb/telemetry": "workspace:*",
     "openai": "^4.0.0"
   },

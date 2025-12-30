@@ -9,9 +9,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@sb/ai": "workspace:*",
+    "@sb/cache": "workspace:*",
+    "@sb/config": "workspace:*",
+    "@sb/events": "workspace:*",
     "@sb/schemas": "workspace:*",
     "@sb/storage": "workspace:*",
     "@sb/suite": "workspace:*",
+    "@sb/telemetry": "workspace:*",
+    "openai": "^4.0.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
