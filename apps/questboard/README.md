@@ -6,10 +6,12 @@ The system helps teams organize work into questlines (connected sequences of tas
 
 ## Features
 
-- Questline-based task organization
-- Working Genius profile integration for optimal task assignment
-- Daily Questmaster rotation and coordination
-- Task tracking and progress monitoring
-- Team collaboration tools
+- **Questline-based task organization** - Organize work into connected sequences of tasks with unlock dependencies
+- **Working Genius profile integration** - Optimal task assignment based on team members' natural abilities
+- **Daily Questmaster** - Automated daily deck generation to prioritize team focus
+- **Analytics Dashboard** - Comprehensive visualization of team performance, capacity utilization, and progress metrics
+- **Sprint Planning** - AI-assisted sprint planning with team capacity awareness
+- **Task tracking** - Real-time progress monitoring with completion rates and time estimates
+- **Team collaboration tools** - Team capacity management, member profiles, and workload balancing
 
 
