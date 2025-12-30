@@ -337,14 +337,19 @@ docs/              # Documentation
   - Recommended sales actions
   - Intelligence-boosted scoring combining base + AI insights
   - Caching and telemetry integration
+- ✅ **Scoring Breakdown UI** - Visual display of score components
+  - Visual breakdown with progress bars for each scoring factor
+  - Source Quality, Recency, URL Quality, and Company Name displayed with color-coded bars
+  - Breakdown appears in lead cards after recalculating scores
+  - Transparent scoring for better lead prioritization
 
 **Next Steps:**
-1. **UI Integration for Scoring & Intelligence**
-   - Add scoring breakdown display in lead detail view
-   - Show AI intelligence insights in UI
+1. **AI Intelligence UI Integration**
+   - Show AI intelligence insights in lead detail view
    - Add "Analyze Lead" button to trigger intelligence analysis
    - Display qualification level badges and visual indicators
-   - Show recommended actions in lead cards
+   - Show recommended actions and risk factors in lead cards
+   - Add technology stack and company insights display
 
 2. **Lead Enrichment**
    - Integrate email finding APIs (Hunter.io, Apollo)
@@ -384,22 +389,23 @@ docs/              # Documentation
 
 ---
 
-#### 🟡 Outreach (Port 4025)
-**Status:** Functional - Complete UI + campaign management, needs email sending & storage
+#### 🟢 Outreach (Port 4025)
+**Status:** Functional - Complete UI + campaign management with persistence, needs email sending
 **Description:** Outreach campaign management and automation
 
 **Current State:**
 - Complete REST API with campaign CRUD
+- ✅ **Persistent storage using @sb/storage** (StorageCampaignRepository)
 - Full web UI for campaign management
 - Message template system with variable substitution ({{business_name}}, {{domain}}, {{pain_point}}, {{industry}})
 - Audience filtering by industry, score range, tags
 - Template compilation and preview
 - Campaign message preview showing personalized messages
 - Mock lead provider for testing
-- ⚠️ **In-memory campaign storage** (data not persisted - lost on restart)
+- Campaigns persist across server restarts
 
 **Next Steps:**
-1. **Email Service Integration**
+1. **Email Service Integration** 🔥 HIGH PRIORITY
    - Integrate email service provider (SendGrid, AWS SES, Postmark)
    - Implement actual email sending functionality
    - Add email queue with rate limiting
@@ -407,12 +413,12 @@ docs/              # Documentation
    - Add bounce and complaint handling
    - Implement email warmup system
 
-2. **Data Persistence**
-   - Migrate from in-memory to @sb/storage
+2. **Campaign Execution History**
    - Add campaign execution history storage
    - Store sent messages and delivery status
    - Implement campaign analytics data storage
    - Add persistent campaign schedules
+   - Track campaign performance over time
 
 3. **Template Builder**
    - Build rich text WYSIWYG email editor
@@ -572,14 +578,16 @@ docs/              # Documentation
 - ✅ Questboard (14+ entity kinds)
 - ✅ Catalog (products, carts, orders, lookbooks)
 - ✅ LeadScout (leads)
+- ✅ Outreach (campaigns)
 - ✅ SiteForge (projects, generation jobs)
 - ✅ Worker (job summaries)
 
 **Apps with In-Memory Storage:**
 - ⚠️ Console (team data is mock/in-memory)
-- ⚠️ Outreach (campaigns not persisted - lost on restart)
 
 ### Progress Since Last Update
+- ✅ **LeadScout**: Added scoring breakdown display to UI with visual progress bars for each scoring factor
+- ✅ **Outreach**: Migrated from in-memory to persistent storage using @sb/storage (StorageCampaignRepository)
 - ✅ **Catalog**: Implemented complete lookbook and collections UI with visual management and public gallery views
 - ✅ **Catalog**: Added enhanced semantic search UI leveraging vector embeddings for intelligent product discovery
 - ✅ **Catalog**: Implemented similar products recommendations and visual similarity search
@@ -604,32 +612,33 @@ docs/              # Documentation
 **Priority 1 - Core Functionality:**
 1. **Catalog Payment Integration**: Integrate Stripe/PayPal for payment processing and connect to checkout UI (e-commerce foundation is complete)
 2. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
-3. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
+3. ✅ ~~**Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage~~ **COMPLETED**
 4. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
-5. **LeadScout UI Integration**: Add scoring breakdown and AI intelligence insights display in lead management UI
+5. ✅ ~~**LeadScout Scoring UI Integration**: Add scoring breakdown display in lead management UI~~ **COMPLETED**
+6. **LeadScout Intelligence UI Integration**: Add AI intelligence insights display (qualification, recommendations, risk factors)
 
 **Priority 2 - Integration & Automation:**
-6. Create LeadScout → Outreach integration flow (lead to campaign)
-7. Build job monitoring dashboard in Console
-8. Add lead enrichment job for automated data enhancement (integrate with Worker)
-9. Add real-time updates (WebSocket/SSE) to Console and Questboard
+7. Create LeadScout → Outreach integration flow (lead to campaign)
+8. Build job monitoring dashboard in Console
+9. Add lead enrichment job for automated data enhancement (integrate with Worker)
+10. Add real-time updates (WebSocket/SSE) to Console and Questboard
 
 **Priority 3 - Authentication & Security:**
-10. Add authentication/authorization across all apps
-11. Implement API key management and app-to-app security
-12. Add role-based access control for multi-user support
+11. Add authentication/authorization across all apps
+12. Implement API key management and app-to-app security
+13. Add role-based access control for multi-user support
 
 **Priority 4 - Quality & Reliability:**
-13. ✅ ~~Add comprehensive testing for Questboard~~ **COMPLETED** - expand to other apps (unit, integration, E2E)
-14. Implement error handling and monitoring across all apps
-15. Add data backup and recovery systems
-16. Build CI/CD pipelines with automated testing
+14. ✅ ~~Add comprehensive testing for Questboard~~ **COMPLETED** - expand to other apps (unit, integration, E2E)
+15. Implement error handling and monitoring across all apps
+16. Add data backup and recovery systems
+17. Build CI/CD pipelines with automated testing
 
 **Priority 5 - User Experience:**
-17. ✅ ~~Build semantic search UI for Catalog to leverage vector embeddings~~ **COMPLETED**
-18. Improve mobile responsiveness across all UIs (Questboard, Console, Admin dashboards)
-19. Add onboarding flows and in-app documentation
-20. Implement user analytics and tracking
+18. ✅ ~~Build semantic search UI for Catalog to leverage vector embeddings~~ **COMPLETED**
+19. Improve mobile responsiveness across all UIs (Questboard, Console, Admin dashboards)
+20. Add onboarding flows and in-app documentation
+21. Implement user analytics and tracking
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
