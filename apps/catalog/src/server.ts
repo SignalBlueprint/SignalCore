@@ -25,6 +25,11 @@ import type {
   StoreSettings,
   VisionAnalysis,
   ProductStatus,
+  Cart,
+  CartItem,
+  Order,
+  OrderStatus,
+  PaymentStatus,
 } from "@sb/schemas";
 
 const suiteApp = getSuiteApp("catalog");
@@ -623,6 +628,482 @@ app.put("/api/products/:id/inventory", async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error("Update inventory error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// ============================================================================
+// Shopping Cart Endpoints
+// ============================================================================
+
+// Get cart for a session
+app.get("/api/cart/:sessionId", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    let cart = await storage.get<Cart>("carts", sessionId);
+
+    if (!cart) {
+      // Create empty cart
+      const orgId = (req.query.orgId as string) || "default-org";
+      cart = {
+        id: sessionId,
+        sessionId,
+        orgId,
+        items: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+      };
+      await storage.upsert("carts", cart);
+    }
+
+    res.json(cart);
+  } catch (error) {
+    console.error("Get cart error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Add item to cart
+app.post("/api/cart/:sessionId/items", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { productId, quantity = 1 } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    // Get product
+    const product = await storage.get<Product>("products", productId);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (product.status !== "active") {
+      return res.status(400).json({ error: "Product is not available for purchase" });
+    }
+
+    if (!product.price) {
+      return res.status(400).json({ error: "Product does not have a price" });
+    }
+
+    // Check inventory
+    if (product.inventory && product.inventory.stockLevel < quantity) {
+      return res.status(400).json({ error: "Insufficient stock" });
+    }
+
+    // Get or create cart
+    let cart = await storage.get<Cart>("carts", sessionId);
+    if (!cart) {
+      cart = {
+        id: sessionId,
+        sessionId,
+        orgId: product.orgId,
+        items: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+    }
+
+    // Check if item already in cart
+    const existingItemIndex = cart.items.findIndex((item) => item.productId === productId);
+
+    if (existingItemIndex >= 0) {
+      // Update quantity
+      cart.items[existingItemIndex].quantity += quantity;
+    } else {
+      // Add new item
+      const cartItem: CartItem = {
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        currency: product.currency || "USD",
+        quantity,
+        imageUrl: product.images[0]?.url,
+        addedAt: new Date().toISOString(),
+      };
+      cart.items.push(cartItem);
+    }
+
+    cart.updatedAt = new Date().toISOString();
+    await storage.upsert("carts", cart);
+
+    res.json(cart);
+  } catch (error) {
+    console.error("Add to cart error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Update item quantity in cart
+app.put("/api/cart/:sessionId/items/:productId", async (req, res) => {
+  try {
+    const { sessionId, productId } = req.params;
+    const { quantity } = req.body;
+
+    if (quantity === undefined || quantity < 0) {
+      return res.status(400).json({ error: "Valid quantity is required" });
+    }
+
+    const cart = await storage.get<Cart>("carts", sessionId);
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const itemIndex = cart.items.findIndex((item) => item.productId === productId);
+    if (itemIndex < 0) {
+      return res.status(404).json({ error: "Item not found in cart" });
+    }
+
+    if (quantity === 0) {
+      // Remove item
+      cart.items.splice(itemIndex, 1);
+    } else {
+      // Check product inventory
+      const product = await storage.get<Product>("products", productId);
+      if (product?.inventory && product.inventory.stockLevel < quantity) {
+        return res.status(400).json({ error: "Insufficient stock" });
+      }
+      cart.items[itemIndex].quantity = quantity;
+    }
+
+    cart.updatedAt = new Date().toISOString();
+    await storage.upsert("carts", cart);
+
+    res.json(cart);
+  } catch (error) {
+    console.error("Update cart item error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Remove item from cart
+app.delete("/api/cart/:sessionId/items/:productId", async (req, res) => {
+  try {
+    const { sessionId, productId } = req.params;
+
+    const cart = await storage.get<Cart>("carts", sessionId);
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    cart.items = cart.items.filter((item) => item.productId !== productId);
+    cart.updatedAt = new Date().toISOString();
+    await storage.upsert("carts", cart);
+
+    res.json(cart);
+  } catch (error) {
+    console.error("Remove from cart error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Clear cart
+app.delete("/api/cart/:sessionId", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const cart = await storage.get<Cart>("carts", sessionId);
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    cart.items = [];
+    cart.updatedAt = new Date().toISOString();
+    await storage.upsert("carts", cart);
+
+    res.json(cart);
+  } catch (error) {
+    console.error("Clear cart error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// ============================================================================
+// Order Management & Checkout Endpoints
+// ============================================================================
+
+// Helper function to generate order number
+function generateOrderNumber(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
+  return `ORD-${year}${month}${day}-${random}`;
+}
+
+// Create order (checkout)
+app.post("/api/orders", async (req, res) => {
+  try {
+    const { sessionId, customer, paymentMethod = "pending", notes } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: "Session ID is required" });
+    }
+
+    if (!customer || !customer.name || !customer.email || !customer.shippingAddress) {
+      return res.status(400).json({ error: "Customer information is required" });
+    }
+
+    // Get cart
+    const cart = await storage.get<Cart>("carts", sessionId);
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ error: "Cart is empty" });
+    }
+
+    // Verify products and inventory
+    const orderItems: any[] = [];
+    let subtotal = 0;
+
+    for (const cartItem of cart.items) {
+      const product = await storage.get<Product>("products", cartItem.productId);
+
+      if (!product) {
+        return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+      }
+
+      if (product.status !== "active") {
+        return res.status(400).json({ error: `Product ${product.name} is not available` });
+      }
+
+      // Check inventory
+      if (product.inventory) {
+        if (product.inventory.stockLevel < cartItem.quantity) {
+          return res
+            .status(400)
+            .json({ error: `Insufficient stock for ${product.name}` });
+        }
+      }
+
+      const itemSubtotal = cartItem.price * cartItem.quantity;
+      subtotal += itemSubtotal;
+
+      orderItems.push({
+        productId: product.id,
+        productName: product.name,
+        productDescription: product.description,
+        price: cartItem.price,
+        quantity: cartItem.quantity,
+        subtotal: itemSubtotal,
+        imageUrl: cartItem.imageUrl,
+        sku: product.inventory?.sku,
+      });
+    }
+
+    // Calculate pricing (simple for now - can be enhanced with tax/shipping logic)
+    const pricing = {
+      subtotal,
+      currency: cart.items[0]?.currency || "USD",
+      total: subtotal,
+    };
+
+    // Create order
+    const order: Order = {
+      id: randomUUID(),
+      orderNumber: generateOrderNumber(),
+      orgId: cart.orgId,
+      sessionId,
+      items: orderItems,
+      customer,
+      pricing,
+      status: "pending",
+      paymentStatus: paymentMethod === "cash_on_delivery" ? "pending" : "pending",
+      paymentMethod,
+      notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Save order
+    await storage.upsert("orders", order);
+
+    // Update inventory
+    for (const item of orderItems) {
+      const product = await storage.get<Product>("products", item.productId);
+      if (product?.inventory) {
+        product.inventory.stockLevel -= item.quantity;
+
+        // Update product status if out of stock
+        if (product.inventory.stockLevel <= 0) {
+          product.status = "out_of_stock";
+        }
+
+        product.updatedAt = new Date().toISOString();
+        await storage.upsert("products", product);
+      }
+    }
+
+    // Clear cart
+    cart.items = [];
+    cart.updatedAt = new Date().toISOString();
+    await storage.upsert("carts", cart);
+
+    res.status(201).json(order);
+  } catch (error) {
+    console.error("Create order error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get all orders (admin)
+app.get("/api/orders", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const status = req.query.status as OrderStatus | undefined;
+
+    let orders = await storage.list<Order>("orders", (o) => o.orgId === orgId);
+
+    // Apply filters
+    if (status) {
+      orders = orders.filter((o) => o.status === status);
+    }
+
+    // Sort by creation date (newest first)
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Get orders error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get order by ID
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await storage.get<Order>("orders", req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    res.json(order);
+  } catch (error) {
+    console.error("Get order error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get order by order number
+app.get("/api/orders/number/:orderNumber", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const orders = await storage.list<Order>("orders", (o) => o.orderNumber === orderNumber);
+
+    if (orders.length === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json(orders[0]);
+  } catch (error) {
+    console.error("Get order by number error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get orders by customer email
+app.get("/api/orders/customer/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const orders = await storage.list<Order>("orders", (o) => o.customer.email === email);
+
+    // Sort by creation date (newest first)
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Get customer orders error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Update order status
+app.put("/api/orders/:id/status", async (req, res) => {
+  try {
+    const { status, paymentStatus, trackingNumber, internalNotes } = req.body;
+
+    const order = await storage.get<Order>("orders", req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (status) {
+      order.status = status;
+
+      // Update timestamps based on status
+      if (status === "confirmed" && !order.confirmedAt) {
+        order.confirmedAt = new Date().toISOString();
+      } else if (status === "shipped" && !order.shippedAt) {
+        order.shippedAt = new Date().toISOString();
+      } else if (status === "delivered" && !order.deliveredAt) {
+        order.deliveredAt = new Date().toISOString();
+      } else if (status === "cancelled" && !order.cancelledAt) {
+        order.cancelledAt = new Date().toISOString();
+
+        // Restore inventory when order is cancelled
+        for (const item of order.items) {
+          const product = await storage.get<Product>("products", item.productId);
+          if (product?.inventory) {
+            product.inventory.stockLevel += item.quantity;
+
+            // Update product status if back in stock
+            if (product.status === "out_of_stock" && product.inventory.stockLevel > 0) {
+              product.status = "active";
+            }
+
+            product.updatedAt = new Date().toISOString();
+            await storage.upsert("products", product);
+          }
+        }
+      }
+    }
+
+    if (paymentStatus) {
+      order.paymentStatus = paymentStatus;
+    }
+
+    if (trackingNumber) {
+      order.trackingNumber = trackingNumber;
+    }
+
+    if (internalNotes !== undefined) {
+      order.internalNotes = internalNotes;
+    }
+
+    order.updatedAt = new Date().toISOString();
+    await storage.upsert("orders", order);
+
+    res.json(order);
+  } catch (error) {
+    console.error("Update order status error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Update entire order
+app.put("/api/orders/:id", async (req, res) => {
+  try {
+    const existing = await storage.get<Order>("orders", req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const updated: Order = {
+      ...existing,
+      ...req.body,
+      id: req.params.id,
+      orgId: existing.orgId,
+      orderNumber: existing.orderNumber,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await storage.upsert("orders", updated);
+    res.json(updated);
+  } catch (error) {
+    console.error("Update order error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });

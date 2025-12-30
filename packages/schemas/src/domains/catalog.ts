@@ -128,3 +128,105 @@ export interface CreateProductFromImageRequest {
   autoAnalyze?: boolean;
 }
 
+/**
+ * Shopping Cart
+ */
+export interface CartItem {
+  productId: string;
+  productName: string; // Snapshot at time of adding
+  price: number; // Price snapshot
+  currency: string;
+  quantity: number;
+  imageUrl?: string; // First product image
+  addedAt: string;
+}
+
+export interface Cart {
+  id: string;
+  sessionId: string; // Can be userId for logged-in users or session ID for guests
+  orgId: string;
+  items: CartItem[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string; // Carts expire after 30 days
+}
+
+/**
+ * Orders & Checkout
+ */
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded";
+
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export interface CustomerInfo {
+  name: string;
+  email: string;
+  phone?: string;
+  shippingAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  billingAddress?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: string; // Snapshot
+  productDescription?: string; // Snapshot
+  price: number; // Price snapshot
+  quantity: number;
+  subtotal: number; // price * quantity
+  imageUrl?: string;
+  sku?: string;
+}
+
+export interface OrderPricing {
+  subtotal: number;
+  tax?: number;
+  shipping?: number;
+  discount?: number;
+  total: number;
+  currency: string;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string; // Human-readable, e.g., "ORD-20231215-001"
+  orgId: string;
+  sessionId: string; // userId or guest session
+  items: OrderItem[];
+  customer: CustomerInfo;
+  pricing: OrderPricing;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: string; // "stripe", "paypal", "cash_on_delivery", etc.
+  transactionId?: string;
+  trackingNumber?: string;
+  notes?: string;
+  internalNotes?: string; // Admin-only notes
+  createdAt: string;
+  updatedAt: string;
+  confirmedAt?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
+}
+
