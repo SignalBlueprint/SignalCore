@@ -130,6 +130,18 @@ importers:
 
   apps/leadscout:
     dependencies:
+      '@sb/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@sb/cache':
+        specifier: workspace:*
+        version: link:../../packages/cache
+      '@sb/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@sb/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@sb/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -139,6 +151,12 @@ importers:
       '@sb/suite':
         specifier: workspace:*
         version: link:../../packages/suite
+      '@sb/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
+      openai:
+        specifier: ^4.0.0
+        version: 4.104.0(ws@8.18.3)(zod@3.25.76)
       zod:
         specifier: ^3.22.0
         version: 3.25.76
@@ -300,6 +318,9 @@ importers:
       '@sb/schemas':
         specifier: workspace:*
         version: link:../schemas
+      '@sb/storage':
+        specifier: workspace:*
+        version: link:../storage
       '@sb/telemetry':
         specifier: workspace:*
         version: link:../telemetry

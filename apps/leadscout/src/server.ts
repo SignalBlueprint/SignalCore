@@ -14,6 +14,8 @@ import {
   type LeadFilters,
   type LeadUpdateInput,
 } from "./leadRepository";
+import { calculateLeadScore, getLeadScoringBreakdown } from "./scoring/scoringEngine";
+import { analyzeLeadIntelligence, calculateIntelligenceScore } from "./scoring/intelligenceService";
 
 const suiteApp = getSuiteApp("leadscout");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
@@ -253,6 +255,97 @@ const server = http.createServer(async (req, res) => {
     }
 
     sendJson(res, 200, { lead: updated });
+    return;
+  }
+
+  // POST /leads/:id/score - Calculate and update lead score
+  if (leadId && req.method === "POST" && url.pathname === `/leads/${leadId}/score`) {
+    const lead = await repository.getById(leadId);
+    if (!lead) {
+      sendNotFound(res);
+      return;
+    }
+
+    // Calculate new score
+    const newScore = calculateLeadScore(lead);
+    const breakdown = getLeadScoringBreakdown(lead);
+
+    // Update the lead with new score
+    const updated = await repository.update(leadId, { score: newScore });
+
+    sendJson(res, 200, {
+      lead: updated,
+      breakdown,
+    });
+    return;
+  }
+
+  // POST /leads/:id/analyze - Run AI intelligence analysis
+  if (leadId && req.method === "POST" && url.pathname === `/leads/${leadId}/analyze`) {
+    const lead = await repository.getById(leadId);
+    if (!lead) {
+      sendNotFound(res);
+      return;
+    }
+
+    try {
+      // Run AI analysis
+      const intelligence = await analyzeLeadIntelligence(lead);
+
+      // Update lead with intelligence data
+      const updated = await repository.update(leadId, { intelligence });
+
+      sendJson(res, 200, {
+        lead: updated,
+        intelligence,
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: "AI analysis failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  // POST /leads/:id/enrich - Full enrichment (score + intelligence)
+  if (leadId && req.method === "POST" && url.pathname === `/leads/${leadId}/enrich`) {
+    const lead = await repository.getById(leadId);
+    if (!lead) {
+      sendNotFound(res);
+      return;
+    }
+
+    try {
+      // Calculate base score
+      const baseScore = calculateLeadScore(lead);
+
+      // Run AI analysis
+      const intelligence = await analyzeLeadIntelligence(lead);
+
+      // Calculate intelligence-boosted score
+      const finalScore = calculateIntelligenceScore(baseScore, intelligence);
+
+      // Update lead with both score and intelligence
+      const updated = await repository.update(leadId, {
+        score: finalScore,
+        intelligence,
+      });
+
+      sendJson(res, 200, {
+        lead: updated,
+        enrichment: {
+          baseScore,
+          finalScore,
+          intelligence,
+        },
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: "Enrichment failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
     return;
   }
 

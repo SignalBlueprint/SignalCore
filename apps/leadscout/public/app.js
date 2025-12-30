@@ -84,6 +84,10 @@ function renderLead(lead) {
 
   const scoreColor = lead.score >= 80 ? '#10b981' : lead.score >= 60 ? '#f59e0b' : '#6b7280';
 
+  // Intelligence insights
+  const intelligence = lead.intelligence;
+  const hasIntelligence = intelligence && intelligence.qualificationLevel;
+
   return `
     <div class="lead-card" style="border-left-color: ${statusColors[lead.status] || '#3b82f6'}">
       <div class="lead-header">
@@ -96,11 +100,84 @@ function renderLead(lead) {
       <div class="lead-meta">
         <span class="badge badge-status">${formatStatus(lead.status)}</span>
         <span class="badge badge-source">${formatSource(lead.source)}</span>
+        ${hasIntelligence ? renderIntelligenceBadges(intelligence) : ''}
       </div>
       ${lead.notes ? `<div class="lead-notes">${escapeHtml(lead.notes)}</div>` : ''}
+      ${hasIntelligence ? renderIntelligenceInsights(intelligence) : ''}
+      <div class="lead-actions">
+        ${!hasIntelligence ? `
+          <button class="btn-action" onclick="enrichLead('${lead.id}')">
+            🤖 Enrich with AI
+          </button>
+        ` : `
+          <button class="btn-action" onclick="refreshIntelligence('${lead.id}')">
+            🔄 Refresh Intelligence
+          </button>
+        `}
+        <button class="btn-action" onclick="recalculateScore('${lead.id}')">
+          📊 Recalculate Score
+        </button>
+      </div>
       <div style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         Added: ${formatDate(lead.createdAt)}
+        ${hasIntelligence ? `• Analyzed: ${formatDate(intelligence.analyzedAt)}` : ''}
       </div>
+    </div>
+  `;
+}
+
+function renderIntelligenceBadges(intelligence) {
+  const qualColors = {
+    high: '#10b981',
+    medium: '#f59e0b',
+    low: '#ef4444'
+  };
+
+  return `
+    <span class="badge" style="background: ${qualColors[intelligence.qualificationLevel]}; color: white;">
+      ${intelligence.qualificationLevel.toUpperCase()} Qualification
+    </span>
+    ${intelligence.companySize && intelligence.companySize !== 'unknown' ? `
+      <span class="badge" style="background: #6366f1; color: white;">
+        ${intelligence.companySize}
+      </span>
+    ` : ''}
+  `;
+}
+
+function renderIntelligenceInsights(intelligence) {
+  return `
+    <div class="intelligence-panel">
+      <div class="intelligence-header">
+        <strong>AI Insights</strong>
+        <span style="font-size: 11px; color: #6b7280;">Confidence: ${intelligence.confidence}%</span>
+      </div>
+      <div class="intelligence-reason">
+        ${escapeHtml(intelligence.qualificationReason)}
+      </div>
+      ${intelligence.keyInsights && intelligence.keyInsights.length > 0 ? `
+        <div class="intelligence-insights">
+          ${intelligence.keyInsights.slice(0, 3).map(insight => `
+            <div class="insight-item">💡 ${escapeHtml(insight)}</div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${intelligence.opportunities && intelligence.opportunities.length > 0 ? `
+        <div class="intelligence-opportunities">
+          <strong style="font-size: 12px; color: #10b981;">Opportunities:</strong>
+          ${intelligence.opportunities.slice(0, 2).map(opp => `
+            <div class="insight-item">✨ ${escapeHtml(opp)}</div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${intelligence.riskFactors && intelligence.riskFactors.length > 0 ? `
+        <div class="intelligence-risks">
+          <strong style="font-size: 12px; color: #ef4444;">Risk Factors:</strong>
+          ${intelligence.riskFactors.slice(0, 2).map(risk => `
+            <div class="insight-item">⚠️ ${escapeHtml(risk)}</div>
+          `).join('')}
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -195,4 +272,71 @@ function escapeHtml(text) {
 
 function showError(message) {
   alert(message);
+}
+
+// Enrich lead with AI intelligence
+async function enrichLead(leadId) {
+  try {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = '🔄 Enriching...';
+
+    const response = await fetch(`${API_BASE}/leads/${leadId}/enrich`, {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to enrich lead');
+    }
+
+    const data = await response.json();
+
+    // Update the lead in our local array
+    const index = leads.findIndex(l => l.id === leadId);
+    if (index !== -1) {
+      leads[index] = data.lead;
+    }
+
+    applyFilters();
+    updateStats();
+  } catch (error) {
+    console.error('Error enriching lead:', error);
+    showError('Failed to enrich lead. Make sure OPENAI_API_KEY is set.');
+  }
+}
+
+// Refresh intelligence for a lead
+async function refreshIntelligence(leadId) {
+  await enrichLead(leadId);
+}
+
+// Recalculate score for a lead
+async function recalculateScore(leadId) {
+  try {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = '🔄 Calculating...';
+
+    const response = await fetch(`${API_BASE}/leads/${leadId}/score`, {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to recalculate score');
+    }
+
+    const data = await response.json();
+
+    // Update the lead in our local array
+    const index = leads.findIndex(l => l.id === leadId);
+    if (index !== -1) {
+      leads[index] = data.lead;
+    }
+
+    applyFilters();
+    updateStats();
+  } catch (error) {
+    console.error('Error recalculating score:', error);
+    showError('Failed to recalculate score');
+  }
 }

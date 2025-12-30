@@ -38,6 +38,7 @@ export type EventType =
   | "ai.run"
   | "ai.level_up"
   | "ai.level_up.error"
+  | "ai.improve_goal"
   | "job.completed"
   | "job.failed"
   | "questmaster.dryrun.completed"
@@ -86,6 +87,7 @@ export const EventEnvelopeSchema = z.object({
     "ai.run",
     "ai.level_up",
     "ai.level_up.error",
+    "ai.improve_goal",
     "job.completed",
     "job.failed",
     "questmaster.dryrun.completed",
