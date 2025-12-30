@@ -8,6 +8,7 @@ import TeamIntakePage from './pages/TeamIntakePage';
 import GoalsPage from './pages/GoalsPage';
 import AssignmentReviewPage from './pages/AssignmentReviewPage';
 import TaskDetailPage from './pages/TaskDetailPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/goals/:goalId" element={<ErrorBoundary><GoalsPage /></ErrorBoundary>} />
           <Route path="/goals/:goalId/assignment-review" element={<ErrorBoundary><AssignmentReviewPage /></ErrorBoundary>} />
           <Route path="/tasks/:taskId" element={<ErrorBoundary><TaskDetailPage /></ErrorBoundary>} />
+          <Route path="/analytics" element={<ErrorBoundary><AnalyticsPage /></ErrorBoundary>} />
           <Route path="/debug" element={<ErrorBoundary><DebugPage /></ErrorBoundary>} />
         </Routes>
       </div>

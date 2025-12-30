@@ -88,6 +88,9 @@ export default function Nav() {
         <Link to={`/sprint${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/sprint')}>
           📊 Sprint
         </Link>
+        <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/analytics')}>
+          📈 Analytics
+        </Link>
         <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/team')}>
           👥 Team
         </Link>

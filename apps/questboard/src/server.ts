@@ -2891,6 +2891,158 @@ app.post("/api/seed-demo", async (req, res) => {
   }
 });
 
+// Analytics endpoint
+app.get("/api/analytics", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+
+    // Get all data for the org
+    const [allGoals, allQuestlines, allQuests, allTasks, members, memberProfiles, teamCapacity] = await Promise.all([
+      getAllGoals(),
+      getQuestlinesByOrgId(orgId),
+      storage.list<Quest>("quests", (q) => q.orgId === orgId),
+      storage.list<Task>("tasks", (t) => t.orgId === orgId),
+      getMembersByOrgId(orgId),
+      getMemberProfilesByOrgId(orgId),
+      getTeamPulse(orgId),
+    ]);
+
+    const goals = allGoals.filter(g => g.orgId === orgId);
+
+    // Task statistics
+    const tasksByStatus = {
+      todo: allTasks.filter(t => t.status === "todo").length,
+      inProgress: allTasks.filter(t => t.status === "in-progress").length,
+      done: allTasks.filter(t => t.status === "done").length,
+      blocked: allTasks.filter(t => t.blockers && t.blockers.length > 0).length,
+    };
+
+    // Goal statistics
+    const goalsByStatus = {
+      draft: goals.filter(g => g.status === "draft").length,
+      clarified: goals.filter(g => g.status === "clarified_pending_approval").length,
+      approved: goals.filter(g => g.status === "approved").length,
+      active: goals.filter(g => g.status === "active").length,
+      completed: goals.filter(g => g.status === "completed").length,
+      paused: goals.filter(g => g.status === "paused").length,
+    };
+
+    // Quest statistics
+    const questsByState = {
+      locked: allQuests.filter(q => q.state === "locked").length,
+      unlocked: allQuests.filter(q => q.state === "unlocked").length,
+      inProgress: allQuests.filter(q => q.state === "in-progress").length,
+      completed: allQuests.filter(q => q.state === "completed").length,
+    };
+
+    // Working Genius distribution
+    const wgDistribution = {
+      W: 0, I: 0, D: 0, G: 0, E: 0, T: 0,
+    };
+    memberProfiles.forEach(profile => {
+      profile.top2.forEach(phase => {
+        wgDistribution[phase]++;
+      });
+    });
+
+    // Task assignments by Working Genius phase
+    const tasksByPhase = {
+      W: allTasks.filter(t => t.phase === "W").length,
+      I: allTasks.filter(t => t.phase === "I").length,
+      D: allTasks.filter(t => t.phase === "D").length,
+      G: allTasks.filter(t => t.phase === "G").length,
+      E: allTasks.filter(t => t.phase === "E").length,
+      T: allTasks.filter(t => t.phase === "T").length,
+      unassigned: allTasks.filter(t => !t.phase).length,
+    };
+
+    // Get recent events for activity timeline
+    const events = readEvents(100);
+    const relevantEvents = events.filter(e =>
+      e.orgId === orgId || !e.orgId
+    ).slice(0, 20);
+
+    const recentActivity = relevantEvents.map(e => ({
+      type: e.type,
+      payload: e.payload,
+      createdAt: e.createdAt,
+    }));
+
+    // Calculate completion rate (tasks done / total tasks)
+    const totalTasks = allTasks.length;
+    const completedTasks = tasksByStatus.done;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    // Calculate average task completion time
+    const completedTasksWithTime = allTasks.filter(t =>
+      t.status === "done" && t.completedAt && t.createdAt
+    );
+    const avgCompletionTimeMinutes = completedTasksWithTime.length > 0
+      ? Math.round(
+          completedTasksWithTime.reduce((sum, t) => {
+            const created = new Date(t.createdAt).getTime();
+            const completed = new Date(t.completedAt!).getTime();
+            return sum + (completed - created) / 1000 / 60;
+          }, 0) / completedTasksWithTime.length
+        )
+      : 0;
+
+    // Team utilization
+    const totalCapacity = teamCapacity.reduce((sum, m) => sum + m.capacityTotal, 0);
+    const totalUsed = teamCapacity.reduce((sum, m) => sum + m.capacityUsed, 0);
+    const teamUtilization = totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0;
+
+    // Overloaded members (>100% capacity)
+    const overloadedMembers = teamCapacity.filter(m =>
+      m.capacityUsed > m.capacityTotal
+    );
+
+    // At-risk indicators
+    const atRisk = {
+      overloadedMembers: overloadedMembers.length,
+      blockedTasks: tasksByStatus.blocked,
+      lockedQuests: questsByState.locked,
+      staleGoals: goals.filter(g => {
+        if (!g.createdAt) return false;
+        const daysSinceCreation = (Date.now() - new Date(g.createdAt).getTime()) / 1000 / 60 / 60 / 24;
+        return g.status === "draft" && daysSinceCreation > 7;
+      }).length,
+    };
+
+    res.json({
+      orgId,
+      summary: {
+        totalGoals: goals.length,
+        totalQuestlines: allQuestlines.length,
+        totalQuests: allQuests.length,
+        totalTasks: allTasks.length,
+        totalMembers: members.length,
+        completionRate,
+        avgCompletionTimeMinutes,
+        teamUtilization,
+      },
+      tasksByStatus,
+      goalsByStatus,
+      questsByState,
+      wgDistribution,
+      tasksByPhase,
+      teamCapacity,
+      overloadedMembers: overloadedMembers.map(m => ({
+        email: m.memberEmail,
+        utilizationPercent: Math.round((m.capacityUsed / m.capacityTotal) * 100),
+      })),
+      atRisk,
+      recentActivity,
+    });
+  } catch (error) {
+    console.error("Analytics error:", error);
+    res.status(500).json({
+      error: "Failed to fetch analytics",
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 // Serve static files from built React app in production
 const webDistPath = path.join(__dirname, "..", "dist", "web");
 if (process.env.NODE_ENV === "production" && fs.existsSync(webDistPath)) {
