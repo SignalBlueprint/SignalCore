@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@sb/schemas": "workspace:*",
+    "@sb/storage": "workspace:*",
     "@sb/suite": "workspace:*",
     "zod": "^3.22.0"
   },

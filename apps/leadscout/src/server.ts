@@ -1,4 +1,6 @@
 import http from "http";
+import * as fs from "fs";
+import * as path from "path";
 import { z } from "zod";
 import {
   LeadSourceSchema,
@@ -7,7 +9,7 @@ import {
 } from "@sb/schemas";
 import { getSuiteApp } from "@sb/suite";
 import {
-  InMemoryLeadRepository,
+  StorageLeadRepository,
   type LeadCreateInput,
   type LeadFilters,
   type LeadUpdateInput,
@@ -15,7 +17,7 @@ import {
 
 const suiteApp = getSuiteApp("leadscout");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
-const repository = new InMemoryLeadRepository();
+const repository = new StorageLeadRepository();
 
 const createLeadSchema = z.object({
   orgId: z.string(),
@@ -105,7 +107,7 @@ function extractLeadId(pathname: string): string | null {
   return match?.[1] ?? null;
 }
 
-function seedLeads(): Lead[] {
+async function seedLeads(): Promise<Lead[]> {
   const samples: LeadCreateInput[] = [
     {
       orgId: "org-demo",
@@ -136,7 +138,7 @@ function seedLeads(): Lead[] {
     },
   ];
 
-  return samples.map((sample) => repository.create(sample));
+  return Promise.all(samples.map((sample) => repository.create(sample)));
 }
 
 const server = http.createServer(async (req, res) => {
@@ -150,13 +152,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Serve static files
+  if (req.method === "GET" && (url.pathname === "/" || url.pathname.startsWith("/app.js") || url.pathname.startsWith("/index.html"))) {
+    const publicDir = path.join(__dirname, "..", "public");
+    let filePath = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+    filePath = path.join(publicDir, filePath);
+
+    try {
+      const content = fs.readFileSync(filePath);
+      const ext = path.extname(filePath);
+      const contentType = ext === ".js" ? "application/javascript" : ext === ".html" ? "text/html" : "text/plain";
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(content);
+      return;
+    } catch (error) {
+      // File not found, continue to API routes
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/dev/seed") {
     if (process.env.NODE_ENV !== "development") {
       sendNotFound(res);
       return;
     }
 
-    const seeded = seedLeads();
+    const seeded = await seedLeads();
     sendJson(res, 201, { seeded });
     return;
   }
@@ -179,7 +199,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const lead = repository.create(parsed.data);
+    const lead = await repository.create(parsed.data);
     sendJson(res, 201, { lead });
     return;
   }
@@ -191,14 +211,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const leads = repository.list(filters);
+    const leads = await repository.list(filters);
     sendJson(res, 200, { leads });
     return;
   }
 
   const leadId = extractLeadId(url.pathname);
   if (leadId && req.method === "GET") {
-    const lead = repository.getById(leadId);
+    const lead = await repository.getById(leadId);
     if (!lead) {
       sendNotFound(res);
       return;
@@ -226,7 +246,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const updated = repository.update(leadId, parsed.data as LeadUpdateInput);
+    const updated = await repository.update(leadId, parsed.data as LeadUpdateInput);
     if (!updated) {
       sendNotFound(res);
       return;

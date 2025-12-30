@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeadScout - Lead Discovery & Qualification</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { margin-bottom: 20px; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .filters { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-direction: column; }
+    .filter-group label { font-size: 12px; color: #666; margin-bottom: 5px; }
+    .filter-group select, .filter-group input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .leads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+    .lead-card { background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; transition: all 0.2s; }
+    .lead-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
+    .lead-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
+    .lead-company { font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 5px; }
+    .lead-url { color: #6b7280; font-size: 14px; text-decoration: none; }
+    .lead-url:hover { color: #3b82f6; }
+    .lead-score { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold; }
+    .lead-meta { display: flex; gap: 10px; margin-bottom: 10px; }
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge-status { background: #dbeafe; color: #1e40af; }
+    .badge-source { background: #fef3c7; color: #92400e; }
+    .lead-notes { color: #6b7280; font-size: 14px; margin-top: 10px; font-style: italic; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; }
+    .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; color: #374151; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .loading { text-align: center; padding: 40px; color: #6b7280; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+    .empty-state-icon { font-size: 64px; margin-bottom: 20px; }
+    .stats { display: flex; gap: 30px; margin-bottom: 20px; }
+    .stat { background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 8px; }
+    .stat-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; }
+    .stat-value { font-size: 28px; font-weight: bold; color: #111827; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 LeadScout</h1>
+
+    <div class="stats" id="stats">
+      <div class="stat">
+        <div class="stat-label">Total Leads</div>
+        <div class="stat-value" id="totalLeads">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Avg Score</div>
+        <div class="stat-value" id="avgScore">-</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="filterStatus">
+            <option value="">All</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="qualified">Qualified</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Source</label>
+          <select id="filterSource">
+            <option value="">All</option>
+            <option value="manual">Manual</option>
+            <option value="scrape">Scrape</option>
+            <option value="referral">Referral</option>
+            <option value="import">Import</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Min Score</label>
+          <input type="number" id="filterMinScore" placeholder="0-100" min="0" max="100">
+        </div>
+        <div class="filter-group" style="justify-content: flex-end;">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Add Lead</button>
+        </div>
+      </div>
+
+      <div id="leadsContainer" class="loading">Loading leads...</div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Lead Modal -->
+  <div id="leadModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Add New Lead</div>
+      <form id="leadForm">
+        <div class="form-group">
+          <label>Company Name *</label>
+          <input type="text" id="companyName" required>
+        </div>
+        <div class="form-group">
+          <label>Website URL *</label>
+          <input type="url" id="url" required placeholder="https://example.com">
+        </div>
+        <div class="form-group">
+          <label>Source *</label>
+          <select id="source" required>
+            <option value="manual">Manual</option>
+            <option value="scrape">Scrape</option>
+            <option value="referral">Referral</option>
+            <option value="import">Import</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Score (0-100)</label>
+          <input type="number" id="score" min="0" max="100" placeholder="50">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="notes" placeholder="Any additional information..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

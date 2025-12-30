@@ -1,14 +1,17 @@
 import http, { IncomingMessage, ServerResponse } from "http";
+import * as fs from "fs";
+import * as path from "path";
 import { randomUUID } from "crypto";
 import { getSuiteApp } from "@sb/suite";
 import { GenerationJob, SiteProject } from "@sb/schemas";
 import { InMemoryJobQueue } from "@sb/utils";
+import { ProjectRepository, GenerationJobRepository } from "./repository";
 
 const suiteApp = getSuiteApp("siteforge");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 
-const projects = new Map<string, SiteProject>();
-const generationJobs = new Map<string, GenerationJob>();
+const projectRepo = new ProjectRepository();
+const jobRepo = new GenerationJobRepository();
 const generationQueue = new InMemoryJobQueue<GenerationJob>();
 
 const parseJsonBody = async (req: IncomingMessage) => {
@@ -43,8 +46,27 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Serve static files
+  if (req.method === "GET" && (url.pathname === "/" || url.pathname.startsWith("/app.js") || url.pathname.startsWith("/index.html"))) {
+    const publicDir = path.join(__dirname, "..", "public");
+    let filePath = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+    filePath = path.join(publicDir, filePath);
+
+    try {
+      const content = fs.readFileSync(filePath);
+      const ext = path.extname(filePath);
+      const contentType = ext === ".js" ? "application/javascript" : ext === ".html" ? "text/html" : "text/plain";
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(content);
+      return;
+    } catch (error) {
+      // File not found, continue to API routes
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/projects") {
-    sendJson(res, 200, { projects: Array.from(projects.values()) });
+    const projects = await projectRepo.list();
+    sendJson(res, 200, { projects });
     return;
   }
 
@@ -74,7 +96,7 @@ const server = http.createServer(async (req, res) => {
         createdAt: now,
         updatedAt: now,
       };
-      projects.set(project.id, project);
+      await projectRepo.create(project);
       sendJson(res, 201, { project });
     } catch (error) {
       sendJson(res, 400, { error: "Invalid JSON payload" });
@@ -88,7 +110,7 @@ const server = http.createServer(async (req, res) => {
       notFound(res);
       return;
     }
-    const project = projects.get(id);
+    const project = await projectRepo.getById(id);
     if (!project) {
       notFound(res);
       return;
@@ -107,7 +129,7 @@ const server = http.createServer(async (req, res) => {
       notFound(res);
       return;
     }
-    const project = projects.get(id);
+    const project = await projectRepo.getById(id);
     if (!project) {
       notFound(res);
       return;
@@ -120,11 +142,11 @@ const server = http.createServer(async (req, res) => {
       createdAt: now,
       updatedAt: now,
     };
-    generationJobs.set(job.id, job);
+    await jobRepo.create(job);
     generationQueue.enqueue(job);
     project.status = "queued";
     project.updatedAt = now;
-    projects.set(project.id, project);
+    await projectRepo.update(project);
 
     // TODO: Replace with real website generation pipeline.
     sendJson(res, 202, { message: "generation job created", job });
