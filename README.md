@@ -13,8 +13,19 @@ packages/          # Shared libraries
   ai/              # AI utilities and integrations
   ui/              # Shared UI components
   db/              # Database utilities
+  storage/         # Storage abstraction layer
   utils/           # Shared utilities
   suite/           # Suite registry and metadata
+  assignment/      # Task assignment and Working Genius logic
+  events/          # Event system for inter-app communication
+  jobs/            # Scheduled job system
+  telemetry/       # AI and system telemetry tracking
+  logger/          # Centralized logging
+  cache/           # Caching utilities
+  config/          # Configuration management
+  rbac/            # Role-based access control
+  notify/          # Notification system
+  integrations-github/  # GitHub integration utilities
 
 docs/              # Documentation
 .github/           # GitHub workflows and templates
@@ -30,7 +41,8 @@ docs/              # Documentation
 
 **Current State:**
 - Complete Express.js REST API with comprehensive endpoints
-- Full React frontend with 8 page components (Today, Sprint, Goals, Team, etc.)
+- Full React frontend with 9 page components (Today, Sprint, Goals, Team, Analytics, etc.)
+- Analytics Dashboard with task/goal/quest statistics, Working Genius distribution, completion metrics, and activity timeline
 - Hierarchical goal/questline/quest/task system
 - AI-powered sprint planning with plan generation and comparison
 - Daily deck generation for team members
