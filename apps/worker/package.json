@@ -16,9 +16,11 @@
     "@sb/schemas": "workspace:*",
     "@sb/notify": "workspace:*",
     "@sb/events": "workspace:*",
-    "@sb/integrations-github": "workspace:*"
+    "@sb/integrations-github": "workspace:*",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
     "typescript": "^5.0.0",
     "tsx": "^4.0.0"

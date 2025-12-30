@@ -7,6 +7,9 @@ import { logger } from "@sb/logger";
 import { publish } from "@sb/events";
 import { getTelemetryState } from "@sb/telemetry";
 
+// Export scheduler
+export * from "./scheduler";
+
 /**
  * Job execution context
  */
