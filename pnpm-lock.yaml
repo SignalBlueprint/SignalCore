@@ -176,9 +176,15 @@ importers:
       '@sb/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@sb/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@sb/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@sb/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@sb/suite':
         specifier: workspace:*
         version: link:../../packages/suite

@@ -109,16 +109,14 @@ export async function buildOrgContext(
     const completedGoals = allGoals
       .filter((g) => g.status === "done" || g.status === "archived")
       .sort((a, b) => {
-        // Sort by updatedAt or createdAt descending
-        const aTime = a.updatedAt || a.createdAt;
-        const bTime = b.updatedAt || b.createdAt;
-        return bTime.localeCompare(aTime);
+        // Sort by createdAt descending
+        return b.createdAt.localeCompare(a.createdAt);
       })
       .slice(0, maxCompletedGoals)
       .map((g) => ({
         title: g.title,
         outcome: g.outcome || g.spec_json?.outcome,
-        completedAt: g.updatedAt || g.createdAt,
+        completedAt: g.createdAt,
       }));
 
     // Get all quests for the org
