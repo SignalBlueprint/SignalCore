@@ -247,23 +247,6 @@ export async function buildOrgContext(
       },
     };
   }
-} catch (error) {
-    console.error("[buildOrgContext] Error building context for orgId:", orgId, error);
-    // Return empty context instead of throwing, so the system can still function
-    // This allows the UI to show that context exists but is empty
-    return {
-      activeGoals: [],
-      completedGoals: [],
-      activeQuests: [],
-      completedQuests: [],
-      recentOutputs: [],
-      knowledgeCards: [],
-      patterns: {
-        successful: [],
-        challenges: [],
-      },
-    };
-  }
 }
 
 /**

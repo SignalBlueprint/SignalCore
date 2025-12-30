@@ -1,0 +1,51 @@
+# Worker Job Scheduler Configuration
+#
+# This file defines when and how jobs are executed automatically.
+# Cron expression format: * * * * * *
+#                         │ │ │ │ │ │
+#                         │ │ │ │ │ └─── day of week (0 - 7) (Sunday=0 or 7)
+#                         │ │ │ │ └──────── month (1 - 12)
+#                         │ │ │ └───────────── day of month (1 - 31)
+#                         │ │ └────────────────── hour (0 - 23)
+#                         │ └─────────────────────── minute (0 - 59)
+#                         └──────────────────────────── second (0 - 59, optional)
+#
+# Examples:
+#   "0 9 * * *"       - Every day at 9:00 AM
+#   "0 9 * * 1"       - Every Monday at 9:00 AM
+#   "*/5 * * * *"     - Every 5 minutes
+#   "0 */2 * * *"     - Every 2 hours
+#   "0 0 1 * *"       - First day of every month at midnight
+
+schedules:
+  # Daily Questmaster - Runs quest unlocks, deck updates, and stuck item detection
+  - jobId: daily.questmaster
+    schedule: "0 9 * * *"  # Every day at 9:00 AM
+    enabled: true
+    timezone: "America/New_York"
+    description: "Daily quest unlocking and deck generation"
+    input:
+      orgId: "default-org"  # Change this to your org ID
+
+  # Weekly Sprint Planner - Generates weekly sprint plans
+  - jobId: weekly.sprintplanner
+    schedule: "0 9 * * 1"  # Every Monday at 9:00 AM
+    enabled: true
+    timezone: "America/New_York"
+    description: "Weekly sprint planning and task assignments"
+    input:
+      orgId: "default-org"  # Change this to your org ID
+
+  # GitHub Sync - Syncs tasks to GitHub Issues
+  - jobId: github.sync
+    schedule: "*/15 * * * *"  # Every 15 minutes
+    enabled: false  # Disabled by default - enable if using GitHub integration
+    timezone: "UTC"
+    description: "Sync tasks to GitHub Issues"
+
+  # Dry Run Example - Disabled by default, useful for testing
+  - jobId: daily.questmaster.dryrun
+    schedule: "0 10 * * *"  # Every day at 10:00 AM
+    enabled: false
+    timezone: "UTC"
+    description: "Test run without making changes"

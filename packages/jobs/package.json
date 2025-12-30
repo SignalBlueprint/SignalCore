@@ -20,9 +20,11 @@
   "dependencies": {
     "@sb/events": "workspace:*",
     "@sb/logger": "workspace:*",
-    "@sb/telemetry": "workspace:*"
+    "@sb/telemetry": "workspace:*",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
+    "@types/node-cron": "^3.0.11",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }

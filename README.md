@@ -228,27 +228,39 @@ docs/              # Documentation
 
 ---
 
-#### 🟢 Worker (CLI Job Runner)
-**Status:** Functional - 4 implemented jobs
-**Description:** CLI-based scheduled job runner
+#### 🟢 Worker (CLI Job Runner & Scheduler)
+**Status:** Production Ready - Full scheduling system with 4 implemented jobs
+**Description:** CLI-based job runner with automatic cron scheduling
 
 **Current State:**
-- Job runner CLI with registration system
-- 4 implemented jobs:
-  - `daily.questmaster` - Quest unlocks, deck updates, stuck items
-  - `weekly.sprintplanner` - Sprint planning and assignments
-  - `github.sync` - Sync tasks to GitHub Issues
-  - `daily.questmaster.dryrun` - Test mode
-- Org-specific job execution
-- Command-line interface for manual execution
+- ✅ **Cron Scheduler** - Automated job execution using cron expressions
+- ✅ **Daemon Mode** - Runs continuously executing jobs on schedule
+- ✅ **YAML Configuration** - Simple `scheduler.yaml` config file
+- ✅ **Timezone Support** - Schedule jobs in different timezones
+- ✅ **Manual Execution** - Run any job on-demand via CLI
+- ✅ **Job Registry** - Extensible job registration system
+- ✅ **Event Publishing** - Jobs publish events for integration
+- ✅ **Signal Handling** - Graceful shutdown on SIGINT/SIGTERM
+
+**Implemented Jobs (4):**
+- `daily.questmaster` - Quest unlocks, deck updates, stuck items detection
+- `weekly.sprintplanner` - Sprint planning and task assignments
+- `github.sync` - Sync tasks to GitHub Issues (requires GITHUB_TOKEN)
+- `daily.questmaster.dryrun` - Test mode
+
+**Commands:**
+- `daemon` - Start scheduler daemon with automatic job execution
+- `job <id>` - Run a specific job once
+- `list` - List all registered jobs
+- `schedules` - Show configured schedules
+
+**See:** [Worker README](apps/worker/README.md) for detailed documentation
 
 **Next Steps:**
-1. **Scheduling System**
-   - Implement actual cron scheduler (replace manual execution)
-   - Add job scheduling configuration (YAML or database)
-   - Support multiple schedule formats (cron, interval, specific times)
-   - Add timezone support for scheduled jobs
+1. **Scheduling Enhancements**
    - Implement job dependency chains
+   - Add conditional execution rules
+   - Support dynamic schedule adjustments
 
 2. **Job Queue & Reliability**
    - Build persistent job queue with @sb/storage
@@ -534,6 +546,8 @@ docs/              # Documentation
 **🔴 Placeholder/Early Stage:** Demoapp
 
 ### Progress Since Last Update
+- ✅ **Worker**: Now production-ready with full cron scheduling system - added daemon mode, YAML configuration, timezone support, and automated job execution
+- ✅ **Worker**: Implemented scheduler using node-cron with graceful shutdown, config validation, and comprehensive CLI commands
 - ✅ **Catalog**: Now a complete e-commerce platform - added shopping cart, order management, checkout flow, batch upload, and CSV import/export
 - ✅ **Catalog**: Previously added comprehensive admin UI with product management dashboard, drag-and-drop uploads, and AI feature integration
 - ✅ **LeadScout**: Upgraded to fully functional - added persistent storage (@sb/storage) and complete UI
@@ -555,7 +569,7 @@ docs/              # Documentation
 
 **Priority 3 - Integration & Automation:**
 8. Create LeadScout → Outreach integration flow (lead to campaign)
-9. Implement proper cron scheduling for Worker jobs
+9. ✅ ~~Implement proper cron scheduling for Worker jobs~~ **COMPLETED**
 10. Build job monitoring dashboard in Console
 11. Add real-time updates (WebSocket/SSE) to Console and Questboard
 
