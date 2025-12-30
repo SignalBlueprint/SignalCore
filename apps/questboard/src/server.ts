@@ -1240,6 +1240,13 @@ app.post("/api/tasks/:id/expand", async (req, res) => {
       workloadByMember[m.id] = memberTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 60), 0);
     });
 
+    // Handle LLM prompt if provided
+    let taskDescriptionUpdate = task.description || "";
+    if (expansion.llmPrompt) {
+      const llmPromptSection = `\n\n---\n\n## 🤖 LLM-Assisted Task\n\n**Instructions:** This task is suitable for AI assistance. Use the prompt below with an LLM (ChatGPT, Claude, etc.) to generate the required output.\n\n**LLM Prompt:**\n\`\`\`\n${expansion.llmPrompt}\n\`\`\`\n\n**Next Steps:**\n1. Copy the prompt above\n2. Paste it into your preferred LLM (ChatGPT, Claude, etc.)\n3. Review and refine the LLM's response\n4. Paste the final output here as part of completing this task\n\n---\n`;
+      taskDescriptionUpdate = (task.description || "") + llmPromptSection;
+    }
+
     // Create subtasks
     const createdSubtasks: Task[] = [];
     for (const subtask of expansion.subtasks) {
@@ -1313,12 +1320,20 @@ app.post("/api/tasks/:id/expand", async (req, res) => {
     }
 
     // Update parent task: mark as expanded and update acceptance criteria
-    await updateTask(task.id, {
-      expandState: "expanded",
+    // If there are no subtasks but there's an LLM prompt, update the task description
+    const taskUpdates: Partial<Task> = {
+      expandState: expansion.subtasks.length > 0 ? "expanded" : "ready",
       expansionDepth: (task.expansionDepth || 0) + 1,
       acceptanceCriteria: expansion.updatedAcceptanceCriteria,
       dod: expansion.updatedAcceptanceCriteria.join("\n"),
-    });
+    };
+
+    // If LLM prompt exists, update description
+    if (expansion.llmPrompt) {
+      taskUpdates.description = taskDescriptionUpdate;
+    }
+
+    await updateTask(task.id, taskUpdates);
 
     // Update quest to include new subtasks
     await updateQuest(parentQuest.id, {
@@ -1329,6 +1344,8 @@ app.post("/api/tasks/:id/expand", async (req, res) => {
       taskId: task.id,
       subtasks: createdSubtasks,
       updatedAcceptanceCriteria: expansion.updatedAcceptanceCriteria,
+      llmPrompt: expansion.llmPrompt,
+      subtasksCreated: createdSubtasks.length,
     });
   } catch (error) {
     console.error("Expand task error:", error);
@@ -1422,10 +1439,16 @@ app.get("/api/tasks/:id", async (req, res) => {
     const allQuests = await storage.list<Quest>("quests", (q) => q.orgId === orgId);
     const quest = allQuests.find(q => q.taskIds.includes(task.id));
     
-    // Add questId to task response for convenience
+    // Fetch subtasks (tasks where parentTaskId === this task's id)
+    const subtasks = await storage.list<Task>("tasks", (t) => 
+      t.orgId === orgId && t.parentTaskId === task.id
+    );
+    
+    // Add questId and subtasks to task response
     const taskWithQuest = {
       ...task,
       questId: quest?.id,
+      subtasks: subtasks || [],
     };
     
     res.json(taskWithQuest);

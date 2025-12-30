@@ -250,6 +250,7 @@ export async function runQuestmaster(
     now,
     tasks,
     members,
+    membersWithProfiles,
     quests,
     questlines,
     jobRunId
@@ -405,6 +406,7 @@ async function generateDailyDeck(
   now: Date,
   allTasks: Task[],
   members: Member[],
+  membersWithProfiles: Array<Member & { workingGeniusProfile?: WorkingGeniusProfile; dailyCapacityMinutes?: number }>,
   quests: Quest[],
   questlines: Questline[],
   jobRunId?: string

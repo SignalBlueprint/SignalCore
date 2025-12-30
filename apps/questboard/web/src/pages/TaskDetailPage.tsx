@@ -26,6 +26,7 @@ interface Task {
   expandState?: 'ready' | 'expanded' | 'locked';
   notes?: string;
   outputs?: TaskOutput[];
+  subtasks?: Task[];
   createdAt: string;
   updatedAt: string;
 }
@@ -467,6 +468,88 @@ export default function TaskDetailPage() {
               <li key={idx} style={{ marginBottom: '8px', color: '#856404' }}>{blocker}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Subtasks */}
+      {task.subtasks && task.subtasks.length > 0 && (
+        <div style={{ background: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e0e0e0' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '16px' }}>📋 Subtasks ({task.subtasks.length})</h3>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {task.subtasks.map((subtask) => (
+              <div
+                key={subtask.id}
+                style={{
+                  padding: '16px',
+                  background: '#f9f9f9',
+                  borderRadius: '6px',
+                  border: '1px solid #e0e0e0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                    <Link
+                      to={`/tasks/${subtask.id}?orgId=${orgId}`}
+                      style={{
+                        color: '#2196F3',
+                        textDecoration: 'none',
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                      }}
+                    >
+                      {subtask.title}
+                    </Link>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        background: getStatusColor(subtask.status),
+                        color: 'white',
+                      }}
+                    >
+                      {subtask.status === 'done' ? '✓ Done' : subtask.status === 'in-progress' ? '⚙️ In Progress' : subtask.status === 'blocked' ? '🚫 Blocked' : '⬜ Todo'}
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        background: getPriorityColor(subtask.priority),
+                        color: 'white',
+                      }}
+                    >
+                      {subtask.priority.toUpperCase()}
+                    </span>
+                  </div>
+                  {subtask.description && (
+                    <p style={{ margin: '8px 0 0 0', color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
+                      {subtask.description}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  to={`/tasks/${subtask.id}?orgId=${orgId}`}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#2196F3',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginLeft: '16px',
+                  }}
+                >
+                  View →
+                </Link>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
