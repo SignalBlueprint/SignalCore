@@ -33,6 +33,8 @@ Catalog helps teams organize product information by simply taking photos on thei
 - **Advanced Filtering**: Search by name, description, tags; filter by status and category
 - **Product Management**: Add, edit, and delete products through intuitive modal forms
 - **Image Upload**: Drag-and-drop or click-to-upload interface with multi-image support
+- **Batch Upload**: Upload up to 20 product images at once with AI analysis
+- **CSV Import/Export**: Bulk import products from CSV or export catalog to spreadsheet
 - **AI Integration**: Toggle AI vision analysis and clean shot generation directly from the UI
 - **Visual Product Cards**: Grid layout with images, pricing, status badges, and inventory indicators
 - **Responsive Design**: Mobile-friendly interface for catalog management on any device
@@ -101,9 +103,12 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 ## API Endpoints
 
 - `POST /api/products/upload` - Upload and analyze product image
+- `POST /api/products/upload/batch` - Batch upload multiple product images
 - `GET /api/products` - List products with filters
 - `POST /api/products/search` - Semantic vector search
 - `PUT /api/products/:id/inventory` - Update inventory
+- `GET /api/products/export/csv` - Export products to CSV
+- `POST /api/products/import/csv` - Import products from CSV
 - `GET /api/store/:orgId/products` - Public storefront API
 
 See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
