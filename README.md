@@ -176,7 +176,7 @@ docs/              # Documentation
 - Real-time health checks for all suite apps
 - Event log aggregation (last 200 events)
 - AI telemetry tracking (calls, costs, cache hits)
-- Team member profiles with Working Genius
+- Team member profiles with Working Genius (mock in-memory data)
 - Dashboard statistics and metrics
 - Active quests integration with Questboard
 
@@ -375,7 +375,7 @@ docs/              # Documentation
 - Template compilation and preview
 - Campaign message preview showing personalized messages
 - Mock lead provider for testing
-- In-memory campaign storage
+- ⚠️ **In-memory campaign storage** (data not persisted - lost on restart)
 
 **Next Steps:**
 1. **Email Service Integration**
@@ -544,6 +544,19 @@ docs/              # Documentation
 **🟢 Fully Functional (Production-Ready):** Questboard, Catalog, Console, Worker, LeadScout
 **🟡 Basic/Functional (Needs Core Features):** Outreach, SiteForge
 **🔴 Placeholder/Early Stage:** Demoapp
+
+### Data Persistence Status
+
+**Apps with Persistent Storage (@sb/storage):**
+- ✅ Questboard (14+ entity kinds)
+- ✅ Catalog (products, carts, orders, lookbooks)
+- ✅ LeadScout (leads)
+- ✅ SiteForge (projects, generation jobs)
+- ✅ Worker (job summaries)
+
+**Apps with In-Memory Storage:**
+- ⚠️ Console (team data is mock/in-memory)
+- ⚠️ Outreach (campaigns not persisted - lost on restart)
 
 ### Progress Since Last Update
 - ✅ **Worker**: Now production-ready with full cron scheduling system - added daemon mode, YAML configuration, timezone support, and automated job execution
