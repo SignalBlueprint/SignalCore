@@ -470,3 +470,45 @@ export interface JobRunSummary {
   };
   createdAt: string;
 }
+
+/**
+ * Pattern - Organizational learning extracted from completed work
+ * Captures what works, what doesn't, and insights for future planning
+ */
+export interface Pattern {
+  id: string;
+  orgId: string;
+
+  // Pattern classification
+  type: "success_pattern" | "antipattern" | "process_insight" | "risk_pattern";
+  title: string;
+  summary: string;
+  context?: string; // When/where this pattern applies
+
+  // Evidence
+  evidence: Array<{
+    type: "goal" | "quest" | "output" | "task";
+    id: string;
+    title: string;
+  }>;
+
+  // Confidence and impact
+  confidence: "low" | "medium" | "high";
+  impactScore?: number; // 1-10 scale
+  timesObserved?: number; // How many times this pattern has been seen
+
+  // Categorization
+  tags?: string[];
+  domain?: string; // "engineering", "marketing", "process", etc.
+
+  // Provenance
+  extractedBy: "ai" | "manual";
+  extractedFrom: string; // "goal-123", "manual-entry"
+
+  // Status
+  status?: "draft" | "active" | "archived";
+
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
