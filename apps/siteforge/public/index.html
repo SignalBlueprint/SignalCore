@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SiteForge - Website Generation Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { margin-bottom: 20px; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .btn-small { padding: 6px 12px; font-size: 13px; }
+    .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+    .project-card { background: #f9fafb; padding: 25px; border-radius: 8px; border-top: 4px solid #ec4899; transition: all 0.2s; }
+    .project-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
+    .project-header { margin-bottom: 15px; }
+    .project-business { font-size: 20px; font-weight: bold; color: #111827; margin-bottom: 5px; }
+    .project-domain { color: #6b7280; font-size: 14px; font-family: monospace; }
+    .project-meta { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge-draft { background: #e5e7eb; color: #374151; }
+    .badge-queued { background: #fef3c7; color: #92400e; }
+    .badge-generating { background: #dbeafe; color: #1e40af; }
+    .badge-complete { background: #d1fae5; color: #065f46; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+    .project-niche { background: #f3e8ff; color: #6b21a8; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .project-notes { color: #6b7280; font-size: 14px; margin-bottom: 15px; font-style: italic; }
+    .project-actions { display: flex; gap: 10px; margin-top: 15px; }
+    .project-date { font-size: 12px; color: #9ca3af; margin-top: 10px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; }
+    .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; color: #374151; }
+    .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .loading { text-align: center; padding: 40px; color: #6b7280; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+    .empty-state-icon { font-size: 64px; margin-bottom: 20px; }
+    .stats { display: flex; gap: 30px; margin-bottom: 20px; }
+    .stat { background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 8px; }
+    .stat-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; }
+    .stat-value { font-size: 28px; font-weight: bold; color: #111827; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔨 SiteForge</h1>
+
+    <div class="stats" id="stats">
+      <div class="stat">
+        <div class="stat-label">Total Projects</div>
+        <div class="stat-value" id="totalProjects">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">In Progress</div>
+        <div class="stat-value" id="inProgress">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" id="completed">-</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="header-actions">
+        <h2 style="margin: 0;">Website Projects</h2>
+        <button class="btn btn-primary" onclick="openAddModal()">+ New Project</button>
+      </div>
+
+      <div id="projectsContainer" class="loading">Loading projects...</div>
+    </div>
+  </div>
+
+  <!-- Add Project Modal -->
+  <div id="projectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Create New Website Project</div>
+      <form id="projectForm">
+        <div class="form-group">
+          <label>Business Name *</label>
+          <input type="text" id="businessName" required placeholder="Acme Corporation">
+        </div>
+        <div class="form-group">
+          <label>Domain *</label>
+          <input type="text" id="domain" required placeholder="acme.com">
+        </div>
+        <div class="form-group">
+          <label>Niche/Industry *</label>
+          <input type="text" id="niche" required placeholder="E-commerce, SaaS, Consulting, etc.">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="notes" placeholder="Any specific requirements or notes..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

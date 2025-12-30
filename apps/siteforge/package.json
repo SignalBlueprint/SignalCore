@@ -9,7 +9,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@sb/suite": "workspace:*"
+    "@sb/schemas": "workspace:*",
+    "@sb/storage": "workspace:*",
+    "@sb/suite": "workspace:*",
+    "@sb/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

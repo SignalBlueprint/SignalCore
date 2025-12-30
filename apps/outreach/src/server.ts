@@ -1,4 +1,6 @@
 import http from "http";
+import * as fs from "fs";
+import * as path from "path";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import {
@@ -202,6 +204,24 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === suiteApp.routes.health) {
     sendJson(res, 200, { status: "ok", app: suiteApp.id });
     return;
+  }
+
+  // Serve static files
+  if (req.method === "GET" && (url.pathname === "/" || url.pathname.startsWith("/app.js") || url.pathname.startsWith("/index.html"))) {
+    const publicDir = path.join(__dirname, "..", "public");
+    let filePath = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+    filePath = path.join(publicDir, filePath);
+
+    try {
+      const content = fs.readFileSync(filePath);
+      const ext = path.extname(filePath);
+      const contentType = ext === ".js" ? "application/javascript" : ext === ".html" ? "text/html" : "text/plain";
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(content);
+      return;
+    } catch (error) {
+      // File not found, continue to API routes
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/campaigns") {
