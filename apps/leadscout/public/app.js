@@ -103,6 +103,7 @@ function renderLead(lead) {
         ${hasIntelligence ? renderIntelligenceBadges(intelligence) : ''}
       </div>
       ${lead.notes ? `<div class="lead-notes">${escapeHtml(lead.notes)}</div>` : ''}
+      ${lead.scoringBreakdown ? renderScoringBreakdown(lead.scoringBreakdown) : ''}
       ${hasIntelligence ? renderIntelligenceInsights(intelligence) : ''}
       <div class="lead-actions">
         ${!hasIntelligence ? `
@@ -178,6 +179,49 @@ function renderIntelligenceInsights(intelligence) {
           `).join('')}
         </div>
       ` : ''}
+    </div>
+  `;
+}
+
+function renderScoringBreakdown(breakdown) {
+  if (!breakdown) return '';
+
+  return `
+    <div class="scoring-breakdown">
+      <div class="breakdown-header">
+        <strong>📊 Score Breakdown</strong>
+        <span style="font-size: 13px; font-weight: 600; color: #3b82f6;">${Math.round(breakdown.totalScore)}</span>
+      </div>
+      <div class="breakdown-factors">
+        <div class="breakdown-factor">
+          <span class="factor-label">Source Quality</span>
+          <div class="factor-bar-container">
+            <div class="factor-bar" style="width: ${breakdown.factors.source.contribution}%; background: #8b5cf6;"></div>
+          </div>
+          <span class="factor-value">+${Math.round(breakdown.factors.source.contribution)}</span>
+        </div>
+        <div class="breakdown-factor">
+          <span class="factor-label">Recency</span>
+          <div class="factor-bar-container">
+            <div class="factor-bar" style="width: ${breakdown.factors.recency.contribution}%; background: #06b6d4;"></div>
+          </div>
+          <span class="factor-value">+${Math.round(breakdown.factors.recency.contribution)}</span>
+        </div>
+        <div class="breakdown-factor">
+          <span class="factor-label">URL Quality</span>
+          <div class="factor-bar-container">
+            <div class="factor-bar" style="width: ${breakdown.factors.urlQuality.contribution}%; background: #10b981;"></div>
+          </div>
+          <span class="factor-value">+${Math.round(breakdown.factors.urlQuality.contribution)}</span>
+        </div>
+        <div class="breakdown-factor">
+          <span class="factor-label">Company Name</span>
+          <div class="factor-bar-container">
+            <div class="factor-bar" style="width: ${breakdown.factors.companyName.contribution}%; background: #f59e0b;"></div>
+          </div>
+          <span class="factor-value">${breakdown.factors.companyName.hasName ? `+${Math.round(breakdown.factors.companyName.contribution)}` : '0'}</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -327,10 +371,13 @@ async function recalculateScore(leadId) {
 
     const data = await response.json();
 
-    // Update the lead in our local array
+    // Update the lead in our local array with scoring breakdown
     const index = leads.findIndex(l => l.id === leadId);
     if (index !== -1) {
-      leads[index] = data.lead;
+      leads[index] = {
+        ...data.lead,
+        scoringBreakdown: data.breakdown  // Store breakdown for display
+      };
     }
 
     applyFilters();
