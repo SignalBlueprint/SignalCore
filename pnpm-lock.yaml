@@ -127,6 +127,9 @@ importers:
       '@sb/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@sb/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@sb/suite':
         specifier: workspace:*
         version: link:../../packages/suite
@@ -146,9 +149,21 @@ importers:
 
   apps/outreach:
     dependencies:
+      '@sb/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@sb/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@sb/suite':
         specifier: workspace:*
         version: link:../../packages/suite
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -202,9 +217,18 @@ importers:
 
   apps/siteforge:
     dependencies:
+      '@sb/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@sb/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@sb/suite':
         specifier: workspace:*
         version: link:../../packages/suite
+      '@sb/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
