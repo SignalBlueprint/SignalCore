@@ -90,6 +90,28 @@ app.use((req, res, next) => {
 });
 
 // ============================================================================
+// HTML Routes
+// ============================================================================
+
+// Serve customer storefront
+app.get("/", (req, res) => {
+  res.sendFile(join(__dirname, "../public/storefront.html"));
+});
+
+app.get("/store", (req, res) => {
+  res.sendFile(join(__dirname, "../public/storefront.html"));
+});
+
+app.get("/shop", (req, res) => {
+  res.sendFile(join(__dirname, "../public/storefront.html"));
+});
+
+// Serve admin dashboard
+app.get("/admin", (req, res) => {
+  res.sendFile(join(__dirname, "../public/index.html"));
+});
+
+// ============================================================================
 // Health & Status
 // ============================================================================
 
