@@ -353,6 +353,125 @@ app.post("/api/products/upload", upload.single("image"), async (req, res) => {
   }
 });
 
+// Batch upload multiple product images
+app.post("/api/products/upload/batch", upload.array("images", 20), async (req, res) => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No image files provided" });
+    }
+
+    const orgId = req.body.orgId || "default-org";
+    const autoAnalyze = req.body.autoAnalyze !== "false";
+    const generateClean = req.body.generateClean === "true";
+
+    const serverUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
+    const createdProducts: Product[] = [];
+    const errors: Array<{ filename: string; error: string }> = [];
+
+    // Process each image
+    for (const file of files) {
+      try {
+        // Upload original image
+        const uploadedFile = await uploadFile({
+          filename: file.originalname,
+          contentType: file.mimetype,
+          data: file.buffer,
+          bucket: "product-images",
+          folder: orgId,
+          publicBaseUrl: `${serverUrl}/uploads`,
+        });
+
+        const productImage: ProductImage = {
+          id: uploadedFile.id,
+          url: uploadedFile.url,
+          type: "original",
+          size: uploadedFile.size,
+          uploadedAt: uploadedFile.uploadedAt,
+        };
+
+        let visionAnalysis: VisionAnalysis | undefined;
+
+        // Analyze image with OpenAI Vision
+        if (autoAnalyze) {
+          try {
+            visionAnalysis = await analyzeProductImage({
+              imageUrl: uploadedFile.url,
+              detailLevel: "high",
+            });
+          } catch (error) {
+            console.warn(`Vision analysis failed for ${file.originalname}:`, error);
+          }
+        }
+
+        // Create product from analysis
+        const product: Product = {
+          id: randomUUID(),
+          orgId,
+          name: visionAnalysis?.detectedName || file.originalname.replace(/\.[^/.]+$/, ""),
+          description: visionAnalysis?.description,
+          category: visionAnalysis?.category,
+          price: visionAnalysis?.suggestedPrice,
+          currency: "USD",
+          tags: visionAnalysis?.tags,
+          status: "draft",
+          images: [productImage],
+          visionAnalysis,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Generate embedding for search
+        const searchText = createProductSearchText(product);
+        product.embedding = await generateProductEmbedding(searchText);
+
+        // Save product
+        await storage.upsert("products", product);
+
+        // Optionally generate clean product shot
+        if (generateClean && visionAnalysis) {
+          try {
+            const generated = await generateProductShot(
+              product.name,
+              visionAnalysis.description || ""
+            );
+
+            const generatedImage: ProductImage = {
+              id: randomUUID(),
+              url: generated.url,
+              type: "generated",
+              uploadedAt: new Date().toISOString(),
+            };
+
+            product.images.push(generatedImage);
+            await storage.upsert("products", product);
+          } catch (error) {
+            console.warn(`Image generation failed for ${file.originalname}:`, error);
+          }
+        }
+
+        createdProducts.push(product);
+      } catch (error) {
+        errors.push({
+          filename: file.originalname,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: createdProducts.length > 0,
+      created: createdProducts.length,
+      failed: errors.length,
+      products: createdProducts,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Batch upload error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 // Analyze existing product image
 app.post("/api/products/:id/analyze", async (req, res) => {
   try {
@@ -504,6 +623,155 @@ app.put("/api/products/:id/inventory", async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error("Update inventory error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// ============================================================================
+// CSV Import/Export Endpoints
+// ============================================================================
+
+// Export products to CSV
+app.get("/api/products/export/csv", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const products = await storage.list<Product>("products", (p) => p.orgId === orgId);
+
+    // Create CSV headers
+    const headers = [
+      "id",
+      "name",
+      "description",
+      "category",
+      "price",
+      "currency",
+      "status",
+      "tags",
+      "sku",
+      "stockLevel",
+      "lowStockThreshold",
+      "location",
+      "createdAt",
+      "updatedAt",
+    ];
+
+    // Convert products to CSV rows
+    const rows = products.map((p) => [
+      p.id,
+      escapeCSV(p.name),
+      escapeCSV(p.description || ""),
+      escapeCSV(p.category || ""),
+      p.price || "",
+      p.currency || "USD",
+      p.status,
+      escapeCSV(p.tags?.join(";") || ""),
+      escapeCSV(p.inventory?.sku || ""),
+      p.inventory?.stockLevel ?? "",
+      p.inventory?.lowStockThreshold ?? "",
+      escapeCSV(p.inventory?.location || ""),
+      p.createdAt,
+      p.updatedAt,
+    ]);
+
+    // Combine headers and rows
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+
+    // Set response headers for file download
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="products-${orgId}-${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error("CSV export error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Import products from CSV
+app.post("/api/products/import/csv", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No CSV file provided" });
+    }
+
+    const orgId = req.body.orgId || "default-org";
+    const csvContent = req.file.buffer.toString("utf-8");
+    const lines = csvContent.split("\n").filter((line) => line.trim());
+
+    if (lines.length < 2) {
+      return res.status(400).json({ error: "CSV file is empty or invalid" });
+    }
+
+    const headers = parseCSVLine(lines[0]);
+    const imported: Product[] = [];
+    const errors: Array<{ line: number; error: string }> = [];
+
+    // Process each data row
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const values = parseCSVLine(lines[i]);
+        const row: Record<string, string> = {};
+
+        // Map values to headers
+        headers.forEach((header, index) => {
+          row[header] = values[index] || "";
+        });
+
+        // Create or update product
+        const productId = row.id || randomUUID();
+        const existing = row.id ? await storage.get<Product>("products", row.id) : null;
+
+        const product: Product = {
+          id: productId,
+          orgId,
+          name: row.name || "Untitled Product",
+          description: row.description || undefined,
+          category: row.category || undefined,
+          price: row.price ? parseFloat(row.price) : undefined,
+          currency: row.currency || "USD",
+          status: (row.status as ProductStatus) || "draft",
+          tags: row.tags ? row.tags.split(";").filter(Boolean) : undefined,
+          inventory: {
+            sku: row.sku || undefined,
+            stockLevel: row.stockLevel ? parseInt(row.stockLevel) : undefined,
+            lowStockThreshold: row.lowStockThreshold ? parseInt(row.lowStockThreshold) : undefined,
+            location: row.location || undefined,
+          },
+          images: existing?.images || [],
+          visionAnalysis: existing?.visionAnalysis,
+          embedding: existing?.embedding,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Generate embedding if product has enough data and no existing embedding
+        if (!product.embedding && (product.name || product.description)) {
+          try {
+            const searchText = createProductSearchText(product);
+            product.embedding = await generateProductEmbedding(searchText);
+          } catch (error) {
+            console.warn(`Failed to generate embedding for ${product.name}:`, error);
+          }
+        }
+
+        await storage.upsert("products", product);
+        imported.push(product);
+      } catch (error) {
+        errors.push({
+          line: i + 1,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: imported.length > 0,
+      imported: imported.length,
+      failed: errors.length,
+      products: imported,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("CSV import error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
@@ -684,6 +952,50 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
 
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// Escape CSV field
+function escapeCSV(field: string): string {
+  if (!field) return "";
+  // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
+
+// Parse CSV line (handles quoted fields)
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // Escaped quote
+        current += '"';
+        i++;
+      } else {
+        // Toggle quotes
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      // Field separator
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  // Add last field
+  result.push(current.trim());
+
+  return result;
 }
 
 // ============================================================================

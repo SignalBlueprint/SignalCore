@@ -497,6 +497,202 @@ function showError(message) {
   alert(message);
 }
 
+// CSV Export
+async function exportCSV() {
+  try {
+    window.location.href = `${API_BASE}/products/export/csv?orgId=${ORG_ID}`;
+  } catch (error) {
+    console.error('CSV export error:', error);
+    showError('Failed to export CSV: ' + error.message);
+  }
+}
+
+// CSV Import Modal
+function openImportCSVModal() {
+  document.getElementById('csvImportModal').style.display = 'flex';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('csvImportProgress').style.display = 'none';
+  document.getElementById('csvImportResult').style.display = 'none';
+}
+
+function closeCSVImportModal() {
+  document.getElementById('csvImportModal').style.display = 'none';
+}
+
+async function handleCSVImport() {
+  const fileInput = document.getElementById('csvFileInput');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    showError('Please select a CSV file');
+    return;
+  }
+
+  const progressDiv = document.getElementById('csvImportProgress');
+  const resultDiv = document.getElementById('csvImportResult');
+  const statusDiv = document.getElementById('csvImportStatus');
+
+  progressDiv.style.display = 'block';
+  resultDiv.style.display = 'none';
+  statusDiv.textContent = 'Importing products...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('orgId', ORG_ID);
+
+    const response = await fetch(`${API_BASE}/products/import/csv`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Import failed');
+    }
+
+    const result = await response.json();
+
+    progressDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+
+    let resultHTML = `<div style="padding: 15px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">`;
+    resultHTML += `<div style="font-weight: 600; color: #166534; margin-bottom: 10px;">✅ Import Complete</div>`;
+    resultHTML += `<div style="color: #166534;">Imported: ${result.imported} products</div>`;
+
+    if (result.failed > 0) {
+      resultHTML += `<div style="color: #991b1b; margin-top: 10px;">Failed: ${result.failed} products</div>`;
+      if (result.errors) {
+        resultHTML += `<div style="margin-top: 10px; font-size: 12px;">`;
+        result.errors.forEach(err => {
+          resultHTML += `<div>Line ${err.line}: ${escapeHtml(err.error)}</div>`;
+        });
+        resultHTML += `</div>`;
+      }
+    }
+
+    resultHTML += `</div>`;
+    resultDiv.innerHTML = resultHTML;
+
+    // Reload products
+    await loadProducts();
+
+    // Auto-close after success
+    setTimeout(() => {
+      closeCSVImportModal();
+    }, 3000);
+  } catch (error) {
+    console.error('CSV import error:', error);
+    progressDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div style="padding: 15px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
+      <div style="font-weight: 600; margin-bottom: 5px;">❌ Import Failed</div>
+      <div>${escapeHtml(error.message)}</div>
+    </div>`;
+  }
+}
+
+// Batch Upload Modal
+function openBatchUploadModal() {
+  document.getElementById('batchUploadModal').style.display = 'flex';
+  document.getElementById('batchImagesInput').value = '';
+  document.getElementById('batchAutoAnalyze').checked = true;
+  document.getElementById('batchGenerateClean').checked = false;
+  document.getElementById('batchUploadProgress').style.display = 'none';
+  document.getElementById('batchUploadResult').style.display = 'none';
+}
+
+function closeBatchUploadModal() {
+  document.getElementById('batchUploadModal').style.display = 'none';
+}
+
+async function handleBatchUpload() {
+  const fileInput = document.getElementById('batchImagesInput');
+  const files = fileInput.files;
+
+  if (files.length === 0) {
+    showError('Please select at least one image');
+    return;
+  }
+
+  if (files.length > 20) {
+    showError('Maximum 20 images allowed per batch');
+    return;
+  }
+
+  const autoAnalyze = document.getElementById('batchAutoAnalyze').checked;
+  const generateClean = document.getElementById('batchGenerateClean').checked;
+
+  const progressDiv = document.getElementById('batchUploadProgress');
+  const resultDiv = document.getElementById('batchUploadResult');
+  const statusDiv = document.getElementById('batchUploadStatus');
+
+  progressDiv.style.display = 'block';
+  resultDiv.style.display = 'none';
+  statusDiv.textContent = `Uploading ${files.length} images...`;
+
+  try {
+    const formData = new FormData();
+
+    for (let i = 0; i < files.length; i++) {
+      formData.append('images', files[i]);
+    }
+
+    formData.append('orgId', ORG_ID);
+    formData.append('autoAnalyze', autoAnalyze);
+    formData.append('generateClean', generateClean);
+
+    const response = await fetch(`${API_BASE}/products/upload/batch`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Batch upload failed');
+    }
+
+    const result = await response.json();
+
+    progressDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+
+    let resultHTML = `<div style="padding: 15px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">`;
+    resultHTML += `<div style="font-weight: 600; color: #166534; margin-bottom: 10px;">✅ Upload Complete</div>`;
+    resultHTML += `<div style="color: #166534;">Created: ${result.created} products</div>`;
+
+    if (result.failed > 0) {
+      resultHTML += `<div style="color: #991b1b; margin-top: 10px;">Failed: ${result.failed} images</div>`;
+      if (result.errors) {
+        resultHTML += `<div style="margin-top: 10px; font-size: 12px;">`;
+        result.errors.forEach(err => {
+          resultHTML += `<div>${escapeHtml(err.filename)}: ${escapeHtml(err.error)}</div>`;
+        });
+        resultHTML += `</div>`;
+      }
+    }
+
+    resultHTML += `</div>`;
+    resultDiv.innerHTML = resultHTML;
+
+    // Reload products
+    await loadProducts();
+
+    // Auto-close after success
+    setTimeout(() => {
+      closeBatchUploadModal();
+    }, 3000);
+  } catch (error) {
+    console.error('Batch upload error:', error);
+    progressDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div style="padding: 15px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
+      <div style="font-weight: 600; margin-bottom: 5px;">❌ Upload Failed</div>
+      <div>${escapeHtml(error.message)}</div>
+    </div>`;
+  }
+}
+
 // Close modal when clicking outside
 window.addEventListener('click', (event) => {
   const modal = document.getElementById('productModal');

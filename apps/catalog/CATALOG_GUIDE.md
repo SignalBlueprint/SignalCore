@@ -201,6 +201,71 @@ POST /api/products/:id/generate-image
 # Adds it to the product's images array
 ```
 
+#### Batch Upload Multiple Products
+
+```bash
+POST /api/products/upload/batch
+
+# Upload up to 20 images at once (multipart form data)
+curl -X POST http://localhost:4023/api/products/upload/batch \
+  -F "images=@product1.jpg" \
+  -F "images=@product2.jpg" \
+  -F "images=@product3.jpg" \
+  -F "orgId=default-org" \
+  -F "autoAnalyze=true" \
+  -F "generateClean=false"
+
+# Response:
+{
+  "success": true,
+  "created": 3,
+  "failed": 0,
+  "products": [
+    { /* product 1 */ },
+    { /* product 2 */ },
+    { /* product 3 */ }
+  ],
+  "errors": []
+}
+```
+
+#### Export Products to CSV
+
+```bash
+GET /api/products/export/csv?orgId=default-org
+
+# Downloads CSV file with all products
+# Includes: id, name, description, category, price, status, inventory, etc.
+```
+
+#### Import Products from CSV
+
+```bash
+POST /api/products/import/csv
+
+# Upload CSV file with product data (multipart form data)
+curl -X POST http://localhost:4023/api/products/import/csv \
+  -F "file=@products.csv" \
+  -F "orgId=default-org"
+
+# CSV Format:
+# Headers: id, name, description, category, price, currency, status, tags,
+#          sku, stockLevel, lowStockThreshold, location, createdAt, updatedAt
+# Tags should be semicolon-separated (e.g., "vintage;leather;jacket")
+
+# Response:
+{
+  "success": true,
+  "imported": 25,
+  "failed": 2,
+  "products": [ /* imported products */ ],
+  "errors": [
+    { "line": 12, "error": "Invalid price format" },
+    { "line": 23, "error": "Missing required field: name" }
+  ]
+}
+```
+
 ### Search
 
 #### Semantic Vector Search
@@ -480,11 +545,14 @@ Check your OpenAI API key has DALL-E 3 access, or implement custom service.
 ## Next Steps
 
 - [ ] Add mobile app for easy photo uploads
-- [ ] Implement batch upload
-- [ ] Add CSV import/export
-- [ ] Build frontend catalog UI
+- [x] Implement batch upload
+- [x] Add CSV import/export
+- [x] Build frontend catalog UI
 - [ ] Add payment integration
 - [ ] Implement order management
+- [ ] Add product variants (size, color options)
+- [ ] Implement barcode scanning for inventory
+- [ ] Add analytics and reporting dashboard
 
 ## Support
 
