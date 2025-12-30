@@ -139,6 +139,54 @@ curl -X POST http://localhost:4023/api/products/upload \
 # ✓ Generates clean product shot
 ```
 
+### Using Semantic Search
+
+The catalog automatically uses AI-powered semantic search for multi-word queries:
+
+**In the Storefront UI:**
+- Type a natural language query like "warm winter jacket" or "blue cotton shirt"
+- The system automatically switches to semantic search for queries with 2+ words
+- See relevance scores (0-100%) on each product card
+- Visual indicator shows when AI search is active
+
+**Via API:**
+
+```bash
+# Semantic search with advanced filters
+curl -X POST http://localhost:4023/api/products/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "comfortable running shoes",
+    "orgId": "default-org",
+    "limit": 20,
+    "threshold": 0.4,
+    "category": "Footwear",
+    "minPrice": 50,
+    "maxPrice": 200
+  }'
+
+# Find similar products
+curl http://localhost:4023/api/products/{productId}/similar?limit=5&threshold=0.6
+
+# Get search analytics
+curl http://localhost:4023/api/analytics/search?orgId=default-org&limit=100
+```
+
+**Search Parameters:**
+- `query` (required): Natural language search query
+- `limit`: Max results to return (default: 10)
+- `threshold`: Similarity threshold 0-1 (default: 0.5, lower = more results)
+- `category`: Filter by specific category
+- `minPrice` / `maxPrice`: Price range filters
+- `status`: Filter by product status
+- `includeOutOfStock`: Include out of stock items (default: false)
+
+**Understanding Results:**
+- `_similarity`: Cosine similarity score (0-1)
+- `_relevanceScore`: User-friendly percentage (0-100%)
+- Results sorted by relevance automatically
+- Similar products shown on product detail pages
+
 ## Documentation
 
 See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workflow examples, and advanced configuration.
@@ -157,10 +205,14 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 - `POST /api/products/upload` - Upload and analyze product image
 - `POST /api/products/upload/batch` - Batch upload multiple product images
 - `GET /api/products` - List products with filters
-- `POST /api/products/search` - Semantic vector search
+- `POST /api/products/search` - Semantic vector search with advanced filters
+- `GET /api/products/:id/similar` - Find similar products using AI embeddings
 - `PUT /api/products/:id/inventory` - Update inventory
 - `GET /api/products/export/csv` - Export products to CSV
 - `POST /api/products/import/csv` - Import products from CSV
+
+**Analytics**
+- `GET /api/analytics/search` - Get search analytics and top queries
 
 **Shopping Cart**
 - `GET /api/cart/:sessionId` - Get cart for a session
@@ -232,6 +284,18 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - Public/private store toggle
 - Store settings and branding
 
+**Semantic Search & Recommendations** ✨ ENHANCED
+- **AI-Powered Semantic Search**: Automatic semantic search for multi-word queries
+- **Intelligent Search Mode**: Auto-switches between text and semantic search based on query complexity
+- **Advanced Filtering**: Category, price range, and status filters work with semantic search
+- **Relevance Scoring**: Visual relevance badges showing AI match percentage (0-100%)
+- **Similar Products**: AI-powered product recommendations based on vector similarity
+- **Search Analytics**: Track search queries, result counts, and search patterns
+- **Real-time Search Indicators**: Visual feedback showing when AI search is active
+- **Configurable Thresholds**: Adjustable similarity thresholds for precision control
+- **Search Debouncing**: Optimized search performance with 300ms debounce
+- **Fallback Handling**: Graceful degradation to text search if semantic search fails
+
 **Lookbooks & Collections**
 - Curated product collections
 - Public/private lookbook toggle
@@ -280,7 +344,8 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - [ ] Sales analytics dashboard
 - [ ] Inventory turnover reports
 - [ ] Popular products tracking
-- [ ] Search analytics
+- [x] Search analytics ✅ COMPLETED
+- [x] Similar product recommendations ✅ COMPLETED
 - [ ] Low stock alerts and notifications
 
 **Phase 5: Enhanced Automation**

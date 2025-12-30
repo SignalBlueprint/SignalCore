@@ -8,6 +8,9 @@ let filteredProducts = [];
 let cart = null;
 let sessionId = getOrCreateSessionId();
 let lastOrderNumber = null;
+let useSemanticSearch = false;
+let lastSearchQuery = '';
+let searchDebounceTimer = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,7 +31,24 @@ function getOrCreateSessionId() {
 
 // Setup event listeners
 function setupEventListeners() {
-  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  const searchInput = document.getElementById('searchInput');
+
+  // Use debouncing for search input
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      applyFilters();
+    }, 300); // 300ms debounce
+  });
+
+  // Allow immediate search on Enter key
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(searchDebounceTimer);
+      applyFilters();
+    }
+  });
+
   document.getElementById('filterCategory').addEventListener('change', applyFilters);
   document.getElementById('minPrice').addEventListener('input', applyFilters);
   document.getElementById('maxPrice').addEventListener('input', applyFilters);
@@ -68,14 +88,53 @@ function updateCategoryFilter() {
 }
 
 // Apply filters
-function applyFilters() {
-  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+async function applyFilters() {
+  const searchTerm = document.getElementById('searchInput').value.trim();
   const category = document.getElementById('filterCategory').value;
-  const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
-  const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+  const minPrice = parseFloat(document.getElementById('minPrice').value) || undefined;
+  const maxPrice = parseFloat(document.getElementById('maxPrice').value) || undefined;
   const sortBy = document.getElementById('sortBy').value;
 
-  // Filter
+  // If search term is provided and is different from last query, check if we should use semantic search
+  if (searchTerm && searchTerm !== lastSearchQuery && searchTerm.split(' ').length >= 2) {
+    // Automatically enable semantic search for multi-word queries
+    useSemanticSearch = true;
+    lastSearchQuery = searchTerm;
+  } else if (!searchTerm) {
+    useSemanticSearch = false;
+    lastSearchQuery = '';
+  }
+
+  // Use semantic search if enabled and search term is provided
+  if (useSemanticSearch && searchTerm) {
+    await performSemanticSearch(searchTerm, category, minPrice, maxPrice);
+  } else {
+    // Use client-side text filtering
+    performTextSearch(searchTerm.toLowerCase(), category, minPrice, maxPrice);
+  }
+
+  // Sort (only for text search; semantic search is already sorted by relevance)
+  if (!useSemanticSearch || !searchTerm) {
+    filteredProducts.sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return (a.price || 0) - (b.price || 0);
+        case 'price-desc':
+          return (b.price || 0) - (a.price || 0);
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'newest':
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+  }
+
+  renderProducts();
+}
+
+// Perform text-based search (client-side)
+function performTextSearch(searchTerm, category, minPrice, maxPrice) {
   filteredProducts = allProducts.filter(product => {
     const matchesSearch = !searchTerm ||
       product.name.toLowerCase().includes(searchTerm) ||
@@ -85,27 +144,94 @@ function applyFilters() {
     const matchesCategory = !category || product.category === category;
 
     const price = product.price || 0;
-    const matchesPrice = price >= minPrice && price <= maxPrice;
+    const matchesPrice =
+      (minPrice === undefined || price >= minPrice) &&
+      (maxPrice === undefined || price <= maxPrice);
 
     return matchesSearch && matchesCategory && matchesPrice;
   });
+}
 
-  // Sort
-  filteredProducts.sort((a, b) => {
-    switch (sortBy) {
-      case 'price-asc':
-        return (a.price || 0) - (b.price || 0);
-      case 'price-desc':
-        return (b.price || 0) - (a.price || 0);
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'newest':
-      default:
-        return new Date(b.createdAt) - new Date(a.createdAt);
+// Perform semantic search (server-side with embeddings)
+async function performSemanticSearch(query, category, minPrice, maxPrice) {
+  try {
+    showSearchLoading();
+
+    const response = await fetch(`${API_BASE}/products/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        orgId: ORG_ID,
+        limit: 50,
+        threshold: 0.4, // Lower threshold for more results
+        category: category || undefined,
+        minPrice,
+        maxPrice,
+        includeOutOfStock: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Semantic search failed');
     }
-  });
 
-  renderProducts();
+    const data = await response.json();
+    filteredProducts = data.results || [];
+
+    // Show search mode indicator
+    updateSearchModeIndicator(true, data.total);
+  } catch (error) {
+    console.error('Semantic search error:', error);
+    // Fallback to text search
+    useSemanticSearch = false;
+    performTextSearch(query.toLowerCase(), category, minPrice, maxPrice);
+    updateSearchModeIndicator(false, filteredProducts.length);
+  }
+}
+
+// Show loading indicator for search
+function showSearchLoading() {
+  const container = document.getElementById('productsGrid');
+  container.innerHTML = `
+    <div class="loading">
+      <div class="loading-spinner">🔍</div>
+      <p>Searching with AI...</p>
+    </div>
+  `;
+}
+
+// Update search mode indicator
+function updateSearchModeIndicator(isSemanticSearch, resultCount) {
+  const header = document.querySelector('.products-header');
+  let indicator = document.getElementById('searchModeIndicator');
+
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'searchModeIndicator';
+    indicator.style.cssText = `
+      display: inline-block;
+      margin-left: 10px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    `;
+    header.querySelector('h2').appendChild(indicator);
+  }
+
+  if (isSemanticSearch) {
+    indicator.textContent = `✨ AI Search (${resultCount} matches)`;
+    indicator.style.background = '#dbeafe';
+    indicator.style.color = '#1e40af';
+  } else if (lastSearchQuery) {
+    indicator.textContent = '📝 Text Search';
+    indicator.style.background = '#f3f4f6';
+    indicator.style.color = '#4b5563';
+  } else {
+    indicator.textContent = '';
+    indicator.style.background = 'transparent';
+  }
 }
 
 // Clear filters
@@ -157,8 +283,14 @@ function createProductCard(product) {
 
   const isOutOfStock = stockLevel === 0 || product.status === 'out_of_stock';
 
+  // Show relevance score if available (from semantic search)
+  const relevanceScore = product._relevanceScore
+    ? `<div class="relevance-badge" title="AI Relevance Score">${product._relevanceScore}% match</div>`
+    : '';
+
   return `
     <div class="product-card" onclick="showProductDetail('${product.id}')">
+      ${relevanceScore}
       <img src="${image}" alt="${product.name}" class="product-image" />
       <div class="product-info">
         <h3 class="product-name">${product.name}</h3>
@@ -182,8 +314,9 @@ function createProductCard(product) {
 }
 
 // Show product detail
-function showProductDetail(productId) {
-  const product = allProducts.find(p => p.id === productId);
+async function showProductDetail(productId) {
+  const product = allProducts.find(p => p.id === productId) ||
+                  filteredProducts.find(p => p.id === productId);
   if (!product) return;
 
   const modal = document.getElementById('productModal');
@@ -250,9 +383,57 @@ function showProductDetail(productId) {
         </div>
       </div>
     </div>
+    <div id="similarProducts" class="similar-products-section">
+      <h3>✨ Similar Products</h3>
+      <div class="similar-products-grid">
+        <div class="loading">
+          <div class="loading-spinner">🔍</div>
+          <p>Finding similar products...</p>
+        </div>
+      </div>
+    </div>
   `;
 
   modal.classList.add('active');
+
+  // Load similar products
+  loadSimilarProducts(productId);
+}
+
+// Load similar products
+async function loadSimilarProducts(productId) {
+  try {
+    const response = await fetch(`${API_BASE}/products/${productId}/similar?limit=4&threshold=0.6`);
+
+    if (!response.ok) {
+      throw new Error('Failed to load similar products');
+    }
+
+    const data = await response.json();
+    const container = document.querySelector('#similarProducts .similar-products-grid');
+
+    if (!data.results || data.results.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">No similar products found</p>';
+      return;
+    }
+
+    container.innerHTML = data.results.map(product => `
+      <div class="similar-product-card" onclick="showProductDetail('${product.id}')">
+        <img src="${product.images?.[0]?.url || 'https://via.placeholder.com/150x150'}"
+             alt="${product.name}"
+             class="similar-product-image" />
+        <div class="similar-product-info">
+          <div class="similar-product-name">${product.name}</div>
+          <div class="similar-product-price">$${(product.price || 0).toFixed(2)}</div>
+          <div class="similarity-score" title="Similarity Score">${product._relevanceScore}% match</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Load similar products error:', error);
+    const container = document.querySelector('#similarProducts .similar-products-grid');
+    container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Failed to load similar products</p>';
+  }
 }
 
 // Change main image
