@@ -78,8 +78,8 @@ docs/              # Documentation
 ---
 
 #### 🟢 Catalog (Port 4023)
-**Status:** Production Ready - Complete AI-powered product management
-**Description:** Product catalog and inventory management with AI capabilities and full admin UI
+**Status:** Production Ready - Complete e-commerce platform with AI
+**Description:** Full-featured product catalog and e-commerce platform with AI-powered management, shopping cart, and order processing
 
 **Current State:**
 - Complete Express.js server with full CRUD operations
@@ -87,6 +87,8 @@ docs/              # Documentation
   - Product listing with real-time statistics and filtering
   - Add/edit/delete products with modal forms
   - Drag-and-drop image upload with multi-image support
+  - Batch upload (up to 20 products at once) with progress tracking
+  - CSV import/export for bulk data management
   - AI feature toggles (auto-analyze, generate clean shots)
   - Responsive design for mobile and desktop
 - AI-powered image analysis using OpenAI GPT-4o Vision
@@ -96,48 +98,60 @@ docs/              # Documentation
 - Inventory management with auto-status updates
 - Lookbook/collection system
 - Public storefront API
+- **E-commerce & Order Management:**
+  - Shopping cart with session management
+  - Complete order processing workflow
+  - Order status tracking (pending → confirmed → processing → shipped → delivered)
+  - Payment status management
+  - Automatic inventory deduction on orders
+  - Inventory restoration on cancellations/refunds
+  - Customer order history and lookup (by order number or email)
+  - Shipping and tracking number support
 - Comprehensive documentation (README + CATALOG_GUIDE)
 
 **Next Steps:**
-1. **Semantic Search UI**
+1. **Payment Integration** 🔥 HIGH PRIORITY
+   - Integrate Stripe payment processing
+   - Add PayPal checkout option
+   - Implement secure payment flow
+   - Add payment webhooks for order confirmation
+   - Build payment reconciliation and reporting
+
+2. **Customer-Facing Storefront UI**
+   - Build public storefront web interface (currently API-only)
+   - Create product browsing and category pages
+   - Add product detail pages with image galleries
+   - Implement shopping cart UI
+   - Build checkout and order confirmation pages
+   - Add customer account and order history pages
+
+3. **Semantic Search UI**
    - Build search UI leveraging existing vector embeddings
    - Implement "similar products" recommendations
    - Add visual similarity search using images
    - Create saved searches and search history
 
-2. **Batch Operations & Import/Export**
-   - Add batch upload with progress tracking and queue
-   - Implement CSV import/export with field mapping
-   - Add bulk edit capabilities for multiple products
-   - Create image URL bulk import
-   - Add batch operations (status change, delete, tag)
-
-3. **Lookbook & Collections UI**
+4. **Lookbook & Collections UI**
    - Build visual lookbook/collection builder interface
    - Add drag-and-drop product organization
    - Create public lookbook gallery view
    - Implement collection sharing and embedding
 
-4. **E-commerce Features**
-   - Integrate payment processing (Stripe/Square)
-   - Build customer-facing storefront UI
-   - Add shopping cart functionality
-   - Implement checkout flow
-   - Add order management and tracking system
-
 5. **Analytics & Insights**
-   - Create analytics dashboard (product views, conversions)
+   - Create analytics dashboard (product views, conversions, revenue)
    - Add product performance metrics and recommendations
    - Build inventory alerts (low stock, reorder points)
    - Generate sales and inventory reports
    - Track AI usage costs and ROI
+   - Add sales forecasting and trends
 
 6. **Advanced Product Management**
-   - Implement product variants (size, color, style)
+   - Implement product variants (size, color, style) with variant-specific inventory
    - Build category management with hierarchy
    - Add advanced tag management and auto-tagging
    - Create SKU/barcode management
-   - Add product relationships (bundles, related items)
+   - Add product relationships (bundles, related items, upsells)
+   - Implement bulk edit capabilities for multiple products
 
 ---
 
@@ -508,7 +522,8 @@ docs/              # Documentation
 **🔴 Placeholder/Early Stage:** Demoapp
 
 ### Progress Since Last Update
-- ✅ **Catalog**: Added comprehensive admin UI with product management dashboard, drag-and-drop uploads, and AI feature integration
+- ✅ **Catalog**: Now a complete e-commerce platform - added shopping cart, order management, checkout flow, batch upload, and CSV import/export
+- ✅ **Catalog**: Previously added comprehensive admin UI with product management dashboard, drag-and-drop uploads, and AI feature integration
 - ✅ **LeadScout**: Upgraded to fully functional - added persistent storage (@sb/storage) and complete UI
 - ✅ **Outreach**: Added complete campaign management UI with message preview
 - ✅ **SiteForge**: Added persistent storage (@sb/storage) and complete project management UI
@@ -516,32 +531,34 @@ docs/              # Documentation
 ### Critical Next Steps for Suite Completeness
 
 **Priority 1 - Core Functionality:**
-1. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
-2. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
-3. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
+1. **Catalog Payment Integration**: Integrate Stripe/PayPal for payment processing (e-commerce foundation is complete)
+2. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
+3. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
+4. **Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage
 
 **Priority 2 - Authentication & Security:**
-4. Add authentication/authorization across all apps
-5. Implement API key management and app-to-app security
-6. Add role-based access control for multi-user support
+5. Add authentication/authorization across all apps
+6. Implement API key management and app-to-app security
+7. Add role-based access control for multi-user support
 
 **Priority 3 - Integration & Automation:**
-7. Create LeadScout → Outreach integration flow (lead to campaign)
-8. Implement proper cron scheduling for Worker jobs
-9. Build job monitoring dashboard in Console
-10. Add real-time updates (WebSocket/SSE) to Console and Questboard
+8. Create LeadScout → Outreach integration flow (lead to campaign)
+9. Implement proper cron scheduling for Worker jobs
+10. Build job monitoring dashboard in Console
+11. Add real-time updates (WebSocket/SSE) to Console and Questboard
 
 **Priority 4 - Quality & Reliability:**
-11. Add comprehensive testing across all apps (unit, integration, E2E)
-12. Implement error handling and monitoring
-13. Add data backup and recovery systems
-14. Build CI/CD pipelines
+12. Add comprehensive testing across all apps (unit, integration, E2E)
+13. Implement error handling and monitoring
+14. Add data backup and recovery systems
+15. Build CI/CD pipelines
 
 **Priority 5 - User Experience:**
-15. Build semantic search UI for Catalog to leverage vector embeddings
-16. Improve mobile responsiveness across all UIs
-17. Add onboarding flows and documentation
-18. Implement user analytics and tracking
+16. Build customer-facing storefront UI for Catalog
+17. Build semantic search UI for Catalog to leverage vector embeddings
+18. Improve mobile responsiveness across all UIs
+19. Add onboarding flows and documentation
+20. Implement user analytics and tracking
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
