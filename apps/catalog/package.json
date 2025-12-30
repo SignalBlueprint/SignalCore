@@ -4,8 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "tsx src/server.ts",
+    "dev:web": "cd web && pnpm dev",
     "build": "tsc -p tsconfig.json",
+    "build:web": "cd web && pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:web": "cd web && pnpm typecheck",
     "lint": "eslint ."
   },
   "dependencies": {

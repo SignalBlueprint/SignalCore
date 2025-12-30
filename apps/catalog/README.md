@@ -39,11 +39,15 @@ cp ../../.env.example ../../.env
 # Run Supabase migrations (if using Supabase)
 # See docs/supabase-migrations/002_catalog_tables.sql
 
-# Start server
-pnpm dev
+# Start backend server (runs on port 4023)
+pnpm --filter catalog dev
+
+# Start frontend web app (runs on port 5174) - in a separate terminal
+pnpm --filter catalog-web dev
 ```
 
-Server runs on `http://localhost:4023`
+- Backend API: `http://localhost:4023`
+- Frontend UI: `http://localhost:5174`
 
 ## Usage Example
 
@@ -70,10 +74,21 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 ## Architecture
 
 - **Backend**: Express.js with Multer for file uploads
+- **Frontend**: React 18 + TypeScript + Vite (in `web/` directory)
 - **Storage**: Supabase Storage or local filesystem
 - **Database**: Supabase (PostgreSQL + pgvector) or local JSON
 - **AI**: OpenAI GPT-4o (Vision), DALL-E 3, text-embedding-3-small
 - **Search**: Vector similarity (cosine) with 1536-dimensional embeddings
+
+### Frontend Features
+
+The React frontend (`web/` directory) provides:
+- Product listing with search and category filtering
+- AI-powered product upload with drag-and-drop
+- Product detail pages with inline editing
+- Inventory management dashboard
+- Lookbook management
+- Mobile-responsive design
 
 ## API Endpoints
 
