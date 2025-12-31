@@ -89,11 +89,11 @@ function renderLead(lead) {
   const hasIntelligence = intelligence && intelligence.qualificationLevel;
 
   return `
-    <div class="lead-card" style="border-left-color: ${statusColors[lead.status] || '#3b82f6'}">
+    <div class="lead-card" style="border-left-color: ${statusColors[lead.status] || '#3b82f6'}" onclick="openLeadDetail('${lead.id}')">
       <div class="lead-header">
         <div>
           <div class="lead-company">${escapeHtml(lead.companyName || 'Unknown Company')}</div>
-          <a href="${escapeHtml(lead.url)}" target="_blank" class="lead-url">${escapeHtml(lead.url)}</a>
+          <a href="${escapeHtml(lead.url)}" target="_blank" class="lead-url" onclick="event.stopPropagation()">${escapeHtml(lead.url)}</a>
         </div>
         ${lead.score ? `<div class="lead-score" style="background: ${scoreColor}">${lead.score}</div>` : ''}
       </div>
@@ -105,7 +105,7 @@ function renderLead(lead) {
       ${lead.notes ? `<div class="lead-notes">${escapeHtml(lead.notes)}</div>` : ''}
       ${lead.scoringBreakdown ? renderScoringBreakdown(lead.scoringBreakdown) : ''}
       ${hasIntelligence ? renderIntelligenceInsights(intelligence) : ''}
-      <div class="lead-actions">
+      <div class="lead-actions" onclick="event.stopPropagation()">
         ${!hasIntelligence ? `
           <button class="btn-action" onclick="enrichLead('${lead.id}')">
             🤖 Enrich with AI
@@ -387,3 +387,282 @@ async function recalculateScore(leadId) {
     showError('Failed to recalculate score');
   }
 }
+
+// Open lead detail modal
+function openLeadDetail(leadId) {
+  const lead = leads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  // Update modal header
+  document.getElementById('detailCompanyName').textContent = lead.companyName || 'Unknown Company';
+  document.getElementById('detailUrl').textContent = lead.url;
+  document.getElementById('detailUrl').href = lead.url;
+
+  // Render detail content
+  document.getElementById('detailContent').innerHTML = renderLeadDetail(lead);
+
+  // Show modal
+  document.getElementById('leadDetailModal').classList.add('active');
+}
+
+// Close lead detail modal
+function closeLeadDetail() {
+  document.getElementById('leadDetailModal').classList.remove('active');
+}
+
+// Render lead detail content
+function renderLeadDetail(lead) {
+  const intelligence = lead.intelligence;
+  const hasIntelligence = intelligence && intelligence.qualificationLevel;
+
+  return `
+    ${renderLeadOverview(lead)}
+    ${hasIntelligence ? renderQualificationSection(intelligence) : renderNoIntelligence(lead)}
+    ${hasIntelligence ? renderCompanyInsights(intelligence) : ''}
+    ${hasIntelligence && intelligence.techStack && intelligence.techStack.length > 0 ? renderTechStack(intelligence) : ''}
+    ${hasIntelligence ? renderKeyInsights(intelligence) : ''}
+    ${hasIntelligence ? renderRecommendedActions(intelligence) : ''}
+    ${hasIntelligence ? renderRiskOpportunities(intelligence) : ''}
+    ${renderDetailActions(lead)}
+  `;
+}
+
+// Render lead overview section
+function renderLeadOverview(lead) {
+  const scoreColor = lead.score >= 80 ? '#10b981' : lead.score >= 60 ? '#f59e0b' : '#6b7280';
+
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="detail-section-title">📊 Lead Overview</div>
+      <div class="lead-overview-grid">
+        <div class="overview-item">
+          <div class="overview-label">Lead Score</div>
+          <div class="overview-value" style="color: ${scoreColor}">${lead.score || 'Not scored'}</div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-label">Status</div>
+          <div class="overview-value">${formatStatus(lead.status)}</div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-label">Source</div>
+          <div class="overview-value">${formatSource(lead.source)}</div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-label">Added</div>
+          <div class="overview-value" style="font-size: 14px;">${formatDate(lead.createdAt)}</div>
+        </div>
+      </div>
+      ${lead.notes ? `
+        <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 6px; border-left: 3px solid #3b82f6;">
+          <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Notes</div>
+          <div style="font-size: 14px; color: #374151;">${escapeHtml(lead.notes)}</div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// Render qualification section
+function renderQualificationSection(intelligence) {
+  const qualLevel = intelligence.qualificationLevel;
+  const qualIcon = qualLevel === 'high' ? '🎯' : qualLevel === 'medium' ? '📊' : '⚠️';
+
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="detail-section-title">
+        ${qualIcon} AI Qualification Analysis
+        <span style="margin-left: auto; font-size: 12px; color: #6b7280; font-weight: normal;">
+          Confidence: ${intelligence.confidence}% • Analyzed: ${formatDate(intelligence.analyzedAt)}
+        </span>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <span class="qual-badge-large ${qualLevel}">
+          ${qualLevel.toUpperCase()} QUALIFICATION
+        </span>
+      </div>
+      <div style="background: white; padding: 15px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+        <div style="font-size: 14px; color: #374151; line-height: 1.6;">
+          ${escapeHtml(intelligence.qualificationReason)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render company insights
+function renderCompanyInsights(intelligence) {
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">🏢 Company Insights</div>
+      <div class="company-insights-grid">
+        ${intelligence.companySize ? `
+          <div class="insight-card enterprise">
+            <div class="insight-card-label">Company Size</div>
+            <div class="insight-card-value">${intelligence.companySize.charAt(0).toUpperCase() + intelligence.companySize.slice(1)}</div>
+          </div>
+        ` : ''}
+        ${intelligence.industry ? `
+          <div class="insight-card industry">
+            <div class="insight-card-label">Industry</div>
+            <div class="insight-card-value">${escapeHtml(intelligence.industry)}</div>
+          </div>
+        ` : ''}
+        ${intelligence.estimatedRevenue ? `
+          <div class="insight-card revenue">
+            <div class="insight-card-label">Estimated Revenue</div>
+            <div class="insight-card-value">${escapeHtml(intelligence.estimatedRevenue)}</div>
+          </div>
+        ` : ''}
+        ${intelligence.fundingStatus ? `
+          <div class="insight-card funding">
+            <div class="insight-card-label">Funding Status</div>
+            <div class="insight-card-value">${intelligence.fundingStatus.charAt(0).toUpperCase() + intelligence.fundingStatus.slice(1).replace('-', ' ')}</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// Render technology stack
+function renderTechStack(intelligence) {
+  if (!intelligence.techStack || intelligence.techStack.length === 0) return '';
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">💻 Technology Stack</div>
+      <div class="tech-stack-grid">
+        ${intelligence.techStack.map(tech => `
+          <span class="tech-badge">${escapeHtml(tech)}</span>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Render key insights
+function renderKeyInsights(intelligence) {
+  if (!intelligence.keyInsights || intelligence.keyInsights.length === 0) return '';
+
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="detail-section-title">💡 Key Insights</div>
+      <div class="key-insights-list">
+        ${intelligence.keyInsights.map(insight => `
+          <div class="key-insight-item">
+            <span style="font-size: 16px;">💡</span>
+            <span>${escapeHtml(insight)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Render recommended actions
+function renderRecommendedActions(intelligence) {
+  if (!intelligence.recommendedActions || intelligence.recommendedActions.length === 0) return '';
+
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="detail-section-title">✅ Recommended Actions</div>
+      <div class="action-list">
+        ${intelligence.recommendedActions.map(action => `
+          <div class="action-item">
+            <span class="action-icon">➡️</span>
+            <span class="action-text">${escapeHtml(action)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Render risks and opportunities
+function renderRiskOpportunities(intelligence) {
+  const hasRisks = intelligence.riskFactors && intelligence.riskFactors.length > 0;
+  const hasOpps = intelligence.opportunities && intelligence.opportunities.length > 0;
+
+  if (!hasRisks && !hasOpps) return '';
+
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="detail-section-title">⚖️ Risk Analysis & Opportunities</div>
+      <div class="risk-opp-container">
+        ${hasRisks ? `
+          <div class="risk-card">
+            <div class="risk-opp-title risk">⚠️ Risk Factors</div>
+            <ul class="risk-opp-list risk">
+              ${intelligence.riskFactors.map(risk => `
+                <li>${escapeHtml(risk)}</li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : '<div></div>'}
+        ${hasOpps ? `
+          <div class="opp-card">
+            <div class="risk-opp-title opportunity">✨ Opportunities</div>
+            <ul class="risk-opp-list opp">
+              ${intelligence.opportunities.map(opp => `
+                <li>${escapeHtml(opp)}</li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : '<div></div>'}
+      </div>
+    </div>
+  `;
+}
+
+// Render no intelligence state
+function renderNoIntelligence(lead) {
+  return `
+    <div class="detail-section detail-section-full">
+      <div class="no-intelligence">
+        <div class="no-intelligence-icon">🤖</div>
+        <h3>No AI Intelligence Available</h3>
+        <p>Click "Analyze Lead" below to generate AI-powered insights for this lead.</p>
+      </div>
+    </div>
+  `;
+}
+
+// Render detail actions
+function renderDetailActions(lead) {
+  const hasIntelligence = lead.intelligence && lead.intelligence.qualificationLevel;
+
+  return `
+    <div class="detail-section detail-section-full" style="background: transparent; padding: 0;">
+      <div class="detail-actions">
+        ${!hasIntelligence ? `
+          <button class="btn-detail-action btn-analyze" onclick="analyzeLead('${lead.id}')">
+            🤖 Analyze Lead
+          </button>
+        ` : `
+          <button class="btn-detail-action btn-refresh" onclick="refreshIntelligence('${lead.id}')">
+            🔄 Refresh Intelligence
+          </button>
+        `}
+        <button class="btn-detail-action btn-score" onclick="recalculateScore('${lead.id}')">
+          📊 Recalculate Score
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Analyze lead (same as enrich, but from detail view)
+async function analyzeLead(leadId) {
+  await enrichLead(leadId);
+  // Refresh the detail view
+  setTimeout(() => openLeadDetail(leadId), 500);
+}
+
+// Close detail modal on outside click
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('leadDetailModal').addEventListener('click', (e) => {
+    if (e.target.id === 'leadDetailModal') {
+      closeLeadDetail();
+    }
+  });
+});

@@ -71,6 +71,89 @@
     .btn-action { padding: 6px 12px; border: 1px solid #d1d5db; background: white; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
     .btn-action:hover { background: #f9fafb; border-color: #3b82f6; color: #3b82f6; }
     .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Lead Detail Modal */
+    .modal-detail { max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto; }
+    .modal-detail-header { display: flex; justify-content: space-between; align-items: start; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+    .detail-company-name { font-size: 28px; font-weight: bold; color: #111827; margin-bottom: 8px; }
+    .detail-url { color: #6b7280; font-size: 16px; text-decoration: none; }
+    .detail-url:hover { color: #3b82f6; }
+    .btn-close { background: #ef4444; color: white; border: none; width: 40px; height: 40px; border-radius: 20px; font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.2s; }
+    .btn-close:hover { background: #dc2626; transform: scale(1.1); }
+
+    .detail-content { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .detail-section { background: #f9fafb; padding: 20px; border-radius: 8px; }
+    .detail-section-full { grid-column: 1 / -1; }
+    .detail-section-title { font-size: 16px; font-weight: bold; color: #111827; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+    /* Lead Overview Section */
+    .lead-overview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .overview-item { background: white; padding: 12px; border-radius: 6px; }
+    .overview-label { font-size: 11px; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; font-weight: 600; }
+    .overview-value { font-size: 16px; font-weight: bold; color: #111827; }
+
+    /* Qualification Badge Enhanced */
+    .qual-badge-large { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; }
+    .qual-badge-large.high { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .qual-badge-large.medium { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .qual-badge-large.low { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+
+    /* Company Insights Grid */
+    .company-insights-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+    .insight-card { background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #3b82f6; }
+    .insight-card-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .insight-card-value { font-size: 14px; font-weight: 600; color: #111827; }
+    .insight-card.enterprise { border-left-color: #8b5cf6; }
+    .insight-card.revenue { border-left-color: #10b981; }
+    .insight-card.funding { border-left-color: #f59e0b; }
+    .insight-card.industry { border-left-color: #06b6d4; }
+
+    /* Technology Stack */
+    .tech-stack-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .tech-badge { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+
+    /* Recommended Actions */
+    .action-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .action-item { background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; display: flex; align-items: start; gap: 10px; }
+    .action-icon { font-size: 18px; }
+    .action-text { font-size: 14px; color: #374151; line-height: 1.5; }
+
+    /* Risk Factors & Opportunities */
+    .risk-opp-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 12px; }
+    .risk-card, .opp-card { background: white; padding: 15px; border-radius: 8px; }
+    .risk-card { border: 2px solid #fecaca; }
+    .opp-card { border: 2px solid #d1fae5; }
+    .risk-opp-title { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+    .risk-opp-title.risk { color: #ef4444; }
+    .risk-opp-title.opportunity { color: #10b981; }
+    .risk-opp-list { list-style: none; }
+    .risk-opp-list li { font-size: 13px; color: #374151; margin-bottom: 8px; padding-left: 20px; position: relative; line-height: 1.4; }
+    .risk-opp-list li::before { position: absolute; left: 0; }
+    .risk-opp-list.risk li::before { content: '⚠️'; }
+    .risk-opp-list.opp li::before { content: '✨'; }
+
+    /* Key Insights */
+    .key-insights-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .key-insight-item { background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #8b5cf6; font-size: 14px; color: #374151; line-height: 1.5; display: flex; gap: 10px; }
+
+    /* Lead card clickable */
+    .lead-card { cursor: pointer; }
+
+    /* Detail Actions */
+    .detail-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn-detail-action { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-analyze { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; }
+    .btn-analyze:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); }
+    .btn-refresh { background: #06b6d4; color: white; }
+    .btn-refresh:hover { background: #0891b2; }
+    .btn-score { background: #10b981; color: white; }
+    .btn-score:hover { background: #059669; }
+
+    /* No Intelligence State */
+    .no-intelligence { text-align: center; padding: 40px 20px; color: #6b7280; }
+    .no-intelligence-icon { font-size: 48px; margin-bottom: 15px; }
+    .no-intelligence h3 { font-size: 18px; color: #374151; margin-bottom: 10px; }
+    .no-intelligence p { font-size: 14px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
@@ -159,6 +242,22 @@
           <button type="submit" class="btn btn-primary">Add Lead</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Lead Detail Modal -->
+  <div id="leadDetailModal" class="modal">
+    <div class="modal-content modal-detail">
+      <div class="modal-detail-header">
+        <div>
+          <h2 id="detailCompanyName" class="detail-company-name">-</h2>
+          <a id="detailUrl" href="#" target="_blank" class="detail-url">-</a>
+        </div>
+        <button class="btn-close" onclick="closeLeadDetail()">×</button>
+      </div>
+      <div id="detailContent" class="detail-content">
+        <!-- Content will be populated by JavaScript -->
+      </div>
     </div>
   </div>
 
