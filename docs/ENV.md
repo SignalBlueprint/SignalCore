@@ -117,4 +117,31 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 **Security Note**: Never commit your `GITHUB_TOKEN` to version control. Always use environment variables or secure secret management.
 
+## Authentication (JWT) Configuration
+
+The `@sb/auth` package uses the following environment variables for JWT-based authentication:
+
+- `JWT_SECRET` - **Required** - Secret key for signing and verifying JWT tokens (minimum 256 bits)
+- `JWT_EXPIRES_IN` - Optional - Access token expiration time (default: `1h`)
+- `JWT_REFRESH_EXPIRES_IN` - Optional - Refresh token expiration time (default: `7d`)
+
+**Important:** The `JWT_SECRET` must be a cryptographically secure random string. Generate one using:
+
+```bash
+openssl rand -base64 32
+```
+
+Example `.env`:
+```
+JWT_SECRET=csPubTa8hvSr3Uxus14TuEsHZVdsUcmDxVgiO29e3OE=
+JWT_EXPIRES_IN=1h
+JWT_REFRESH_EXPIRES_IN=7d
+```
+
+**Security Notes:**
+- Never commit your `JWT_SECRET` to version control
+- Use different secrets for development, staging, and production
+- Rotate the secret periodically (requires all users to re-authenticate)
+- Keep the secret at least 256 bits (32 bytes) for HS256 algorithm
+
 

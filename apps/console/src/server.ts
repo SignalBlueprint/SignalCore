@@ -12,6 +12,7 @@ import { SUITE_APPS, getSuiteApp } from "@sb/suite";
 import { readEvents } from "@sb/events";
 import { getTelemetryState } from "@sb/telemetry";
 import type { Member } from "@sb/schemas";
+import authRouter from "./routes/auth";
 
 const app = express();
 const suiteApp = getSuiteApp("console");
@@ -21,6 +22,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // API Routes
+
+// Authentication routes
+app.use("/api/auth", authRouter);
 
 // Get suite apps
 app.get("/api/apps", (req, res) => {
