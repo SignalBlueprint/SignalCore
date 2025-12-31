@@ -9,6 +9,7 @@ import GoalsPage from './pages/GoalsPage';
 import AssignmentReviewPage from './pages/AssignmentReviewPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import JobsPage from './pages/JobsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/goals/:goalId/assignment-review" element={<ErrorBoundary><AssignmentReviewPage /></ErrorBoundary>} />
           <Route path="/tasks/:taskId" element={<ErrorBoundary><TaskDetailPage /></ErrorBoundary>} />
           <Route path="/analytics" element={<ErrorBoundary><AnalyticsPage /></ErrorBoundary>} />
+          <Route path="/jobs" element={<ErrorBoundary><JobsPage /></ErrorBoundary>} />
           <Route path="/debug" element={<ErrorBoundary><DebugPage /></ErrorBoundary>} />
         </Routes>
       </div>
