@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface DailyDeckItem {
   taskId: string;
@@ -275,14 +276,8 @@ export default function TodayPage() {
 
   if (loading) {
     return (
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        textAlign: 'center',
-      }}>
-        <p style={{ color: '#666', fontSize: '18px' }}>Loading your daily deck...</p>
+      <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner message="Loading your daily deck..." />
       </div>
     );
   }
@@ -567,15 +562,17 @@ export default function TodayPage() {
   const items = Array.isArray(dailyDeck.items) ? dailyDeck.items : [];
 
   return (
-    <div style={{
-      background: 'white',
-      padding: '40px',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    }}>
+    <div className="card" style={{ padding: '20px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <div>
+      <div className="page-header" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '30px',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
           <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
           <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
             {formatDate(dailyDeck.date || new Date().toISOString().split('T')[0])} • {orgId}
@@ -584,16 +581,9 @@ export default function TodayPage() {
         <button
           onClick={runQuestmaster}
           disabled={runningQuestmaster}
+          className="btn btn-primary"
           style={{
-            padding: '12px 24px',
             background: runningQuestmaster ? '#ccc' : '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: runningQuestmaster ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            boxShadow: runningQuestmaster ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.3)',
           }}
         >
           {runningQuestmaster ? '⚙️ Running...' : '🔄 Run Questmaster'}
@@ -674,11 +664,7 @@ export default function TodayPage() {
       {teamCapacity.length > 0 && (
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>👥 Team Capacity</h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px',
-          }}>
+          <div className="responsive-grid">
             {teamCapacity.map((member) => {
               const isOverCapacity = member.utilizationPercent > 100;
               const isNearCapacity = member.utilizationPercent > 80 && member.utilizationPercent <= 100;
@@ -754,29 +740,29 @@ export default function TodayPage() {
               <div
                 key={item.taskId}
                 onClick={() => navigate(`/tasks/${item.taskId}?orgId=${orgId}`)}
+                className="card card-clickable"
                 style={{
                   padding: '20px',
                   background: 'white',
                   border: '2px solid #e0e0e0',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = '#667eea';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = '#e0e0e0';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: '12px',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '20px' }}>{getStatusIcon(item.status)}</span>
                       <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
                         {item.taskTitle}
@@ -846,14 +832,11 @@ export default function TodayPage() {
       </div>
 
       {/* Summary Footer */}
-      <div style={{
+      <div className="responsive-grid" style={{
         marginTop: '30px',
         padding: '20px',
         background: '#f9f9f9',
         borderRadius: '8px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
       }}>
         <div>
           <div style={{ fontSize: '12px', color: '#666' }}>Total Time Estimated</div>
