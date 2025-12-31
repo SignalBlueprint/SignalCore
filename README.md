@@ -146,16 +146,19 @@ Each app has its own detailed README with comprehensive documentation. Click the
 
 ### Early Stage Apps
 
-#### 🟡 [SiteForge](apps/siteforge/README.md) (Port 4024)
-**Status:** Basic - UI + persistent storage, needs generation pipeline
-**Description:** Website generation and management platform
+#### 🟢 [SiteForge](apps/siteforge/README.md) (Port 4024)
+**Status:** Fully Functional - Complete generation pipeline with AI-powered content
+**Description:** Website generation and management platform with AI-powered content creation
 
 **Key Features:**
-- Complete REST API with project CRUD
+- Complete REST API with project CRUD operations
 - Persistent storage using @sb/storage
 - Full web UI for project management
+- AI-powered content generation (GPT-4o-mini)
+- Component-based HTML generation with responsive templates
+- Background job processing for website generation
+- Site preview and export capabilities
 - Project status tracking (draft, queued, generating, complete, failed)
-- Generation job queue system (skeleton)
 
 **See [SiteForge README](apps/siteforge/README.md) for complete documentation and roadmap.**
 
@@ -173,8 +176,8 @@ Each app has its own detailed README with comprehensive documentation. Click the
 
 ## Suite Status Summary
 
-**🟢 Fully Functional (Production-Ready):** Questboard, Catalog, Console, Worker, LeadScout
-**🟡 Basic/Functional (Needs Core Features):** Outreach, SiteForge
+**🟢 Fully Functional (Production-Ready):** Questboard, Catalog, Console, Worker, LeadScout, SiteForge
+**🟡 Basic/Functional (Needs Core Features):** Outreach
 **🔴 Placeholder/Early Stage:** Demoapp
 
 ### Data Persistence Status
@@ -206,12 +209,12 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 ### Key Metrics
 
-- **Total Apps:** 8 (5 production-ready, 2 functional, 1 placeholder)
-- **Shared Packages:** 15+ packages providing suite-wide utilities
+- **Total Apps:** 8 (6 production-ready, 1 functional, 1 placeholder)
+- **Shared Packages:** 18 packages providing suite-wide utilities
 - **Test Coverage:** 48 tests in Questboard, expanding to other apps
 - **Authentication:** JWT-based system implemented, needs frontend rollout
 - **Storage:** All major apps using persistent @sb/storage
-- **AI Integration:** 4 apps with OpenAI integration (Questboard, Catalog, LeadScout, Outreach)
+- **AI Integration:** 5 apps with OpenAI integration (Questboard, Catalog, LeadScout, Outreach, SiteForge)
 
 ### Recent Achievements (Last 2 Weeks)
 
@@ -262,33 +265,42 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
   - Comprehensive test suite with 48 passing tests (31 schema + 17 AI function tests)
   - Monorepo-wide Vitest workspace configuration
 
+- ✅ **SiteForge Generation Pipeline** (Dec 2025) - NEW!
+  - Complete AI-powered website generation with GPT-4o-mini integration
+  - Component-based HTML templating engine with responsive design
+  - 8 component types (hero, features, about, pricing, testimonials, CTA, contact, footer)
+  - Background job processing for asynchronous site generation
+  - Live HTML preview and JSON export functionality
+  - SEO-optimized content generation tailored to business niche
+  - Event publishing and telemetry integration
+
 **Earlier Major Updates:**
 - ✅ **Worker**: Production-ready with full cron scheduling system
 - ✅ **Catalog**: Complete e-commerce platform with shopping cart and order management
 - ✅ **LeadScout**: Upgraded to fully functional with persistent storage and complete UI
-- ✅ **SiteForge**: Persistent storage and complete project management UI
 
 ### Strategic Analysis & Gaps
 
 **Strengths:**
-- 🎯 **Strong Foundation**: 5 production-ready apps with full CRUD, persistence, and UIs
+- 🎯 **Strong Foundation**: 6 production-ready apps with full CRUD, persistence, and UIs
 - 🔐 **Security**: Comprehensive JWT-based authentication system implemented
-- 🤖 **AI Integration**: 4 apps using OpenAI for intelligent features (Questboard, Catalog, LeadScout, Outreach)
+- 🤖 **AI Integration**: 5 apps using OpenAI for intelligent features (Questboard, Catalog, LeadScout, Outreach, SiteForge)
 - 📊 **Data Persistence**: All major apps using @sb/storage abstraction layer
 - 🧪 **Testing Culture**: Vitest framework established with 48 tests in Questboard
 - 📱 **Mobile-First**: PWA implementation in Questboard, mobile UX improvements rolling out
-- 📦 **Modular Architecture**: 15+ shared packages enable code reuse and consistency
+- 📦 **Modular Architecture**: 18 shared packages enable code reuse and consistency
 - 🔄 **Automation**: Worker app provides robust job scheduling for all apps
+- 🌐 **Website Generation**: SiteForge with complete AI-powered generation pipeline
 
 **Weaknesses & Gaps:**
 - ⚠️ **Payment Processing**: Catalog e-commerce missing payment gateway (critical gap for revenue)
 - ⚠️ **Email Delivery**: Outreach campaigns cannot send emails yet (core functionality missing)
-- ⚠️ **Website Generation**: SiteForge has no generation engine (app is incomplete)
 - ⚠️ **Auth Rollout**: Backend auth complete but not integrated into app frontends
 - ⚠️ **Monitoring**: No centralized error tracking or performance monitoring
 - ⚠️ **Testing Coverage**: Only Questboard has comprehensive tests (needs expansion)
 - ⚠️ **Real-time Features**: No WebSocket/SSE for live updates
 - ⚠️ **Inter-app Integration**: Apps are isolated, no workflows connecting them
+- ⚠️ **SiteForge Templates**: Currently single template, needs more variety and customization options
 
 **Opportunities:**
 - 💡 **App Workflows**: Connect LeadScout → Outreach → Catalog for complete sales funnel
@@ -376,17 +388,16 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 **Goal:** Finish incomplete features and make all apps fully functional
 
-7. **SiteForge Generation Pipeline** (Weeks 3-5: 10-12 days)
-   - Week 3-4: Build generation engine (6-7 days)
-     - Create AI content generation for pages
-     - Build page structure generator
-     - Add component library (hero, features, pricing, etc.)
-     - Implement responsive design generation
-   - Week 4-5: Template system (4-5 days)
-     - Create 3-5 industry-specific templates
-     - Add template customization engine
-     - Build preview functionality
-   - **Success Criteria:** Users can generate complete websites from business details
+7. **SiteForge Template Variations & Visual Builder** (Weeks 3-5: 10-12 days)
+   - Week 3-4: Multiple template styles (6-7 days)
+     - Create 3-5 different visual templates (modern, classic, minimal, bold)
+     - Add industry-specific templates (SaaS, E-commerce, Portfolio, Agency)
+     - Implement theme system (colors, fonts, layouts)
+   - Week 4-5: Visual customization (4-5 days)
+     - Build drag-and-drop component builder
+     - Add real-time preview with instant editing
+     - Implement template customization engine
+   - **Success Criteria:** Users can choose from multiple templates and customize visually
 
 8. **Console Data Persistence** (Week 5: 2-3 days)
    - Migrate team data from in-memory to @sb/storage
@@ -526,10 +537,10 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 - ✅ Outreach sends real email campaigns
 - ✅ All apps have authentication enforced (backend + frontend)
 - ✅ LeadScout shows AI intelligence insights
-- ✅ SiteForge generation pipeline 50% complete
+- ✅ SiteForge multiple template variations
 
 ### 60-Day Milestone (End of Week 8)
-- ✅ SiteForge generates complete websites
+- 🎉 **COMPLETED**: SiteForge generates complete websites with AI-powered content
 - ✅ LeadScout → Outreach integration live
 - ✅ Worker job monitoring dashboard complete
 - ✅ Real-time updates in Console and Questboard
