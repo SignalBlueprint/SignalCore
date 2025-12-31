@@ -1,6 +1,6 @@
 # SiteForge
 
-**Status:** 🟡 Basic - UI + persistent storage, needs generation pipeline
+**Status:** 🟢 Functional - Complete generation pipeline with AI-powered content
 **Port:** 4024
 
 Website generation and management platform that enables teams to quickly create, customize, and deploy demonstration sites and landing pages using AI-powered content generation.
@@ -20,9 +20,40 @@ SiteForge provides a streamlined way to build and manage demo sites for products
   - Domain name
   - Niche/industry
   - Project notes
-- **Project status tracking** - Draft, queued, generating, complete, failed
+- **Project status tracking** - Draft, queued, generating, ready, failed
 - **Project statistics dashboard** - Total projects, active, completed, failed
-- **Generation job queue system** (skeleton implementation)
+- **Generation job queue system** - Fully functional background processing
+
+### AI-Powered Generation Pipeline ✨ NEW
+- **AI Content Generation** - OpenAI GPT-4o-mini powered content creation
+  - Automatic copywriting tailored to business niche
+  - SEO-optimized metadata generation
+  - Industry-specific content adaptation
+  - Smart keyword integration
+- **Component-Based Generation** - Modular page structure
+  - Hero sections with compelling CTAs
+  - About/mission sections
+  - Features/services showcases
+  - Pricing tiers (when applicable)
+  - Customer testimonials
+  - Call-to-action sections
+  - Professional footers
+- **HTML Template Engine** - Modern, responsive HTML generation
+  - Mobile-first responsive design
+  - Clean, semantic HTML5
+  - Inline CSS with professional styling
+  - Accessibility-friendly markup
+  - Fast loading performance
+- **Background Job Processing** - Asynchronous generation
+  - Non-blocking job queue
+  - Real-time status updates
+  - Error handling and retry logic
+  - Progress tracking
+- **Site Preview & Export** - View and download generated sites
+  - Live HTML preview
+  - Complete site metadata
+  - Component-level access
+  - JSON export capability
 
 ### Project Status Management
 - **Draft** - Initial project setup
@@ -56,102 +87,147 @@ Then open `http://localhost:4024` in your browser.
 
 ## Architecture
 
-- **Backend**: Express.js REST API
+- **Backend**: Node.js HTTP server with TypeScript
 - **Frontend**: Static HTML/CSS/JavaScript with modern UI
 - **Storage**: Supabase via `@sb/storage` abstraction layer
-- **AI**: OpenAI GPT-4o (planned for content generation)
-- **Templates**: Coming soon - React, Next.js, static HTML
-- **Deployment**: Coming soon - Vercel, Netlify integration
+- **AI**: OpenAI GPT-4o-mini for content generation (with caching via `@sb/cache`)
+- **Job Processing**: In-memory queue with background processor
+- **Events**: Suite-wide event publishing via `@sb/events`
+- **Telemetry**: AI usage tracking via `@sb/telemetry`
+- **Generated Output**: Responsive HTML with inline CSS (mobile-first)
 
 ## API Endpoints
 
 ### Project Management
-- `POST /api/projects` - Create a new project
-- `GET /api/projects` - List all projects
-- `GET /api/projects/:id` - Get project details
-- `PUT /api/projects/:id` - Update a project
-- `DELETE /api/projects/:id` - Delete a project
+- `POST /projects` - Create a new project
+- `GET /projects` - List all projects
+- `GET /projects/:id` - Get project details
+- `PUT /projects/:id` - Update a project
+- `DELETE /projects/:id` - Delete a project
 
-### Generation
-- `POST /api/projects/:id/generate` - Queue project for generation (skeleton)
-- `GET /api/projects/:id/status` - Get generation status
+### Generation & Preview
+- `POST /projects/:id/generate` - Queue project for AI-powered generation
+- `GET /projects/:id/status` - Get generation status and job history
+- `GET /projects/:id/preview` - View generated HTML site (live preview)
+- `GET /projects/:id/site` - Get generated site data (JSON with components)
+- `GET /jobs` - List all generation jobs
+
+## Usage Example
+
+```bash
+# 1. Create a new project
+curl -X POST http://localhost:4024/projects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "businessName": "TechFlow Solutions",
+    "domain": "techflow.com",
+    "niche": "SaaS project management",
+    "notes": "Focus on team collaboration and productivity"
+  }'
+
+# 2. Trigger generation
+curl -X POST http://localhost:4024/projects/{PROJECT_ID}/generate
+
+# 3. Check status
+curl http://localhost:4024/projects/{PROJECT_ID}/status
+
+# 4. View generated site
+curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
+```
 
 ## Current Status
 
-### ✅ Implemented Features
-- Complete REST API with project CRUD
-- Persistent storage using `@sb/storage`
-- Full web UI for project management
-- Project creation with business details
-- Project status tracking
-- Project statistics dashboard
-- Generation job queue system (skeleton)
-- Generation job endpoint (queued, not implemented)
+### ✅ Implemented Features (v1.0)
+- ✅ Complete REST API with project CRUD
+- ✅ Persistent storage using `@sb/storage`
+- ✅ Full web UI for project management
+- ✅ Project creation with business details
+- ✅ Project status tracking (draft → queued → generating → ready/failed)
+- ✅ Project statistics dashboard
+- ✅ **Website Generation Pipeline** - Fully functional AI-powered engine
+- ✅ **AI Content Generation** - GPT-4o-mini integration with caching
+- ✅ **Component-Based Templates** - 8 component types (hero, features, about, pricing, testimonials, CTA, contact, footer)
+- ✅ **HTML Generation Engine** - Responsive, mobile-first templates
+- ✅ **Background Job Processing** - Async generation with queue management
+- ✅ **Site Preview & Export** - Live HTML preview and JSON export
+- ✅ **Event Publishing** - Integration with suite event system
 
-### ⚠️ Missing Core Functionality
-- **Website generation pipeline** - No actual generation engine (critical gap)
-- **AI content generation** - Not implemented
-- **Template system** - No templates available
-- **Visual builder** - No page builder UI
-- **Deployment** - No hosting integration
+### ⚠️ Future Enhancements
+- **Multiple Templates** - Currently single responsive template, add variations
+- **Visual Builder** - Drag-and-drop customization UI
+- **Deployment** - Vercel, Netlify, or static hosting integration
+- **Asset Management** - Image upload and stock photo integration
+- **Multi-page Sites** - Currently single-page, expand to full sites
 
-### Next Steps
+## Technical Architecture
 
-1. **Website Generation Pipeline** 🔥 HIGHEST PRIORITY
-   - Implement actual website generation engine
-   - Build AI-powered content generation (copy, images)
-   - Create page structure generator based on niche
-   - Add component library for common sections
-   - Implement responsive design generation
-   - Add SEO optimization (meta tags, structure)
+### Generation Pipeline Flow
 
-2. **Template System**
-   - Build template library (React, Next.js, static HTML, WordPress)
-   - Create industry-specific templates (SaaS, E-commerce, Portfolio, etc.)
-   - Add template customization engine
-   - Implement theme system (colors, fonts, layout)
-   - Build template preview functionality
-   - Add template versioning
+```
+1. User creates project → Stored in Supabase
+2. User triggers generation → Job queued
+3. Job Processor picks up job → Status: "processing"
+4. AI Content Generator → GPT-4o-mini generates content
+   ├─ Hero section content
+   ├─ About section content
+   ├─ Features/services (3-4 items)
+   ├─ Pricing tiers (if applicable)
+   ├─ Testimonials (2-3)
+   └─ SEO metadata
+5. HTML Generator → Converts components to HTML
+   ├─ Responsive CSS
+   ├─ Mobile-first design
+   └─ Accessibility markup
+6. Store generated site → Project updated with GeneratedSite
+7. Publish events → Suite-wide notification
+8. User views preview → Render HTML or download
+```
 
-3. **Visual Builder**
-   - Create drag-and-drop page builder
-   - Add component palette (hero, features, pricing, testimonials)
-   - Implement real-time preview
-   - Build section customization (text, images, styles)
-   - Add undo/redo functionality
-   - Create mobile responsive preview
+### Key Files
 
-4. **Deployment & Hosting**
-   - Integrate with Vercel for deployment
-   - Add Netlify deployment option
-   - Implement static file hosting (S3, Cloudflare)
-   - Build preview/staging environments
-   - Add production deployment workflow
-   - Implement rollback functionality
+- `src/ai-content-generator.ts` - AI content generation with OpenAI
+- `src/html-generator.ts` - Component-to-HTML templating engine
+- `src/generation-engine.ts` - Orchestrates AI + HTML generation
+- `src/job-processor.ts` - Background job queue processor
+- `src/repository.ts` - Data persistence layer
+- `src/server.ts` - Express API server with endpoints
 
-5. **Asset Management**
-   - Build asset upload system (images, videos, files)
-   - Add image optimization and CDN
-   - Implement stock photo integration (Unsplash, Pexels)
-   - Create favicon generator
-   - Add logo upload and management
-   - Build media library
+### Next Steps (Roadmap v2.0)
 
-6. **Domain & DNS**
-   - Add custom domain configuration
-   - Implement DNS management
-   - Add SSL certificate provisioning
-   - Build domain verification workflow
-   - Add subdomain support
-   - Create domain health monitoring
+1. **Template Variations** (High Priority)
+   - Add 3-5 different visual templates (modern, classic, minimal, bold)
+   - Industry-specific templates (SaaS, E-commerce, Portfolio, Agency)
+   - Template customization engine
+   - Theme system (colors, fonts, layouts)
 
-7. **Advanced Features**
-   - Implement multi-page site generation
-   - Add blog/CMS functionality
-   - Build contact form generation
-   - Add analytics integration (Google Analytics, Plausible)
-   - Implement A/B testing for landing pages
-   - Create performance optimization (lazy loading, minification)
+2. **Visual Builder** (High Priority)
+   - Drag-and-drop page builder UI
+   - Component palette with live preview
+   - Real-time editing with instant preview
+   - Section customization (text, images, styles)
+   - Undo/redo functionality
+
+3. **Deployment & Hosting**
+   - One-click Vercel deployment
+   - Netlify integration
+   - Static file hosting (S3, Cloudflare Pages)
+   - Preview/staging environments
+   - Custom domain support with SSL
+
+4. **Asset Management**
+   - Image upload and optimization
+   - Stock photo integration (Unsplash, Pexels)
+   - Favicon and logo management
+   - Media library with CDN
+   - AI image generation (DALL-E integration)
+
+5. **Advanced Features**
+   - Multi-page site generation (landing + about + contact + blog)
+   - Blog/CMS functionality
+   - Contact form generation with email integration
+   - Analytics (Google Analytics, Plausible)
+   - A/B testing capabilities
+   - Performance optimization (lazy loading, minification, image optimization)
 
 ## Integration with Suite
 

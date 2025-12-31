@@ -6,6 +6,7 @@ import { getSuiteApp } from "@sb/suite";
 import { GenerationJob, SiteProject } from "@sb/schemas";
 import { InMemoryJobQueue } from "@sb/utils";
 import { ProjectRepository, GenerationJobRepository } from "./repository";
+import { GenerationJobProcessor } from "./job-processor";
 
 const suiteApp = getSuiteApp("siteforge");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
@@ -13,6 +14,27 @@ const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 const projectRepo = new ProjectRepository();
 const jobRepo = new GenerationJobRepository();
 const generationQueue = new InMemoryJobQueue<GenerationJob>();
+
+// Initialize and start job processor
+const jobProcessor = new GenerationJobProcessor(
+  generationQueue,
+  projectRepo,
+  jobRepo
+);
+jobProcessor.start(3000); // Check for jobs every 3 seconds
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  console.log("\n[siteforge] Shutting down...");
+  jobProcessor.stop();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("\n[siteforge] Shutting down...");
+  jobProcessor.stop();
+  process.exit(0);
+});
 
 const parseJsonBody = async (req: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -148,13 +170,108 @@ const server = http.createServer(async (req, res) => {
     project.updatedAt = now;
     await projectRepo.update(project);
 
-    // TODO: Replace with real website generation pipeline.
-    sendJson(res, 202, { message: "generation job created", job });
+    sendJson(res, 202, { message: "Generation job created and queued", job });
+    return;
+  }
+
+  // Get project generation status
+  if (
+    req.method === "GET" &&
+    url.pathname.startsWith("/projects/") &&
+    url.pathname.endsWith("/status")
+  ) {
+    const id = url.pathname.split("/")[2];
+    if (!id) {
+      notFound(res);
+      return;
+    }
+    const project = await projectRepo.getById(id);
+    if (!project) {
+      notFound(res);
+      return;
+    }
+
+    // Get all jobs for this project
+    const allJobs = await jobRepo.list();
+    const projectJobs = allJobs.filter((j) => j.projectId === id);
+
+    sendJson(res, 200, {
+      projectId: id,
+      status: project.status,
+      error: project.error,
+      hasGeneratedSite: !!project.generatedSite,
+      jobs: projectJobs,
+    });
+    return;
+  }
+
+  // Get generated site preview (HTML)
+  if (
+    req.method === "GET" &&
+    url.pathname.startsWith("/projects/") &&
+    url.pathname.endsWith("/preview")
+  ) {
+    const id = url.pathname.split("/")[2];
+    if (!id) {
+      notFound(res);
+      return;
+    }
+    const project = await projectRepo.getById(id);
+    if (!project) {
+      notFound(res);
+      return;
+    }
+
+    if (!project.generatedSite) {
+      sendJson(res, 404, {
+        error: "No generated site available. Generate the site first.",
+      });
+      return;
+    }
+
+    // Return the generated HTML
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end(project.generatedSite.html);
+    return;
+  }
+
+  // Get generated site data (JSON)
+  if (
+    req.method === "GET" &&
+    url.pathname.startsWith("/projects/") &&
+    url.pathname.endsWith("/site")
+  ) {
+    const id = url.pathname.split("/")[2];
+    if (!id) {
+      notFound(res);
+      return;
+    }
+    const project = await projectRepo.getById(id);
+    if (!project) {
+      notFound(res);
+      return;
+    }
+
+    if (!project.generatedSite) {
+      sendJson(res, 404, {
+        error: "No generated site available. Generate the site first.",
+      });
+      return;
+    }
+
+    sendJson(res, 200, { generatedSite: project.generatedSite });
+    return;
+  }
+
+  // List all generation jobs
+  if (req.method === "GET" && url.pathname === "/jobs") {
+    const jobs = await jobRepo.list();
+    sendJson(res, 200, { jobs });
     return;
   }
 
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end(`${suiteApp.name} skeleton server`);
+  res.end(`${suiteApp.name} server with generation pipeline`);
 });
 
 server.listen(port, () => {

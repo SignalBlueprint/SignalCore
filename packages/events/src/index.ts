@@ -46,7 +46,10 @@ export type EventType =
   | "sprint.plan.approved"
   | "template.saved"
   | "template.spawned"
-  | "member.created";
+  | "member.created"
+  | "siteforge.generation.started"
+  | "siteforge.generation.completed"
+  | "siteforge.generation.failed";
 
 /**
  * Event payload is a generic object
@@ -96,6 +99,9 @@ export const EventEnvelopeSchema = z.object({
     "template.saved",
     "template.spawned",
     "member.created",
+    "siteforge.generation.started",
+    "siteforge.generation.completed",
+    "siteforge.generation.failed",
   ]),
   payload: z.record(z.unknown()),
   createdAt: z.string(),
