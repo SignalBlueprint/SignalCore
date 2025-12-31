@@ -91,9 +91,7 @@ export const githubSyncJob: Job = {
       // Create issues for tasks without GitHub links
       for (const task of tasksToSync) {
         try {
-          // Get repo from task (we'll need to add this to the task or org settings)
-          // For now, we'll skip if no repo is configured
-          // TODO: Add repo to task or org settings
+          // Get repo from task - skip if no repo is configured
           if (!task.github?.repo) {
             ctx.logger.warn(`Task ${task.id} has syncToGithub=true but no repo configured, skipping`);
             continue;

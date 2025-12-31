@@ -195,6 +195,61 @@ A dry-run version of the questmaster job for testing purposes. Doesn't make actu
 pnpm --filter worker dev -- job daily.questmaster.dryrun
 ```
 
+### `maintenance.cleanup`
+
+**Schedule Hint:** Daily at midnight
+**Purpose:** Maintenance
+
+Cleans up old job execution records to keep storage usage under control. By default, removes executions older than 30 days.
+
+**Configuration:**
+
+```yaml
+input:
+  retentionDays: 30  # Number of days to keep execution records
+```
+
+**Example:**
+
+```bash
+# Clean up executions older than 30 days
+pnpm --filter worker dev -- job maintenance.cleanup
+
+# Custom retention period (via input)
+pnpm --filter worker dev -- job maintenance.cleanup --retention 60
+```
+
+### `maintenance.retry`
+
+**Schedule Hint:** Every hour
+**Purpose:** Reliability
+
+Automatically retries failed jobs with intelligent backoff logic. Looks for recently failed jobs within a configurable time window and retries them up to a maximum number of attempts.
+
+**Features:**
+- Exponential backoff between retries
+- Configurable max retry attempts
+- Configurable lookback window
+- Excludes certain jobs from retry (dry runs, maintenance jobs)
+
+**Configuration:**
+
+```yaml
+input:
+  maxRetries: 3        # Maximum retry attempts per job
+  lookbackHours: 24    # Time window to look for failed jobs
+  excludeJobs:         # Jobs to exclude from retry (optional)
+    - daily.questmaster.dryrun
+    - maintenance.cleanup
+```
+
+**Example:**
+
+```bash
+# Run retry job manually
+pnpm --filter worker dev -- job maintenance.retry
+```
+
 ## Configuration
 
 ### Scheduler Configuration (`scheduler.yaml`)
@@ -623,36 +678,48 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
 
 ## Next Steps
 
+### Completed Features
+
+✅ **Job Execution Tracking**
+   - Centralized execution tracking with @sb/storage
+   - Execution history with statistics
+   - CLI commands for viewing history and stats
+
+✅ **Job Reliability**
+   - Automatic retry logic with exponential backoff
+   - Configurable retry attempts and lookback windows
+   - Execution cleanup for storage management
+
 ### Planned Features
 
-1. **Job Queue & Reliability**
-   - Persistent job queue with @sb/storage
-   - Retry logic with exponential backoff
-   - Dead letter queue for failed jobs
+1. **Advanced Job Queue**
+   - Dead letter queue for permanently failed jobs
    - Job priority system
+   - Queue pause/resume functionality
 
 2. **Monitoring Dashboard**
    - Integration with Console app
-   - Job execution history
-   - Performance metrics
-   - Real-time status
+   - Real-time job status visualization
+   - Performance metrics and trends
+   - Alerting dashboard
 
 3. **Alerting**
    - Email/Slack/Discord notifications
-   - Failure alerts
+   - Failure alerts with configurable thresholds
    - Custom alert rules
    - Escalation policies
 
 4. **Advanced Scheduling**
    - Job dependency chains
-   - Conditional execution
+   - Conditional execution based on results
    - Dynamic schedule adjustments
+   - Manual schedule overrides
 
 5. **Developer Tools**
-   - Job template generator
-   - Testing framework
-   - Debugging tools
-   - Documentation generator
+   - Job template generator CLI
+   - Testing framework for jobs
+   - Enhanced debugging tools
+   - Auto-generated documentation
 
 ## Resources
 

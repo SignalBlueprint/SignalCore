@@ -49,3 +49,22 @@ schedules:
     enabled: false
     timezone: "UTC"
     description: "Test run without making changes"
+
+  # Maintenance: Cleanup Old Executions
+  - jobId: maintenance.cleanup
+    schedule: "0 0 * * *"  # Every day at midnight
+    enabled: true
+    timezone: "UTC"
+    description: "Clean up old job execution records"
+    input:
+      retentionDays: 30  # Keep executions for 30 days
+
+  # Maintenance: Retry Failed Jobs
+  - jobId: maintenance.retry
+    schedule: "0 * * * *"  # Every hour
+    enabled: true
+    timezone: "UTC"
+    description: "Retry recently failed jobs with exponential backoff"
+    input:
+      maxRetries: 3
+      lookbackHours: 24

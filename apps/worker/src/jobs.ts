@@ -6,6 +6,8 @@ import { registerJobs, type Job } from "@sb/jobs";
 import { dailyQuestmasterJob } from "./questmaster-job";
 import { weeklySprintPlannerJob } from "./sprintplanner-job";
 import { githubSyncJob } from "./github-sync-job";
+import { cleanupJob } from "./cleanup-job";
+import { retryJob } from "./retry-job";
 
 /**
  * Daily Questmaster dry run job (placeholder)
@@ -42,5 +44,7 @@ registerJobs([
   dailyQuestmasterJob,
   weeklySprintPlannerJob,
   githubSyncJob,
+  cleanupJob,
+  retryJob,
 ]);
 
