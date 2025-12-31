@@ -63,6 +63,15 @@ Direct integration with Questboard:
 - **Quest status** - See quest progress and assignments
 - **Quick navigation** - Jump to Questboard for detailed quest management
 
+### Worker Job Monitoring ✨ NEW
+Real-time monitoring and analytics for background jobs:
+- **Job registry** - View all registered worker jobs with status indicators
+- **Execution statistics** - Success rate, average duration, and run counts for each job
+- **Recent executions** - Timeline of job executions with status and duration
+- **24-hour metrics** - Overview of job performance in the last 24 hours
+- **Failure tracking** - Detailed error messages for failed job executions
+- **Visual indicators** - Color-coded status badges and progress metrics
+
 ### Authentication System ✨ NEW
 Complete JWT-based authentication for the entire suite:
 - **User signup** - Create new user accounts with email/password
@@ -132,12 +141,20 @@ The console exposes several API endpoints for data access:
 ### Questboard Integration
 - `GET /api/questboard/active` - Get active quests from Questboard
 
+### Worker Job Monitoring ✨ NEW
+- `GET /api/worker/overview` - Complete overview with job stats and recent executions
+- `GET /api/worker/jobs` - List all registered worker jobs
+- `GET /api/worker/executions` - Get recent job executions (with filters)
+- `GET /api/worker/executions/:jobId` - Get execution history for specific job
+- `GET /api/worker/stats/:jobId` - Get statistics for specific job
+
 ## Current Status
 
 ### ✅ Production-Ready Features
 - Complete Express.js API with frontend SPA
 - **JWT-based authentication system** (signup, login, refresh, logout)
 - **Multi-org support** with role-based access control
+- **Worker job monitoring dashboard** - Real-time job execution tracking and analytics
 - Real-time health checks for all suite apps
 - Event log aggregation (last 200 events)
 - AI telemetry tracking (calls, costs, cache hits)
@@ -163,14 +180,7 @@ The console exposes several API endpoints for data access:
    - Build protected route components
    - Create user profile dropdown with logout
 
-2. **Worker Job Monitoring Dashboard** 🔥
-   - Build job execution history UI
-   - Add real-time job status indicators
-   - Show job success/failure metrics
-   - Display job run summaries from Questboard
-   - Add job execution timeline visualization
-
-3. **Team Data Persistence**
+2. **Team Data Persistence**
    - Migrate team data from in-memory to `@sb/storage`
    - Persist Working Genius profiles
    - Add team member CRUD operations
