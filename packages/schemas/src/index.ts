@@ -10,3 +10,4 @@ export * from "./domains/leads";
 export * from "./domains/catalog";
 export * from "./domains/siteforge";
 export * from "./domains/outreach";
+export * from "./domains/jobs";

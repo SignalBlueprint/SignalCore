@@ -6,9 +6,15 @@
 
 // Import jobs to register them
 import "./jobs";
-import { runJob, getJobs, scheduler } from "@sb/jobs";
+import { getJobs, scheduler } from "@sb/jobs";
 import { logger } from "@sb/logger";
 import { loadSchedulerConfig, validateSchedulerConfig } from "./config";
+import { runJobWithTracking } from "./job-runner";
+import {
+  getJobExecutions,
+  getAllJobExecutions,
+  getJobStats
+} from "./executions";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -37,9 +43,12 @@ async function main() {
         process.exit(1);
       }
 
-      // Start scheduler
+      // Start scheduler with tracking runner
       logger.info("Starting Worker in daemon mode");
-      scheduler.start(config);
+      scheduler.start({
+        ...config,
+        runnerFn: runJobWithTracking,
+      });
 
       // Log scheduled jobs
       const tasks = scheduler.getTasks();
@@ -92,7 +101,7 @@ async function main() {
       }
 
       logger.info(`Running job: ${jobId}`);
-      await runJob(jobId, orgId ? { orgId } : undefined);
+      await runJobWithTracking(jobId, orgId ? { orgId } : undefined);
       logger.info("Job completed successfully");
       process.exit(0);
     } catch (error) {
@@ -147,15 +156,140 @@ async function main() {
       });
       process.exit(1);
     }
+  } else if (command === "history" && jobId) {
+    // Show execution history for a specific job
+    try {
+      // Parse --limit option
+      let limit = 10;
+      let orgId: string | undefined;
+      for (let i = 2; i < args.length; i++) {
+        if (args[i] === "--limit" && i + 1 < args.length) {
+          limit = parseInt(args[i + 1], 10);
+        }
+        if (args[i] === "--org" && i + 1 < args.length) {
+          orgId = args[i + 1];
+        }
+      }
+
+      const executions = await getJobExecutions(jobId, { limit, orgId });
+      console.log(`\n📜 Execution History: ${jobId}\n`);
+      if (executions.length === 0) {
+        console.log("  No executions found");
+      } else {
+        executions.forEach((exec) => {
+          const status = exec.status === "success" ? "✓" : exec.status === "failed" ? "✗" : "⏳";
+          const duration = exec.duration ? `${exec.duration}ms` : "running";
+          console.log(`  ${status} ${exec.startedAt} - ${duration}`);
+          if (exec.orgId) {
+            console.log(`    Org: ${exec.orgId}`);
+          }
+          if (exec.status === "failed" && exec.error) {
+            console.log(`    Error: ${exec.error}`);
+          }
+          console.log("");
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to load execution history", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "executions") {
+    // Show all recent executions
+    try {
+      // Parse --limit and --status options
+      let limit = 20;
+      let orgId: string | undefined;
+      let status: "running" | "success" | "failed" | "timeout" | undefined;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--limit" && i + 1 < args.length) {
+          limit = parseInt(args[i + 1], 10);
+        }
+        if (args[i] === "--org" && i + 1 < args.length) {
+          orgId = args[i + 1];
+        }
+        if (args[i] === "--status" && i + 1 < args.length) {
+          status = args[i + 1] as any;
+        }
+      }
+
+      const executions = await getAllJobExecutions({ limit, orgId, status });
+      console.log("\n📊 Recent Job Executions\n");
+      if (executions.length === 0) {
+        console.log("  No executions found");
+      } else {
+        executions.forEach((exec) => {
+          const statusIcon = exec.status === "success" ? "✓" : exec.status === "failed" ? "✗" : "⏳";
+          const duration = exec.duration ? `${exec.duration}ms` : "running";
+          console.log(`  ${statusIcon} ${exec.jobId} - ${exec.startedAt} - ${duration}`);
+          if (exec.orgId) {
+            console.log(`    Org: ${exec.orgId}`);
+          }
+          if (exec.status === "failed" && exec.error) {
+            console.log(`    Error: ${exec.error}`);
+          }
+          console.log("");
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to load executions", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "stats" && jobId) {
+    // Show statistics for a specific job
+    try {
+      // Parse --org option
+      let orgId: string | undefined;
+      for (let i = 2; i < args.length; i++) {
+        if (args[i] === "--org" && i + 1 < args.length) {
+          orgId = args[i + 1];
+        }
+      }
+
+      const stats = await getJobStats(jobId, orgId);
+      console.log(`\n📈 Job Statistics: ${jobId}\n`);
+      console.log(`  Total Runs: ${stats.totalRuns}`);
+      console.log(`  Success: ${stats.successCount} (${Math.round((stats.successCount / stats.totalRuns) * 100)}%)`);
+      console.log(`  Failures: ${stats.failureCount} (${Math.round((stats.failureCount / stats.totalRuns) * 100)}%)`);
+      if (stats.timeoutCount > 0) {
+        console.log(`  Timeouts: ${stats.timeoutCount}`);
+      }
+      console.log(`  Average Duration: ${Math.round(stats.averageDuration)}ms`);
+      console.log("");
+      if (stats.lastRun) {
+        console.log(`  Last Run: ${stats.lastRun.startedAt} - ${stats.lastRun.status}`);
+      }
+      if (stats.lastSuccess) {
+        console.log(`  Last Success: ${stats.lastSuccess.startedAt}`);
+      }
+      if (stats.lastFailure) {
+        console.log(`  Last Failure: ${stats.lastFailure.startedAt}`);
+        if (stats.lastFailure.error) {
+          console.log(`    Error: ${stats.lastFailure.error}`);
+        }
+      }
+      console.log("");
+    } catch (error) {
+      logger.error("Failed to load statistics", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
   } else {
     console.log(`
 Worker - Job Runner and Scheduler
 
 Usage:
-  pnpm --filter worker dev -- daemon [--config <path>]      Start scheduler daemon
-  pnpm --filter worker dev -- job <jobId> [--org <orgId>]   Run a specific job once
-  pnpm --filter worker dev -- list                          List all registered jobs
-  pnpm --filter worker dev -- schedules [--config <path>]   Show configured schedules
+  pnpm --filter worker dev -- daemon [--config <path>]        Start scheduler daemon
+  pnpm --filter worker dev -- job <jobId> [--org <orgId>]     Run a specific job once
+  pnpm --filter worker dev -- list                            List all registered jobs
+  pnpm --filter worker dev -- schedules [--config <path>]     Show configured schedules
+  pnpm --filter worker dev -- history <jobId> [--limit N]     Show execution history for a job
+  pnpm --filter worker dev -- executions [--limit N]          Show all recent executions
+  pnpm --filter worker dev -- stats <jobId>                   Show statistics for a job
 
 Examples:
   # Start daemon with default config (scheduler.yaml)
@@ -173,6 +307,17 @@ Examples:
 
   # Show configured schedules
   pnpm --filter worker dev -- schedules
+
+  # View execution history
+  pnpm --filter worker dev -- history daily.questmaster
+  pnpm --filter worker dev -- history daily.questmaster --limit 20
+
+  # View all recent executions
+  pnpm --filter worker dev -- executions
+  pnpm --filter worker dev -- executions --status failed
+
+  # View job statistics
+  pnpm --filter worker dev -- stats daily.questmaster
     `);
     process.exit(1);
   }
