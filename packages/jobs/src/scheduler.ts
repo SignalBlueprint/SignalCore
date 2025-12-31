@@ -19,10 +19,16 @@ export interface JobSchedule {
 }
 
 /**
+ * Job runner function type
+ */
+export type JobRunner = (jobId: string, input?: Record<string, unknown>) => Promise<void>;
+
+/**
  * Scheduler configuration
  */
 export interface SchedulerConfig {
   schedules: JobSchedule[];
+  runnerFn?: JobRunner; // Optional custom job runner (for tracking, etc.)
 }
 
 /**
@@ -72,13 +78,16 @@ export class Scheduler {
       }
 
       try {
+        // Use custom runner if provided, otherwise use default runJob
+        const runner = config.runnerFn || runJob;
+
         // Create scheduled task
         const task = cron.schedule(
           schedule.schedule,
           async () => {
             logger.info(`Executing scheduled job: ${schedule.jobId}`);
             try {
-              await runJob(schedule.jobId, schedule.input);
+              await runner(schedule.jobId, schedule.input);
             } catch (error) {
               logger.error(`Scheduled job failed: ${schedule.jobId}`, {
                 error: error instanceof Error ? error.message : String(error),
