@@ -23,6 +23,7 @@ packages/          # Shared libraries
   logger/          # Centralized logging
   cache/           # Caching utilities
   config/          # Configuration management
+  auth/            # JWT-based authentication and authorization
   rbac/            # Role-based access control
   notify/          # Notification system
   integrations-github/  # GitHub integration utilities
@@ -586,6 +587,15 @@ docs/              # Documentation
 - ⚠️ Console (team data is mock/in-memory)
 
 ### Progress Since Last Update
+- ✅ **Authentication System**: Implemented comprehensive JWT-based authentication for entire suite
+  - Created `@sb/auth` package with JWT utilities, password hashing, and Express middleware
+  - Added authentication endpoints to Console (signup, login, refresh, logout, me)
+  - Created users table with RLS policies in Supabase
+  - Multi-tenant support with org_id in JWT claims
+  - Role-based access control (owner, admin, member)
+  - Service account token support for background jobs
+  - Password validation with complexity requirements
+  - Token rotation for enhanced security
 - ✅ **LeadScout**: Added scoring breakdown display to UI with visual progress bars for each scoring factor
 - ✅ **Outreach**: Migrated from in-memory to persistent storage using @sb/storage (StorageCampaignRepository)
 - ✅ **Catalog**: Implemented complete lookbook and collections UI with visual management and public gallery views
@@ -610,35 +620,64 @@ docs/              # Documentation
 ### Critical Next Steps for Suite Completeness
 
 **Priority 1 - Core Functionality:**
-1. **Catalog Payment Integration**: Integrate Stripe/PayPal for payment processing and connect to checkout UI (e-commerce foundation is complete)
-2. **Outreach Email Integration**: Integrate email service provider (SendGrid/AWS SES) for actual email sending
-3. ✅ ~~**Outreach Persistence**: Migrate Outreach from in-memory to @sb/storage~~ **COMPLETED**
-4. **SiteForge Generation Pipeline**: Implement actual website generation engine with templates
-5. ✅ ~~**LeadScout Scoring UI Integration**: Add scoring breakdown display in lead management UI~~ **COMPLETED**
-6. **LeadScout Intelligence UI Integration**: Add AI intelligence insights display (qualification, recommendations, risk factors)
+1. **Catalog Payment Integration** 🔥 HIGH PRIORITY
+   - Integrate Stripe/PayPal for payment processing
+   - Connect payment flow to existing checkout UI
+   - Add payment webhooks and order confirmation
+   - E-commerce foundation is complete, needs payment gateway
+2. **Outreach Email Integration** 🔥 HIGH PRIORITY
+   - Integrate email service provider (SendGrid/AWS SES)
+   - Implement actual email sending functionality
+   - Add email queue with rate limiting
+   - Campaign management UI is complete, needs delivery
+3. **SiteForge Generation Pipeline**
+   - Implement actual website generation engine
+   - Build AI-powered content generation
+   - Create template system
+4. **LeadScout Intelligence UI Integration**
+   - Add AI intelligence insights display (qualification, recommendations, risk factors)
+   - Backend intelligence service is complete, needs UI display
 
-**Priority 2 - Integration & Automation:**
-7. Create LeadScout → Outreach integration flow (lead to campaign)
-8. Build job monitoring dashboard in Console
-9. Add lead enrichment job for automated data enhancement (integrate with Worker)
-10. Add real-time updates (WebSocket/SSE) to Console and Questboard
+**Priority 2 - Authentication Integration:**
+5. ✅ ~~**Create @sb/auth Package**: JWT utilities, password hashing, middleware~~ **COMPLETED**
+6. ✅ ~~**Add Auth Endpoints**: Signup, login, refresh, logout, me endpoints in Console~~ **COMPLETED**
+7. ✅ ~~**Database Migration**: Create users table with RLS policies~~ **COMPLETED**
+8. **Apply Auth to All Apps** - Apply `requireAuth` middleware to all 7 apps
+   - apps/questboard
+   - apps/leadscout
+   - apps/siteforge
+   - apps/catalog
+   - apps/outreach
+   - apps/console (protected routes only)
+   - apps/worker (service tokens)
+9. **Frontend Auth Integration**
+   - Add login/signup pages to all app UIs
+   - Implement token storage and API client updates
+   - Add auth state management
+   - Build org switcher for multi-org users
+10. **Auth Testing & Polish**
+    - Test multi-tenant isolation (verify data separation)
+    - Add rate limiting to auth endpoints
+    - Implement session management UI
+    - Add password reset flow
 
-**Priority 3 - Authentication & Security:**
-11. Add authentication/authorization across all apps
-12. Implement API key management and app-to-app security
-13. Add role-based access control for multi-user support
+**Priority 3 - Integration & Automation:**
+11. Create LeadScout → Outreach integration flow (lead to campaign)
+12. Build job monitoring dashboard in Console
+13. Add lead enrichment job for automated data enhancement (integrate with Worker)
+14. Add real-time updates (WebSocket/SSE) to Console and Questboard
 
 **Priority 4 - Quality & Reliability:**
-14. ✅ ~~Add comprehensive testing for Questboard~~ **COMPLETED** - expand to other apps (unit, integration, E2E)
-15. Implement error handling and monitoring across all apps
-16. Add data backup and recovery systems
-17. Build CI/CD pipelines with automated testing
+15. ✅ ~~Add comprehensive testing for Questboard~~ **COMPLETED** - expand to other apps (unit, integration, E2E)
+16. Implement error handling and monitoring across all apps
+17. Add data backup and recovery systems
+18. Build CI/CD pipelines with automated testing
 
 **Priority 5 - User Experience:**
-18. ✅ ~~Build semantic search UI for Catalog to leverage vector embeddings~~ **COMPLETED**
-19. Improve mobile responsiveness across all UIs (Questboard, Console, Admin dashboards)
-20. Add onboarding flows and in-app documentation
-21. Implement user analytics and tracking
+19. ✅ ~~Build semantic search UI for Catalog to leverage vector embeddings~~ **COMPLETED**
+20. Improve mobile responsiveness across all UIs (Questboard, Console, Admin dashboards)
+21. Add onboarding flows and in-app documentation
+22. Implement user analytics and tracking
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
@@ -674,6 +713,7 @@ pnpm typecheck
 - [Contributing Guide](./docs/CONTRIBUTING.md) - How to contribute
 - [Architecture](./docs/ARCHITECTURE.md) - Architecture principles and guidelines
 - [Environment Variables](./docs/ENV.md) - Environment setup
+- [Authentication Strategy](./docs/AUTHENTICATION_STRATEGY.md) - JWT-based authentication architecture
 - [Jobs System](./docs/JOBS.md) - How to add and run scheduled jobs
 
 ## Architecture Principles
