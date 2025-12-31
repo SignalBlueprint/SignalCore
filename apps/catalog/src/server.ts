@@ -31,6 +31,7 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from "@sb/schemas";
+import { analyticsStorage } from "./analytics";
 
 const suiteApp = getSuiteApp("catalog");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
@@ -216,6 +217,14 @@ app.get("/api/products/:id", async (req, res) => {
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
+
+    // Track product view
+    const sessionId = req.get("X-Session-ID") || req.ip || "unknown";
+    await analyticsStorage.trackEvent(product.orgId, "product_view", { productId: product.id }, {
+      sessionId,
+      productId: product.id,
+    });
+
     res.json(product);
   } catch (error) {
     console.error("Get product error:", error);
@@ -677,7 +686,7 @@ app.post("/api/products/search", async (req, res) => {
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
 
-    // Track search analytics
+    // Track search analytics (old system - keep for backward compatibility)
     trackSearch({
       query,
       searchMode: "semantic",
@@ -689,6 +698,23 @@ app.post("/api/products/search", async (req, res) => {
         maxPrice,
       },
       orgId,
+    });
+
+    // Track search analytics (new system)
+    const sessionId = req.get("X-Session-ID") || req.ip || "unknown";
+    await analyticsStorage.trackSearch(orgId, query, "semantic", results.length, {
+      filters: { category, minPrice, maxPrice },
+      sessionId,
+    });
+
+    // Track product search event
+    await analyticsStorage.trackEvent(orgId, "product_search", {
+      query,
+      resultCount: results.length,
+      searchType: "semantic",
+      filters: { category, minPrice, maxPrice },
+    }, {
+      sessionId,
     });
 
     res.json({
@@ -811,6 +837,304 @@ app.get("/api/analytics/search", async (req, res) => {
     });
   } catch (error) {
     console.error("Get search analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// ============================================================================
+// Comprehensive Analytics Endpoints
+// ============================================================================
+
+// Get analytics overview/dashboard
+app.get("/api/analytics/overview", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 30;
+
+    // Get daily analytics
+    const dailyAnalytics = analyticsStorage.getDailyAnalytics(orgId, { daysBack });
+
+    // Calculate totals
+    const totalRevenue = dailyAnalytics.reduce((sum, d) => sum + d.totalRevenue, 0);
+    const totalOrders = dailyAnalytics.reduce((sum, d) => sum + d.totalOrders, 0);
+    const totalViews = dailyAnalytics.reduce((sum, d) => sum + d.productsViewed, 0);
+    const totalCartAdditions = dailyAnalytics.reduce((sum, d) => sum + d.cartAdditions, 0);
+
+    // Get top selling products
+    const topProducts = analyticsStorage.getTopSellingProducts(orgId, { daysBack, limit: 10 });
+
+    // Get conversion funnel
+    const conversionFunnel = analyticsStorage.getConversionFunnel(orgId, { daysBack });
+
+    // Get top customers
+    const topCustomers = analyticsStorage.getCustomerAnalytics(orgId, { limit: 10 });
+
+    // Get top search queries
+    const topSearches = analyticsStorage.getTopSearchQueries(orgId, { daysBack: 7, limit: 10 });
+
+    res.json({
+      summary: {
+        totalRevenue,
+        totalOrders,
+        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        totalViews,
+        totalCartAdditions,
+        conversionRate:
+          totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(2) : "0.00",
+      },
+      topProducts,
+      conversionFunnel,
+      topCustomers,
+      topSearches,
+      dailyTrends: dailyAnalytics.slice(0, 30), // Last 30 days
+    });
+  } catch (error) {
+    console.error("Get analytics overview error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get revenue analytics
+app.get("/api/analytics/revenue", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 30;
+
+    const dailyAnalytics = analyticsStorage.getDailyAnalytics(orgId, { daysBack });
+
+    const revenueData = dailyAnalytics.map((d) => ({
+      date: d.date,
+      revenue: d.totalRevenue,
+      orders: d.totalOrders,
+      averageOrderValue: d.averageOrderValue,
+    }));
+
+    const totalRevenue = dailyAnalytics.reduce((sum, d) => sum + d.totalRevenue, 0);
+    const totalOrders = dailyAnalytics.reduce((sum, d) => sum + d.totalOrders, 0);
+
+    res.json({
+      totalRevenue,
+      totalOrders,
+      averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+      dailyData: revenueData,
+    });
+  } catch (error) {
+    console.error("Get revenue analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get product performance analytics
+app.get("/api/analytics/products", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 30;
+    const limit = Number(req.query.limit) || 20;
+
+    const topProducts = analyticsStorage.getTopSellingProducts(orgId, { daysBack, limit });
+
+    // Enrich with product details
+    const enrichedProducts = await Promise.all(
+      topProducts.map(async (p) => {
+        const product = await storage.get<Product>("products", p.productId);
+        return {
+          ...p,
+          productName: product?.name || "Unknown Product",
+          productImage: product?.images?.[0] || null,
+          category: product?.category,
+        };
+      })
+    );
+
+    res.json({
+      topSellingProducts: enrichedProducts,
+    });
+  } catch (error) {
+    console.error("Get product analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get specific product analytics
+app.get("/api/analytics/products/:productId", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const daysBack = Number(req.query.daysBack) || 30;
+
+    const analytics = analyticsStorage.getProductAnalytics(productId, { daysBack });
+
+    // Calculate totals
+    const totalViews = analytics.reduce((sum, a) => sum + a.views, 0);
+    const totalCartAdds = analytics.reduce((sum, a) => sum + a.cartAdditions, 0);
+    const totalRevenue = analytics.reduce((sum, a) => sum + a.revenue, 0);
+    const totalSold = analytics.reduce((sum, a) => sum + a.quantitySold, 0);
+
+    res.json({
+      summary: {
+        totalViews,
+        totalCartAdds,
+        totalRevenue,
+        totalSold,
+        conversionRate: totalViews > 0 ? ((totalCartAdds / totalViews) * 100).toFixed(2) : "0.00",
+      },
+      dailyData: analytics,
+    });
+  } catch (error) {
+    console.error("Get product analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get customer analytics
+app.get("/api/analytics/customers", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const limit = Number(req.query.limit) || 50;
+
+    const customers = analyticsStorage.getCustomerAnalytics(orgId, { limit });
+
+    const totalCustomers = customers.length;
+    const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
+    const averageLifetimeValue = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
+
+    res.json({
+      summary: {
+        totalCustomers,
+        totalRevenue,
+        averageLifetimeValue,
+      },
+      topCustomers: customers,
+    });
+  } catch (error) {
+    console.error("Get customer analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get conversion funnel
+app.get("/api/analytics/funnel", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 30;
+
+    const funnel = analyticsStorage.getConversionFunnel(orgId, { daysBack });
+
+    res.json({
+      funnel,
+    });
+  } catch (error) {
+    console.error("Get conversion funnel error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Get top search queries (enhanced version)
+app.get("/api/analytics/searches", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 7;
+    const limit = Number(req.query.limit) || 20;
+
+    const topQueries = analyticsStorage.getTopSearchQueries(orgId, { daysBack, limit });
+    const searches = analyticsStorage.getSearchAnalytics(orgId, { daysBack });
+
+    const totalSearches = searches.length;
+    const semanticSearches = searches.filter((s) => s.searchType === "semantic").length;
+    const searchesWithResults = searches.filter((s) => s.resultsCount > 0).length;
+
+    res.json({
+      summary: {
+        totalSearches,
+        semanticSearches,
+        textSearches: totalSearches - semanticSearches,
+        searchesWithResults,
+        searchSuccessRate:
+          totalSearches > 0 ? ((searchesWithResults / totalSearches) * 100).toFixed(2) : "0.00",
+      },
+      topQueries,
+    });
+  } catch (error) {
+    console.error("Get search analytics error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Track event endpoint (for manual event tracking)
+app.post("/api/analytics/track", async (req, res) => {
+  try {
+    const {
+      orgId = "default-org",
+      eventType,
+      eventData = {},
+      sessionId,
+      productId,
+      orderId,
+      metadata = {},
+    } = req.body;
+
+    if (!eventType) {
+      return res.status(400).json({ error: "Event type is required" });
+    }
+
+    const event = await analyticsStorage.trackEvent(orgId, eventType, eventData, {
+      sessionId,
+      productId,
+      orderId,
+      metadata,
+    });
+
+    res.json({ success: true, event });
+  } catch (error) {
+    console.error("Track event error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Export analytics data
+app.get("/api/analytics/export", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+    const daysBack = Number(req.query.daysBack) || 30;
+    const type = (req.query.type as string) || "overview"; // overview, events, daily, products, customers
+
+    let csvData = "";
+
+    switch (type) {
+      case "daily":
+        const dailyAnalytics = analyticsStorage.getDailyAnalytics(orgId, { daysBack });
+        csvData = "Date,Revenue,Orders,Avg Order Value,Views,Cart Additions,Conversion Rate\n";
+        dailyAnalytics.forEach((d) => {
+          csvData += `${d.date},${d.totalRevenue},${d.totalOrders},${d.averageOrderValue},${d.productsViewed},${d.cartAdditions},${d.conversionRate}\n`;
+        });
+        break;
+
+      case "products":
+        const topProducts = analyticsStorage.getTopSellingProducts(orgId, { daysBack });
+        csvData = "Product ID,Revenue,Quantity Sold,Times Ordered\n";
+        for (const p of topProducts) {
+          const product = await storage.get<Product>("products", p.productId);
+          csvData += `"${product?.name || p.productId}",${p.totalRevenue},${p.quantitySold},${p.timesOrdered}\n`;
+        }
+        break;
+
+      case "customers":
+        const customers = analyticsStorage.getCustomerAnalytics(orgId);
+        csvData =
+          "Email,Total Orders,Total Spent,Avg Order Value,Days Since Last Order\n";
+        customers.forEach((c) => {
+          csvData += `${c.email},${c.totalOrders},${c.totalSpent},${c.averageOrderValue},${c.daysSinceLastOrder || "N/A"}\n`;
+        });
+        break;
+
+      default:
+        return res.status(400).json({ error: "Invalid export type" });
+    }
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="analytics-${type}-${orgId}.csv"`);
+    res.send(csvData);
+  } catch (error) {
+    console.error("Export analytics error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
@@ -947,6 +1271,17 @@ app.post("/api/cart/:sessionId/items", async (req, res) => {
     cart.updatedAt = new Date().toISOString();
     await storage.upsert("carts", cart);
 
+    // Track cart add event
+    await analyticsStorage.trackEvent(product.orgId, "cart_add", {
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      quantity,
+    }, {
+      sessionId,
+      productId: product.id,
+    });
+
     res.json(cart);
   } catch (error) {
     console.error("Add to cart error:", error);
@@ -1006,9 +1341,24 @@ app.delete("/api/cart/:sessionId/items/:productId", async (req, res) => {
       return res.status(404).json({ error: "Cart not found" });
     }
 
+    // Find the item being removed for tracking
+    const removedItem = cart.items.find((item) => item.productId === productId);
+
     cart.items = cart.items.filter((item) => item.productId !== productId);
     cart.updatedAt = new Date().toISOString();
     await storage.upsert("carts", cart);
+
+    // Track cart removal event
+    if (removedItem) {
+      await analyticsStorage.trackEvent(cart.orgId, "cart_remove", {
+        productId,
+        productName: removedItem.productName,
+        quantity: removedItem.quantity,
+      }, {
+        sessionId,
+        productId,
+      });
+    }
 
     res.json(cart);
   } catch (error) {
@@ -1138,6 +1488,36 @@ app.post("/api/orders", async (req, res) => {
 
     // Save order
     await storage.upsert("orders", order);
+
+    // Track checkout start
+    await analyticsStorage.trackEvent(cart.orgId, "checkout_start", {
+      orderNumber: order.orderNumber,
+      total: pricing.total,
+      itemCount: orderItems.length,
+    }, {
+      sessionId,
+      orderId: order.id,
+    });
+
+    // Track order placed
+    await analyticsStorage.trackEvent(cart.orgId, "order_placed", {
+      orderNumber: order.orderNumber,
+      total: pricing.total,
+      itemCount: orderItems.length,
+      customer: {
+        email: customer.email,
+        name: customer.name,
+      },
+      items: orderItems.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    }, {
+      sessionId,
+      orderId: order.id,
+    });
 
     // Update inventory
     for (const item of orderItems) {

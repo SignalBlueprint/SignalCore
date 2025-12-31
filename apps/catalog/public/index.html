@@ -749,6 +749,9 @@
       <button class="nav-tab" onclick="switchTab('lookbooks')">
         📚 Lookbooks
       </button>
+      <button class="nav-tab" onclick="switchTab('analytics')">
+        📊 Analytics
+      </button>
     </div>
 
     <!-- Stats -->
@@ -867,6 +870,100 @@
       </div>
     </div>
     <!-- End Lookbooks Section -->
+
+    <!-- Analytics Section -->
+    <div id="analyticsSection" style="display: none;">
+      <!-- Analytics Stats -->
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Total Revenue</div>
+          <div class="stat-value" id="totalRevenue">$0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total Orders</div>
+          <div class="stat-value" id="totalOrders">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Avg Order Value</div>
+          <div class="stat-value" id="avgOrderValue">$0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Conversion Rate</div>
+          <div class="stat-value" id="conversionRate">0%</div>
+        </div>
+      </div>
+
+      <!-- Time Range Selector -->
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <label for="analyticsTimeRange" style="font-weight: 600; margin-right: 10px;">Time Range:</label>
+            <select id="analyticsTimeRange" onchange="loadAnalytics()" style="padding: 8px; border-radius: 6px; border: 1px solid #d1d5db;">
+              <option value="7">Last 7 Days</option>
+              <option value="30" selected>Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+            </select>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn" onclick="exportAnalytics('daily')" title="Export daily analytics">
+              📊 Export Daily
+            </button>
+            <button class="btn" onclick="exportAnalytics('products')" title="Export product analytics">
+              📦 Export Products
+            </button>
+            <button class="btn" onclick="exportAnalytics('customers')" title="Export customer analytics">
+              👥 Export Customers
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revenue Trends -->
+      <div class="card">
+        <h2 style="margin-bottom: 20px; font-size: 20px; color: #1f2937;">📈 Revenue Trends</h2>
+        <div id="revenueTrends" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px;">
+          <div class="loading-spinner">⏳</div>
+          <div style="margin-top: 15px;">Loading revenue data...</div>
+        </div>
+      </div>
+
+      <!-- Conversion Funnel -->
+      <div class="card">
+        <h2 style="margin-bottom: 20px; font-size: 20px; color: #1f2937;">🔄 Conversion Funnel</h2>
+        <div id="conversionFunnel" style="display: flex; flex-direction: column; gap: 15px;">
+          <div class="loading-spinner">⏳</div>
+          <div style="margin-top: 15px;">Loading funnel data...</div>
+        </div>
+      </div>
+
+      <!-- Top Selling Products -->
+      <div class="card">
+        <h2 style="margin-bottom: 20px; font-size: 20px; color: #1f2937;">🏆 Top Selling Products</h2>
+        <div id="topProducts">
+          <div class="loading-spinner">⏳</div>
+          <div style="margin-top: 15px;">Loading product data...</div>
+        </div>
+      </div>
+
+      <!-- Top Customers -->
+      <div class="card">
+        <h2 style="margin-bottom: 20px; font-size: 20px; color: #1f2937;">👥 Top Customers</h2>
+        <div id="topCustomers">
+          <div class="loading-spinner">⏳</div>
+          <div style="margin-top: 15px;">Loading customer data...</div>
+        </div>
+      </div>
+
+      <!-- Search Analytics -->
+      <div class="card">
+        <h2 style="margin-bottom: 20px; font-size: 20px; color: #1f2937;">🔍 Top Search Queries</h2>
+        <div id="topSearches">
+          <div class="loading-spinner">⏳</div>
+          <div style="margin-top: 15px;">Loading search data...</div>
+        </div>
+      </div>
+    </div>
+    <!-- End Analytics Section -->
   </div>
 
   <!-- Product Modal -->

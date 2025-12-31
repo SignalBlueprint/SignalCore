@@ -726,26 +726,42 @@ let allProductsForSelector = [];
 function switchTab(tab) {
   const productsTab = document.querySelector('.nav-tab:nth-child(1)');
   const lookbooksTab = document.querySelector('.nav-tab:nth-child(2)');
+  const analyticsTab = document.querySelector('.nav-tab:nth-child(3)');
   const productsSection = document.getElementById('productsSection');
   const lookbooksSection = document.getElementById('lookbooksSection');
+  const analyticsSection = document.getElementById('analyticsSection');
   const productsStats = document.getElementById('productsStats');
   const lookbooksStats = document.getElementById('lookbooksStats');
 
   if (tab === 'products') {
     productsTab.classList.add('active');
     lookbooksTab.classList.remove('active');
+    analyticsTab.classList.remove('active');
     productsSection.style.display = 'block';
     lookbooksSection.style.display = 'none';
+    analyticsSection.style.display = 'none';
     productsStats.style.display = 'flex';
     lookbooksStats.style.display = 'none';
   } else if (tab === 'lookbooks') {
     productsTab.classList.remove('active');
     lookbooksTab.classList.add('active');
+    analyticsTab.classList.remove('active');
     productsSection.style.display = 'none';
     lookbooksSection.style.display = 'block';
+    analyticsSection.style.display = 'none';
     productsStats.style.display = 'none';
     lookbooksStats.style.display = 'flex';
     loadLookbooks();
+  } else if (tab === 'analytics') {
+    productsTab.classList.remove('active');
+    lookbooksTab.classList.remove('active');
+    analyticsTab.classList.add('active');
+    productsSection.style.display = 'none';
+    lookbooksSection.style.display = 'none';
+    analyticsSection.style.display = 'block';
+    productsStats.style.display = 'none';
+    lookbooksStats.style.display = 'none';
+    loadAnalytics();
   }
 }
 
@@ -1028,3 +1044,240 @@ document.getElementById('lookbookSearchInput')?.addEventListener('input', (e) =>
 
   displayLookbooks(filtered);
 });
+
+// ============================================================================
+// Analytics Functions
+// ============================================================================
+
+// Load analytics data
+async function loadAnalytics() {
+  const daysBack = parseInt(document.getElementById('analyticsTimeRange')?.value || '30');
+
+  try {
+    // Load analytics overview
+    const response = await fetch(`/api/analytics/overview?orgId=${currentOrgId}&daysBack=${daysBack}`);
+    if (!response.ok) throw new Error('Failed to load analytics');
+
+    const data = await response.json();
+
+    // Update summary stats
+    document.getElementById('totalRevenue').textContent = `$${data.summary.totalRevenue.toFixed(2)}`;
+    document.getElementById('totalOrders').textContent = data.summary.totalOrders;
+    document.getElementById('avgOrderValue').textContent = `$${data.summary.averageOrderValue.toFixed(2)}`;
+    document.getElementById('conversionRate').textContent = `${data.summary.conversionRate}%`;
+
+    // Load individual sections
+    displayRevenueTrends(data.dailyTrends);
+    displayConversionFunnel(data.conversionFunnel);
+    displayTopProducts(data.topProducts);
+    displayTopCustomers(data.topCustomers);
+    displayTopSearches(data.topSearches);
+  } catch (error) {
+    console.error('Error loading analytics:', error);
+    showError('Failed to load analytics data');
+  }
+}
+
+// Display revenue trends
+function displayRevenueTrends(dailyData) {
+  const container = document.getElementById('revenueTrends');
+
+  if (!dailyData || dailyData.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No revenue data available</div>';
+    return;
+  }
+
+  // Reverse to show chronologically (oldest first)
+  const sorted = [...dailyData].reverse();
+
+  // Create simple bar chart visualization
+  const maxRevenue = Math.max(...sorted.map(d => d.totalRevenue), 1);
+
+  container.innerHTML = sorted.map(d => {
+    const heightPercent = (d.totalRevenue / maxRevenue) * 100;
+    return `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+        <div style="font-size: 12px; font-weight: 600; color: #1f2937;">$${d.totalRevenue.toFixed(0)}</div>
+        <div style="width: 100%; height: 100px; display: flex; align-items: flex-end;">
+          <div style="width: 100%; height: ${heightPercent}%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; min-height: 2px;"></div>
+        </div>
+        <div style="font-size: 11px; color: #6b7280; white-space: nowrap;">${new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Display conversion funnel
+function displayConversionFunnel(funnel) {
+  const container = document.getElementById('conversionFunnel');
+
+  if (!funnel || funnel.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No funnel data available</div>';
+    return;
+  }
+
+  container.innerHTML = funnel.map((stage, index) => {
+    const width = stage.conversionRate;
+    return `
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: 600; color: #1f2937;">${stage.stage}</div>
+          <div style="color: #6b7280;">${stage.count.toLocaleString()} (${stage.conversionRate.toFixed(1)}%)</div>
+        </div>
+        <div style="width: 100%; height: 30px; background: #f3f4f6; border-radius: 6px; overflow: hidden;">
+          <div style="width: ${width}%; height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; padding: 0 10px; color: white; font-size: 12px; font-weight: 600;">
+            ${stage.conversionRate.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Display top products
+function displayTopProducts(products) {
+  const container = document.getElementById('topProducts');
+
+  if (!products || products.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No product data available</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: 2px solid #e5e7eb;">
+          <th style="text-align: left; padding: 12px; color: #6b7280; font-weight: 600;">Product</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Revenue</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Qty Sold</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Orders</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${products.map((p, index) => `
+          <tr style="border-bottom: 1px solid #f3f4f6;">
+            <td style="padding: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-weight: 600; color: #667eea; min-width: 20px;">#${index + 1}</div>
+                ${p.productImage ? `<img src="${p.productImage.url || p.productImage.thumbnail}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">` : ''}
+                <div>
+                  <div style="font-weight: 500; color: #1f2937;">${p.productName}</div>
+                  ${p.category ? `<div style="font-size: 12px; color: #6b7280;">${p.category}</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td style="text-align: right; padding: 12px; font-weight: 600; color: #059669;">$${p.totalRevenue.toFixed(2)}</td>
+            <td style="text-align: right; padding: 12px; color: #1f2937;">${p.quantitySold}</td>
+            <td style="text-align: right; padding: 12px; color: #1f2937;">${p.timesOrdered}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// Display top customers
+function displayTopCustomers(customers) {
+  const container = document.getElementById('topCustomers');
+
+  if (!customers || customers.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No customer data available</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: 2px solid #e5e7eb;">
+          <th style="text-align: left; padding: 12px; color: #6b7280; font-weight: 600;">Customer</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Total Spent</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Orders</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Avg Order</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${customers.map((c, index) => `
+          <tr style="border-bottom: 1px solid #f3f4f6;">
+            <td style="padding: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-weight: 600; color: #667eea; min-width: 20px;">#${index + 1}</div>
+                <div>
+                  <div style="font-weight: 500; color: #1f2937;">${c.email}</div>
+                  ${c.daysSinceLastOrder !== undefined ? `<div style="font-size: 12px; color: #6b7280;">Last order: ${c.daysSinceLastOrder} days ago</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td style="text-align: right; padding: 12px; font-weight: 600; color: #059669;">$${c.totalSpent.toFixed(2)}</td>
+            <td style="text-align: right; padding: 12px; color: #1f2937;">${c.totalOrders}</td>
+            <td style="text-align: right; padding: 12px; color: #1f2937;">$${c.averageOrderValue.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// Display top searches
+function displayTopSearches(searches) {
+  const container = document.getElementById('topSearches');
+
+  if (!searches || searches.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No search data available</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: 2px solid #e5e7eb;">
+          <th style="text-align: left; padding: 12px; color: #6b7280; font-weight: 600;">Search Query</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Count</th>
+          <th style="text-align: right; padding: 12px; color: #6b7280; font-weight: 600;">Avg Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${searches.map((s, index) => `
+          <tr style="border-bottom: 1px solid #f3f4f6;">
+            <td style="padding: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-weight: 600; color: #667eea; min-width: 20px;">#${index + 1}</div>
+                <div style="font-weight: 500; color: #1f2937;">${s.query}</div>
+              </div>
+            </td>
+            <td style="text-align: right; padding: 12px; font-weight: 600; color: #1f2937;">${s.count}</td>
+            <td style="text-align: right; padding: 12px; color: #6b7280;">${s.avgResults.toFixed(1)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// Export analytics data
+async function exportAnalytics(type) {
+  const daysBack = parseInt(document.getElementById('analyticsTimeRange')?.value || '30');
+  const url = `/api/analytics/export?orgId=${currentOrgId}&daysBack=${daysBack}&type=${type}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Export failed');
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `analytics-${type}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Failed to export analytics data');
+  }
+}
+
+function showError(message) {
+  // Simple error display - could be enhanced with a modal
+  alert(message);
+}
