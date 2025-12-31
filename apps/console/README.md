@@ -63,6 +63,16 @@ Direct integration with Questboard:
 - **Quest status** - See quest progress and assignments
 - **Quick navigation** - Jump to Questboard for detailed quest management
 
+### Authentication System ✨ NEW
+Complete JWT-based authentication for the entire suite:
+- **User signup** - Create new user accounts with email/password
+- **User login** - Authenticate and receive JWT access tokens
+- **Token refresh** - Automatic token rotation for security
+- **Multi-org support** - Users can belong to multiple organizations
+- **Role-based access** - Owner, admin, and member roles
+- **Password validation** - Complexity requirements and secure hashing
+- **Service accounts** - Token support for background jobs
+
 ## Quick Start
 
 ```bash
@@ -95,6 +105,13 @@ The console exposes several API endpoints for data access:
 - `GET /health` - Console health check
 - `GET /api/dashboard/stats` - Quick stats for dashboard (team size, apps online, recent events, AI calls)
 
+### Authentication ✨ NEW
+- `POST /api/auth/signup` - Create new user account
+- `POST /api/auth/login` - Authenticate and get JWT tokens
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout (client-side token discard)
+- `GET /api/auth/me` - Get current authenticated user info
+
 ### App Management
 - `GET /api/apps` - Suite registry with all apps and metadata
 - `GET /api/health` - Health checks for all suite apps
@@ -119,6 +136,8 @@ The console exposes several API endpoints for data access:
 
 ### ✅ Production-Ready Features
 - Complete Express.js API with frontend SPA
+- **JWT-based authentication system** (signup, login, refresh, logout)
+- **Multi-org support** with role-based access control
 - Real-time health checks for all suite apps
 - Event log aggregation (last 200 events)
 - AI telemetry tracking (calls, costs, cache hits)
@@ -128,57 +147,69 @@ The console exposes several API endpoints for data access:
 - Responsive web interface with navigation
 
 ### ⚠️ Known Limitations
-- Team data is mock/in-memory (not persistent)
-- No authentication/authorization yet
+- Team data is mock/in-memory (not persistent) - migration to @sb/storage needed
+- Authentication not integrated into frontend UI yet (backend only)
 - No real-time WebSocket updates (manual refresh needed)
 - No admin user management interface
 
 ### Next Steps
 
-1. **Data Persistence**
-   - Migrate team data from mock to persistent storage (`@sb/storage`)
-   - Add settings/configuration persistence
-   - Implement user preferences storage
-   - Add audit log storage for admin actions
+**Priority 1 (Next 2 Weeks):**
 
-2. **Authentication & Authorization**
-   - Implement admin authentication system
-   - Add role-based access control (super admin, admin, viewer)
-   - Create API key management for apps
-   - Add session management and security
+1. **Authentication Frontend Integration** 🔥
+   - Add login/signup UI to Console frontend
+   - Implement JWT token storage and refresh logic
+   - Add authentication state management
+   - Build protected route components
+   - Create user profile dropdown with logout
 
-3. **Real-time Monitoring**
+2. **Worker Job Monitoring Dashboard** 🔥
+   - Build job execution history UI
+   - Add real-time job status indicators
+   - Show job success/failure metrics
+   - Display job run summaries from Questboard
+   - Add job execution timeline visualization
+
+3. **Team Data Persistence**
+   - Migrate team data from in-memory to `@sb/storage`
+   - Persist Working Genius profiles
+   - Add team member CRUD operations
+   - Store user preferences
+
+**Priority 2 (Next Month):**
+
+4. **Real-time Updates**
    - Add WebSocket/SSE for live updates
-   - Build real-time app status monitoring
-   - Create live event stream viewer
-   - Add real-time metrics dashboard (CPU, memory, requests)
+   - Real-time app status monitoring
+   - Live event stream viewer
+   - Push notifications for critical events
 
-4. **Notification System**
+5. **Unified Analytics Dashboard**
+   - Aggregate metrics from all suite apps
+   - Build cross-app analytics views
+   - Add suite-wide KPI tracking
+   - Create executive summary dashboard
+   - Track AI costs and usage trends
+
+6. **Notification System**
    - Build notification center with alerts
    - Add email notifications for critical events
-   - Implement Slack/Discord webhook integrations
-   - Create configurable alert rules (app down, high AI costs, errors)
+   - Implement Slack/Discord webhooks
+   - Create alert rules (app down, errors, high costs)
 
-5. **Team Management**
-   - Build complete team member CRUD interface
-   - Add team member invitation system
+**Priority 3 (Next Quarter):**
+
+7. **Enhanced Team Management**
+   - Build team member invitation system
    - Implement Working Genius assessment flow
-   - Add team analytics and insights
-   - Create team calendar and availability
+   - Add team analytics and capacity insights
+   - Create team calendar and availability tracking
 
-6. **Suite Orchestration**
-   - Add ability to start/stop apps from Console
-   - Build deployment management interface
-   - Add environment variable management
-   - Create suite-wide configuration panel
-   - Implement backup and restore functionality
-
-7. **Reporting & Analytics**
-   - Build comprehensive analytics dashboard
-   - Add cost tracking and forecasting
-   - Create usage reports per app
-   - Add data export (CSV, JSON, PDF reports)
-   - Build custom report builder
+8. **Suite Orchestration**
+   - Monitor app deployment status
+   - Environment configuration management
+   - Suite-wide settings panel
+   - Backup and restore functionality
 
 ## Integration with Suite
 

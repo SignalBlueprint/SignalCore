@@ -194,40 +194,59 @@ curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
 
 ### Next Steps (Roadmap v2.0)
 
-1. **Template Variations** (High Priority)
-   - Add 3-5 different visual templates (modern, classic, minimal, bold)
-   - Industry-specific templates (SaaS, E-commerce, Portfolio, Agency)
-   - Template customization engine
-   - Theme system (colors, fonts, layouts)
+**Priority 1 (Next 2 Weeks):** 🔥
 
-2. **Visual Builder** (High Priority)
-   - Drag-and-drop page builder UI
-   - Component palette with live preview
-   - Real-time editing with instant preview
+1. **Template Variations**
+   - Add 2-3 different visual templates (modern, minimal, bold)
+   - Implement template selection in UI
+   - Add basic color scheme customization
+   - Industry-specific styling (SaaS, E-commerce, Portfolio)
+   - **Goal:** Give users visual template choices
+
+**Priority 2 (Next Month):**
+
+2. **Visual Customization**
+   - Add color picker for theme colors
+   - Implement font selection (3-5 options)
+   - Allow section reordering
+   - Add image upload for hero/background
+   - Basic text editing for generated content
+   - **Goal:** Allow basic visual customization
+
+3. **Multi-page Generation**
+   - Add About page generation
+   - Add Contact page with form
+   - Add simple blog/news section
+   - Generate navigation between pages
+   - **Goal:** Complete multi-page websites
+
+**Priority 3 (Next Quarter):**
+
+4. **Visual Builder**
+   - Drag-and-drop component builder
+   - Live preview with instant editing
+   - Component palette
    - Section customization (text, images, styles)
    - Undo/redo functionality
+   - **Goal:** WYSIWYG editing experience
 
-3. **Deployment & Hosting**
+5. **Deployment Integration**
    - One-click Vercel deployment
    - Netlify integration
-   - Static file hosting (S3, Cloudflare Pages)
-   - Preview/staging environments
-   - Custom domain support with SSL
+   - Static file export (zip download)
+   - Custom domain support
+   - **Goal:** Easy deployment and hosting
 
-4. **Asset Management**
-   - Image upload and optimization
+**Priority 4 (Future):**
+
+6. **Asset Management & Advanced Features**
    - Stock photo integration (Unsplash, Pexels)
-   - Favicon and logo management
-   - Media library with CDN
+   - Image upload and optimization
    - AI image generation (DALL-E integration)
-
-5. **Advanced Features**
-   - Multi-page site generation (landing + about + contact + blog)
-   - Blog/CMS functionality
-   - Contact form generation with email integration
+   - Contact form with email integration
    - Analytics (Google Analytics, Plausible)
-   - A/B testing capabilities
-   - Performance optimization (lazy loading, minification, image optimization)
+   - SEO optimization tools
+   - Performance optimization
 
 ## Integration with Suite
 

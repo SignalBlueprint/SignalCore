@@ -166,48 +166,57 @@ Returns AI-powered insights about the lead including company size, industry, qua
 
 ### Next Steps
 
+**Priority 1 (Next 2 Weeks):** 🔥
+
 1. **AI Intelligence UI Integration**
-   - Show AI intelligence insights in lead detail view
-   - Add "Analyze Lead" button to trigger intelligence analysis
-   - Display qualification level badges and visual indicators
-   - Show recommended actions and risk factors in lead cards
-   - Add technology stack and company insights display
+   - Add "Analyze Lead" button to lead detail view
+   - Display AI intelligence insights panel
+   - Show qualification level badges (high/medium/low)
+   - Display recommended actions and risk factors
+   - Show technology stack and company insights
+   - Add loading states and error handling
+   - **Goal:** Make AI intelligence visible and actionable
 
-2. **Lead Enrichment**
-   - Integrate email finding APIs (Hunter.io, Apollo)
-   - Add company data enrichment (Clearbit, FullContact)
-   - Implement social profile discovery
-   - Add contact information validation
-   - Build automated enrichment workflow with scheduled jobs
+**Priority 2 (Next Month):**
 
-3. **Data Import/Export**
-   - Implement CSV import with field mapping
-   - Add CSV export with filters
-   - Create bulk upload from URLs/lists
-   - Add integration with LinkedIn Sales Navigator
-   - Build import from CRM systems (HubSpot, Salesforce)
+2. **Outreach Integration**
+   - Add "Send to Campaign" button in lead detail view
+   - Connect to Outreach app API
+   - Build lead list selection and export to campaigns
+   - Create campaign targeting based on lead segments
+   - Track campaign performance back to leads
+   - **Goal:** Complete sales funnel from discovery to outreach
 
-4. **Web Scraping & Discovery**
-   - Build web scraping engine for lead discovery
-   - Add Google/Bing search integration for prospecting
-   - Implement competitor analysis scraping
-   - Create custom scraping rules builder
-   - Add LinkedIn company discovery
+3. **Lead Enrichment Automation**
+   - Integrate email finding API (Hunter.io or Apollo)
+   - Add company data enrichment (Clearbit or similar)
+   - Implement automated enrichment worker job
+   - Add manual "Enrich Lead" button
+   - Show enrichment status and last updated
+   - **Goal:** Automatic lead data enhancement
 
-5. **Campaign Integration**
-   - Connect to Outreach app for campaign targeting
-   - Add "Send to Campaign" functionality
-   - Build lead list exports for outreach
-   - Create segmentation for targeted campaigns
-   - Add campaign performance tracking back to leads
+**Priority 3 (Next Quarter):**
 
-6. **Advanced Features**
-   - Build lead deduplication system
-   - Add lead lifecycle tracking (new → qualified → customer)
-   - Implement lead assignment to team members
-   - Create lead activity timeline
-   - Add notes and collaboration on leads
-   - Build lead recommendations engine
+4. **Data Import/Export**
+   - CSV import with field mapping
+   - CSV export with filters
+   - Bulk upload from URLs/lists
+   - API integration for CRM sync
+   - **Goal:** Easy data migration and integration
+
+5. **Advanced Features**
+   - Lead deduplication system
+   - Lead lifecycle tracking (new → qualified → customer)
+   - Lead assignment to team members
+   - Activity timeline and notes
+   - Lead scoring refinements based on conversion data
+   - **Goal:** Complete lead management workflow
+
+**Future Considerations:**
+- Web scraping engine for automated lead discovery
+- LinkedIn Sales Navigator integration
+- Competitor analysis and market research tools
+- Custom scraping rules builder
 
 ## Integration with Suite
 

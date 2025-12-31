@@ -532,30 +532,34 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 ## Success Metrics & Milestones
 
-### 30-Day Milestone (End of Week 4)
-- ✅ Catalog accepts real payments (Stripe + PayPal)
-- ✅ Outreach sends real email campaigns
-- ✅ All apps have authentication enforced (backend + frontend)
-- ✅ LeadScout shows AI intelligence insights
-- ✅ SiteForge multiple template variations
+### 30-Day Milestone (January 2026)
+- ✅ Catalog accepts real payments (Stripe)
+- ✅ Outreach sends real email campaigns (SendGrid/AWS SES)
+- ✅ Authentication enforced on all app frontends
+- ✅ LeadScout displays AI intelligence in UI
+- ✅ SiteForge offers 3+ template variations
+- ✅ Console shows Worker job monitoring dashboard
+- ✅ Testing coverage expanded to Catalog and LeadScout (50%+ coverage)
 
-### 60-Day Milestone (End of Week 8)
-- 🎉 **COMPLETED**: SiteForge generates complete websites with AI-powered content
-- ✅ LeadScout → Outreach integration live
-- ✅ Worker job monitoring dashboard complete
-- ✅ Real-time updates in Console and Questboard
-- ✅ Test coverage > 50% across all apps
-- ✅ PWA enabled for 3+ apps
+### 60-Day Milestone (February 2026)
+- ✅ LeadScout → Outreach integration (export leads to campaigns)
+- ✅ Lead enrichment automation with scheduled jobs
+- ✅ Real-time updates via WebSocket/SSE in Console
+- ✅ Test coverage > 60% across core apps (Questboard, Catalog, LeadScout)
+- ✅ PWA enabled for Catalog, Console, and LeadScout
+- ✅ Error monitoring and alerting (Sentry integration)
+- ✅ Data backup and recovery system implemented
 
-### 90-Day Milestone (End of Week 12)
-- ✅ All 7 functional apps production-ready
-- ✅ Test coverage > 70% with CI/CD
-- ✅ Error monitoring and alerting active
-- ✅ Data backup and recovery tested
-- ✅ All apps have PWA support
-- ✅ Dark mode across entire suite
-- ✅ Onboarding flows and documentation complete
-- ✅ API platform documented and accessible
+### 90-Day Milestone (March 2026)
+- ✅ All 7 functional apps production-ready with payments/email
+- ✅ Test coverage > 70% with automated CI/CD pipeline
+- ✅ All apps have PWA support with offline capabilities
+- ✅ Dark mode implemented across entire suite
+- ✅ Comprehensive API documentation with OpenAPI/Swagger
+- ✅ SiteForge visual builder with drag-and-drop customization
+- ✅ Catalog product variants (sizes, colors, options)
+- ✅ Unified analytics dashboard in Console
+- ✅ Onboarding flows and user documentation complete
 
 ### Key Performance Indicators (KPIs)
 - **Reliability**: 99.5% uptime for all apps
@@ -567,26 +571,49 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 ---
 
-## Immediate Actions (This Week)
+## Immediate Actions (Next 2 Weeks)
 
-1. **Start Catalog Payment Integration** (Day 1-2)
-   - Set up Stripe account and API keys
-   - Begin Stripe SDK integration
+### Week 1: Production Blockers
 
-2. **Start Outreach Email Service Selection** (Day 1-2)
-   - Evaluate SendGrid vs AWS SES
-   - Set up trial account and test sending
+1. **Catalog Payment Integration** 🔥 HIGHEST PRIORITY
+   - Integrate Stripe for payment processing
+   - Add payment confirmation and webhook handling
+   - Test end-to-end checkout flow with real payments
+   - **Goal:** Enable real customer transactions
 
-3. **Plan SiteForge Generation Architecture** (Day 3)
-   - Design generation pipeline
-   - Choose AI models and prompts
-   - Sketch template structure
+2. **Outreach Email Service Integration** 🔥 HIGHEST PRIORITY
+   - Choose email provider (SendGrid/AWS SES/Postmark)
+   - Implement email sending functionality
+   - Add delivery tracking and bounce handling
+   - **Goal:** Enable real email campaign execution
 
-4. **Add LeadScout Intelligence UI** (Day 4-5)
-   - Create intelligence display components
-   - Wire up to existing backend API
+3. **Authentication Frontend Rollout** 🔥 HIGH PRIORITY
+   - Add login/signup UI to Console
+   - Integrate auth into LeadScout, SiteForge, Outreach frontends
+   - Implement JWT token storage and refresh
+   - **Goal:** Secure all app frontends with authentication
 
-**By end of this week:** 2-3 critical gaps closed, clear momentum toward production readiness
+### Week 2: Feature Completion
+
+4. **LeadScout AI Intelligence UI**
+   - Display AI insights in lead detail view
+   - Add "Analyze Lead" button
+   - Show qualification badges and recommendations
+   - **Goal:** Expose AI intelligence to users
+
+5. **SiteForge Template Variations**
+   - Add 2-3 additional visual templates
+   - Implement template selection UI
+   - Allow basic customization (colors, fonts)
+   - **Goal:** Give users visual template choices
+
+6. **Console Job Monitoring Dashboard**
+   - Build Worker job execution history UI
+   - Add real-time job status indicators
+   - Show job success/failure metrics
+   - **Goal:** Visibility into automated processes
+
+**By end of 2 weeks:** 3 critical production blockers resolved, 3 major features completed
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
