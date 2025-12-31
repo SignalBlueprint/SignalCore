@@ -2379,13 +2379,79 @@ app.get("/api/debug", async (req, res) => {
   }
 });
 
+// Jobs monitoring endpoint
+app.get("/api/jobs", async (req, res) => {
+  try {
+    const orgId = (req.query.orgId as string) || "default-org";
+
+    // Get all job run summaries (we'll get more to calculate statistics)
+    const allSummaries = await getJobRunSummaries(orgId, 100);
+
+    // Calculate statistics per job type
+    const jobStatsMap = new Map<string, {
+      jobId: string;
+      totalRuns: number;
+      successCount: number;
+      failedCount: number;
+      partialCount: number;
+      successRate: number;
+      avgDuration: number;
+      lastRun?: typeof allSummaries[0];
+    }>();
+
+    for (const summary of allSummaries) {
+      const stats = jobStatsMap.get(summary.jobId) || {
+        jobId: summary.jobId,
+        totalRuns: 0,
+        successCount: 0,
+        failedCount: 0,
+        partialCount: 0,
+        successRate: 0,
+        avgDuration: 0,
+        lastRun: undefined,
+      };
+
+      stats.totalRuns++;
+
+      if (summary.status === 'success') stats.successCount++;
+      else if (summary.status === 'failed') stats.failedCount++;
+      else if (summary.status === 'partial') stats.partialCount++;
+
+      // Calculate duration
+      const duration = (new Date(summary.finishedAt).getTime() - new Date(summary.startedAt).getTime()) / 1000;
+      stats.avgDuration = (stats.avgDuration * (stats.totalRuns - 1) + duration) / stats.totalRuns;
+
+      // Update last run
+      if (!stats.lastRun || new Date(summary.finishedAt) > new Date(stats.lastRun.finishedAt)) {
+        stats.lastRun = summary;
+      }
+
+      jobStatsMap.set(summary.jobId, stats);
+    }
+
+    // Calculate success rates
+    const statistics = Array.from(jobStatsMap.values()).map(stats => ({
+      ...stats,
+      successRate: stats.totalRuns > 0 ? (stats.successCount / stats.totalRuns) * 100 : 0,
+    }));
+
+    res.json({
+      summaries: allSummaries,
+      statistics,
+    });
+  } catch (error) {
+    console.error("Get jobs data error:", error);
+    res.status(500).json({ error: "Failed to get jobs data" });
+  }
+});
+
 // Reset storage to Supabase endpoint
 app.post("/api/debug/reset-storage", async (req, res) => {
   try {
     const { resetToSupabase } = await import("@sb/storage");
     resetToSupabase();
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: "Storage reset to Supabase mode. Restart server for changes to take effect.",
       storageInfo: getStorageInfo()
     });

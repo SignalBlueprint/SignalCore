@@ -110,6 +110,9 @@ export default function Nav() {
         <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/analytics')}>
           📈 Analytics
         </Link>
+        <Link to={`/jobs${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/jobs')}>
+          ⚙️ Jobs
+        </Link>
         <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/team')}>
           👥 Team
         </Link>
@@ -131,6 +134,9 @@ export default function Nav() {
         </Link>
         <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/analytics')}>
           📈 Analytics
+        </Link>
+        <Link to={`/jobs${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/jobs')}>
+          ⚙️ Jobs
         </Link>
         <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/team')}>
           👥 Team
