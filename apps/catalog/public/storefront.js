@@ -12,11 +12,18 @@ let useSemanticSearch = false;
 let lastSearchQuery = '';
 let searchDebounceTimer = null;
 
+// Stripe state
+let stripe = null;
+let elements = null;
+let paymentElement = null;
+let currentOrderId = null;
+
 // Initialize app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadProducts();
   loadCart();
   setupEventListeners();
+  await initializeStripe();
 });
 
 // Get or create session ID
@@ -27,6 +34,23 @@ function getOrCreateSessionId() {
     localStorage.setItem('sessionId', id);
   }
   return id;
+}
+
+// Initialize Stripe
+async function initializeStripe() {
+  try {
+    const response = await fetch(`${API_BASE}/payments/config`);
+    if (!response.ok) {
+      console.warn('Payment processing not configured');
+      return;
+    }
+
+    const { publishableKey } = await response.json();
+    stripe = Stripe(publishableKey);
+    console.log('✅ Stripe initialized');
+  } catch (error) {
+    console.warn('Failed to initialize Stripe:', error);
+  }
 }
 
 // Setup event listeners
@@ -608,17 +632,18 @@ function toggleCart() {
 }
 
 // Proceed to checkout
-function proceedToCheckout() {
+async function proceedToCheckout() {
   if (!cart || cart.items.length === 0) return;
 
   toggleCart(); // Close cart
 
   const modal = document.getElementById('checkoutModal');
   const summaryContainer = document.getElementById('checkoutSummary');
+  const submitBtn = document.getElementById('placeOrderBtn');
 
   // Populate checkout summary
   const subtotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = 10.00; // Fixed shipping for now
+  const shipping = 0; // Free shipping for now
   const total = subtotal + shipping;
 
   summaryContainer.innerHTML = `
@@ -632,15 +657,30 @@ function proceedToCheckout() {
       <span>Subtotal</span>
       <span>$${subtotal.toFixed(2)}</span>
     </div>
+    ${shipping > 0 ? `
     <div class="summary-item">
       <span>Shipping</span>
       <span>$${shipping.toFixed(2)}</span>
     </div>
+    ` : ''}
     <div class="summary-item">
       <span>Total</span>
       <span>$${total.toFixed(2)}</span>
     </div>
   `;
+
+  // Check if Stripe is available
+  if (!stripe) {
+    document.getElementById('paymentSection').innerHTML = `
+      <div class="payment-error" style="display: block;">
+        <p>⚠️ Payment processing is not currently configured.</p>
+        <p>Please contact the store administrator.</p>
+      </div>
+    `;
+    submitBtn.disabled = true;
+  } else {
+    submitBtn.disabled = false;
+  }
 
   modal.classList.add('active');
 }
@@ -655,48 +695,116 @@ function closeCheckoutModal() {
 async function submitOrder(event) {
   event.preventDefault();
 
+  if (!stripe) {
+    showError('Payment processing is not available. Please contact the store administrator.');
+    return;
+  }
+
   const form = event.target;
   const submitBtn = document.getElementById('placeOrderBtn');
+  const textSpan = document.getElementById('placeOrderText');
+  const spinnerSpan = document.getElementById('placeOrderSpinner');
 
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Placing Order...';
+  textSpan.style.display = 'none';
+  spinnerSpan.style.display = 'inline';
 
   try {
-    const orderData = {
-      sessionId: sessionId,
-      orgId: ORG_ID,
-      customer: {
-        name: form.customerName.value,
-        email: form.customerEmail.value,
-        phone: form.customerPhone.value || undefined
-      },
+    // Step 1: Create order
+    const customerData = {
+      name: form.customerName.value,
+      email: form.customerEmail.value,
+      phone: form.customerPhone.value || undefined,
       shippingAddress: {
-        street: form.shippingAddress.value,
+        line1: form.shippingAddress.value,
         city: form.shippingCity.value,
         state: form.shippingState.value,
         postalCode: form.shippingZip.value,
         country: form.shippingCountry.value
-      },
-      paymentMethod: 'pending' // Will be replaced with actual payment integration
+      }
     };
 
-    const response = await fetch(`${API_BASE}/orders`, {
+    const orderData = {
+      sessionId: sessionId,
+      customer: customerData,
+      paymentMethod: 'stripe'
+    };
+
+    const orderResponse = await fetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderData)
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create order');
+    if (!orderResponse.ok) {
+      const error = await orderResponse.json();
+      throw new Error(error.error || 'Failed to create order');
     }
 
-    const order = await response.json();
+    const order = await orderResponse.json();
+    currentOrderId = order.id;
+
+    // Step 2: Create payment intent
+    const paymentResponse = await fetch(`${API_BASE}/payments/create-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id })
+    });
+
+    if (!paymentResponse.ok) {
+      const error = await paymentResponse.json();
+      throw new Error(error.error || 'Failed to create payment intent');
+    }
+
+    const { clientSecret } = await paymentResponse.json();
+
+    // Step 3: Mount Stripe Payment Element if not already mounted
+    if (!elements) {
+      elements = stripe.elements({ clientSecret });
+      paymentElement = elements.create('payment');
+      paymentElement.mount('#paymentElement');
+    }
+
+    // Step 4: Confirm payment
+    const { error: stripeError } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+        payment_method_data: {
+          billing_details: {
+            name: customerData.name,
+            email: customerData.email,
+            phone: customerData.phone,
+            address: {
+              line1: customerData.shippingAddress.line1,
+              city: customerData.shippingAddress.city,
+              state: customerData.shippingAddress.state,
+              postal_code: customerData.shippingAddress.postalCode,
+              country: customerData.shippingAddress.country
+            }
+          }
+        }
+      },
+      redirect: 'if_required'
+    });
+
+    if (stripeError) {
+      throw new Error(stripeError.message || 'Payment failed');
+    }
+
+    // Payment succeeded!
     lastOrderNumber = order.orderNumber;
 
     // Clear cart
     cart = { items: [] };
     updateCartUI();
+
+    // Reset payment element for next checkout
+    if (paymentElement) {
+      paymentElement.unmount();
+      paymentElement = null;
+      elements = null;
+    }
 
     // Close checkout modal
     closeCheckoutModal();
@@ -709,7 +817,8 @@ async function submitOrder(event) {
     showError(error.message);
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Place Order';
+    textSpan.style.display = 'inline';
+    spinnerSpan.style.display = 'none';
   }
 }
 

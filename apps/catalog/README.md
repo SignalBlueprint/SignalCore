@@ -92,8 +92,13 @@ Comprehensive analytics and reporting for data-driven decisions:
 # Install dependencies
 pnpm install
 
-# Set up environment (add OPENAI_API_KEY to root .env)
+# Set up environment (add API keys to root .env)
 cp ../../.env.example ../../.env
+# Edit .env and add:
+#   OPENAI_API_KEY - for AI features
+#   STRIPE_SECRET_KEY - for payment processing
+#   STRIPE_PUBLISHABLE_KEY - for frontend payments
+#   STRIPE_WEBHOOK_SECRET - for webhook verification (optional for development)
 
 # Run Supabase migrations (if using Supabase)
 # See docs/supabase-migrations/002_catalog_tables.sql
@@ -103,6 +108,32 @@ pnpm dev
 ```
 
 Server runs on `http://localhost:4023`
+
+### Stripe Payment Setup
+
+To enable payment processing:
+
+1. **Create a Stripe Account** at https://stripe.com
+2. **Get API Keys** from Stripe Dashboard → Developers → API keys
+3. **Add to .env file**:
+   ```bash
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_PUBLISHABLE_KEY=pk_test_...
+   ```
+4. **Test Payments** - Use Stripe test cards:
+   - Success: `4242 4242 4242 4242`
+   - Decline: `4000 0000 0000 0002`
+   - Use any future expiry date and any 3-digit CVC
+
+5. **Webhook Setup (Optional for Development)**:
+   - Install Stripe CLI: https://stripe.com/docs/stripe-cli
+   - Forward webhooks: `stripe listen --forward-to localhost:4023/api/webhooks/stripe`
+   - Copy webhook secret to `.env`: `STRIPE_WEBHOOK_SECRET=whsec_...`
+
+6. **Production Setup**:
+   - Replace test keys with live keys
+   - Configure webhook endpoint in Stripe Dashboard
+   - Set up webhook secret for production
 
 ### Accessing the Application
 
@@ -222,6 +253,12 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 - `GET /api/products/export/csv` - Export products to CSV
 - `POST /api/products/import/csv` - Import products from CSV
 
+**Payment Processing** ✨ NEW
+- `GET /api/payments/config` - Get Stripe publishable key for frontend
+- `POST /api/payments/create-intent` - Create Stripe payment intent for an order
+- `POST /api/payments/confirm` - Confirm payment and update order status
+- `POST /api/webhooks/stripe` - Stripe webhook handler for payment events
+
 **Analytics & Insights** ✨ NEW
 - `GET /api/analytics/overview` - Get comprehensive analytics dashboard
 - `GET /api/analytics/revenue` - Get revenue analytics and trends
@@ -321,13 +358,15 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - Public/private lookbook toggle
 - Product organization and showcasing
 
-**E-commerce & Orders** ✨ NEW
+**E-commerce & Orders** ✨ ENHANCED
 - Shopping cart with session management
 - Complete order processing workflow
+- **Stripe Payment Integration** - Secure payment processing with Stripe Elements
+- Payment webhook handling for automated order updates
 - Order status tracking (pending, confirmed, processing, shipped, delivered, cancelled, refunded)
-- Payment status management
+- Payment status management (pending, paid, failed, refunded, processing, canceled)
 - Automatic inventory deduction on orders
-- Inventory restoration on cancellations
+- Inventory restoration on cancellations and failed payments
 - Customer order history
 - Order lookup by order number or email
 - Shipping and tracking number support
@@ -346,14 +385,14 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 
 ### 🚀 Next Steps & Roadmap
 
-**Priority 1: Payment Integration** (Next 2 Weeks) 🔥 CRITICAL
-- [ ] Integrate Stripe payment processing
-- [ ] Add payment confirmation flow
-- [ ] Implement webhook handling for payment events
-- [ ] Add payment status tracking
-- [ ] Test end-to-end checkout with real payments
-- [ ] Add PayPal as alternative payment option
-- **Goal:** Enable real customer transactions
+**Priority 1: Payment Integration** ✅ COMPLETED (Dec 31, 2025)
+- [x] Integrate Stripe payment processing
+- [x] Add payment confirmation flow
+- [x] Implement webhook handling for payment events
+- [x] Add payment status tracking
+- [x] Test end-to-end checkout with real payments
+- [ ] Add PayPal as alternative payment option (future)
+- **Status:** ✅ Customers can now complete purchases with real Stripe payments!
 
 **Priority 2: Product Variants** (Next Month)
 - [ ] Product variants (sizes, colors, options)
