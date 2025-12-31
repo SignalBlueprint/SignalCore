@@ -47,23 +47,39 @@ If this app is to be kept, it could serve one of the following purposes:
 - Reduce maintenance burden
 - Simplify suite architecture
 
-## Next Steps
+## Decision & Next Steps
 
-**Decision Required:** Determine the fate of this app:
+**Recommendation:** Remove this app to simplify the suite architecture.
 
-1. **If Keeping** - Define clear purpose and implement functionality
-   - Choose one of the use cases above
-   - Update package.json with proper metadata
-   - Implement core functionality
-   - Add proper README with documentation
-   - Add to suite registry with clear description
-   - Create example code and usage patterns
+### Rationale for Removal
 
-2. **If Removing** - Clean up the codebase
-   - Delete `apps/demoapp` directory
-   - Remove from workspace configuration
-   - Update main README to remove references
-   - Update SUITE_MAP.md to remove entry
+1. **No Clear Purpose** - After months without development, no clear use case has emerged
+2. **Maintenance Burden** - Even placeholder apps require documentation and upkeep
+3. **Suite Clarity** - 7 functional apps provide clear value; demoapp adds confusion
+4. **Alternative Solutions** - Better approaches exist for each potential use case:
+   - **For testing:** Use dedicated test files in relevant apps
+   - **For templates:** Create app generation CLI tool when needed
+   - **For sandbox:** Use scratch branches in existing apps
+
+### If Keeping (Not Recommended)
+
+If you decide to keep this app, you must:
+1. **Define specific purpose** within 2 weeks
+2. **Implement core functionality** within 1 month
+3. **Document clearly** with examples and use cases
+4. **Add to suite registry** with production status
+
+### If Removing (Recommended)
+
+Action items for removal:
+1. Delete `apps/demoapp` directory
+2. Remove from `pnpm-workspace.yaml`
+3. Update main `README.md` to remove all references
+4. Update `docs/SUITE_MAP.md` to remove entry
+5. Update Console app registry if included
+6. Test suite builds after removal
+
+**Suggested Timeline:** Make decision within 1 week, execute removal within 2 weeks.
 
 ## Contributing
 

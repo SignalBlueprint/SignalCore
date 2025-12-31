@@ -46,6 +46,17 @@ Catalog is a complete e-commerce solution that lets you build an online store by
 - **Visual Product Cards**: Grid layout with images, pricing, status badges, and inventory indicators
 - **Responsive Design**: Mobile-friendly interface for catalog management on any device
 
+### Analytics & Insights Dashboard ✨ NEW
+Comprehensive analytics and reporting for data-driven decisions:
+- **Revenue Analytics**: Daily revenue tracking, order trends, and sales forecasting
+- **Product Performance**: Top selling products, views, conversions, and revenue by product
+- **Inventory Analytics**: Low stock alerts, inventory turnover, and restock recommendations
+- **Customer Insights**: Top customers, average order value, customer behavior patterns
+- **Conversion Funnel**: Track views → cart adds → checkouts → orders
+- **Search Analytics**: Top search queries, search patterns, and zero-result searches
+- **AI Usage Tracking**: Monitor AI costs and ROI on AI-powered features
+- **Data Export**: Export analytics to CSV for external reporting
+
 ## What Sets Catalog Apart
 
 **Mobile-First Philosophy**: Unlike traditional product management systems that require desktop data entry, Catalog is designed for the modern workflow—take a photo on your phone, upload it, and let AI do the heavy lifting.
@@ -211,8 +222,17 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for complete API documentation, workf
 - `GET /api/products/export/csv` - Export products to CSV
 - `POST /api/products/import/csv` - Import products from CSV
 
-**Analytics**
+**Analytics & Insights** ✨ NEW
+- `GET /api/analytics/overview` - Get comprehensive analytics dashboard
+- `GET /api/analytics/revenue` - Get revenue analytics and trends
+- `GET /api/analytics/products` - Get top selling products and performance metrics
+- `GET /api/analytics/products/:productId` - Get specific product analytics
+- `GET /api/analytics/customers` - Get customer analytics and top customers
+- `GET /api/analytics/funnel` - Get conversion funnel data
 - `GET /api/analytics/search` - Get search analytics and top queries
+- `GET /api/analytics/searches` - Get enhanced search analytics
+- `POST /api/analytics/track` - Track custom analytics events
+- `GET /api/analytics/export` - Export analytics data to CSV
 
 **Shopping Cart**
 - `GET /api/cart/:sessionId` - Get cart for a session
@@ -312,52 +332,65 @@ See [CATALOG_GUIDE.md](./CATALOG_GUIDE.md) for full API reference.
 - Order lookup by order number or email
 - Shipping and tracking number support
 
+**Analytics & Insights** ✨ NEW (Dec 31, 2025)
+- Comprehensive analytics dashboard with overview metrics
+- Revenue analytics with daily trends and forecasting
+- Product performance tracking (views, conversions, revenue)
+- Customer analytics and behavior insights
+- Conversion funnel analysis (views → cart → checkout → orders)
+- Search analytics with top queries and patterns
+- AI usage cost tracking and ROI metrics
+- Low stock alerts and inventory recommendations
+- CSV export for all analytics data
+- Event tracking system for custom analytics
+
 ### 🚀 Next Steps & Roadmap
 
-**Phase 1: Mobile Experience**
+**Priority 1: Payment Integration** (Next 2 Weeks) 🔥 CRITICAL
+- [ ] Integrate Stripe payment processing
+- [ ] Add payment confirmation flow
+- [ ] Implement webhook handling for payment events
+- [ ] Add payment status tracking
+- [ ] Test end-to-end checkout with real payments
+- [ ] Add PayPal as alternative payment option
+- **Goal:** Enable real customer transactions
+
+**Priority 2: Product Variants** (Next Month)
+- [ ] Product variants (sizes, colors, options)
+- [ ] Variant-specific inventory tracking
+- [ ] Variant selection UI in storefront
+- [ ] Bulk variant creation and management
+- **Goal:** Support fashion/apparel e-commerce
+
+**Priority 3: Enhanced Analytics** (Next Month)
+- [ ] Analytics dashboard UI in admin panel
+- [ ] Real-time metrics visualization
+- [ ] Low stock alert notifications
+- [ ] Sales forecasting visualizations
+- [ ] Customer segmentation reports
+- **Goal:** Data-driven decision making
+
+**Priority 4: Mobile & UX** (Next Quarter)
+- [ ] Progressive Web App (PWA) for storefront
 - [ ] Native mobile app for quick photo uploads
 - [ ] Mobile barcode scanning for inventory
 - [ ] Offline mode with sync capabilities
-- [ ] Mobile-optimized upload flow
+- [ ] Dark mode support
+- **Goal:** Exceptional mobile experience
 
-**Phase 2: E-commerce Integration** ✅ COMPLETED
-- [x] Shopping cart functionality
-- [x] Order management system
-- [x] Customer checkout flow
-- [x] Order tracking and fulfillment
-- [x] Customer storefront web interface
-- [x] Product browsing and search UI
-- [x] Product detail pages with galleries
-- [x] Shopping cart UI with real-time updates
-- [x] Checkout form and order confirmation
-- [x] Order tracking by email or order number
-- [ ] Payment gateway integration (Stripe, PayPal) - Ready for integration
-
-**Phase 3: Advanced Product Features**
-- [ ] Product variants (sizes, colors, options)
-- [ ] Variant-specific inventory tracking
-- [ ] Bulk pricing and discount rules
-- [ ] Related products and recommendations
+**Priority 5: Advanced Features** (Next Quarter)
 - [ ] Product reviews and ratings
+- [ ] Related products and recommendations (AI-powered)
+- [ ] Bulk pricing and discount rules
+- [ ] Coupon and promo code system
+- [ ] Abandoned cart recovery
+- [ ] Email marketing integration
+- **Goal:** Complete e-commerce feature set
 
-**Phase 4: Analytics & Insights**
-- [ ] Sales analytics dashboard
-- [ ] Inventory turnover reports
-- [ ] Popular products tracking
-- [x] Search analytics ✅ COMPLETED
-- [x] Similar product recommendations ✅ COMPLETED
-- [ ] Low stock alerts and notifications
-
-**Phase 5: Enhanced Automation**
-- [ ] Automated restock notifications
-- [ ] AI-powered price optimization
-- [ ] Smart categorization improvements
-- [ ] Automated product bundling suggestions
-- [ ] Background removal for product images
-
-**Phase 6: Multi-channel Support**
-- [ ] Integration with e-commerce platforms (Shopify, WooCommerce)
-- [ ] Social media product catalog sync
-- [ ] Multi-currency support enhancements
-- [ ] International shipping management
+**Future Considerations:**
+- AI-powered price optimization
+- Background removal for product images
+- Integration with e-commerce platforms (Shopify, WooCommerce)
+- Multi-currency and international shipping
+- Social media product catalog sync
 
