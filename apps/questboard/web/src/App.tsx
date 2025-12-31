@@ -14,7 +14,12 @@ import ErrorBoundary from './components/ErrorBoundary';
 function App() {
   return (
     <ErrorBoundary>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        width: '100%',
+        padding: '0 env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0)'
+      }}>
         <Nav />
         <Routes>
           <Route path="/" element={<ErrorBoundary><TodayPage /></ErrorBoundary>} />

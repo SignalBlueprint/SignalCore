@@ -5,6 +5,7 @@ export default function Nav() {
   const location = useLocation();
   const [currentOrg, setCurrentOrg] = useState('default-org');
   const [availableOrgs, setAvailableOrgs] = useState<string[]>(['default-org']);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Get orgId from URL
@@ -25,6 +26,11 @@ export default function Nav() {
       });
   }, [location]);
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleOrgChange = (newOrgId: string) => {
     const currentPath = location.pathname;
     window.location.href = `${currentPath}?orgId=${newOrgId}`;
@@ -38,47 +44,60 @@ export default function Nav() {
     borderRadius: '4px',
     background: isActive ? '#0066cc' : 'transparent',
     fontWeight: isActive ? 'bold' : 'normal',
+    display: 'inline-block',
+  });
+
+  const mobileLinkStyle = (isActive: boolean) => ({
+    display: 'block',
+    padding: '14px 16px',
+    color: isActive ? '#fff' : '#0066cc',
+    textDecoration: 'none',
+    borderRadius: '4px',
+    background: isActive ? '#0066cc' : 'transparent',
+    fontWeight: isActive ? 'bold' : 'normal',
+    marginBottom: '8px',
   });
 
   return (
-    <nav
-      style={{
-        marginBottom: '30px',
-        padding: '16px',
-        background: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <nav className="nav-container">
+      <div className="nav-header">
         <h1 style={{ margin: 0, fontSize: '24px' }}>🎯 Questboard</h1>
-        {availableOrgs.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', color: '#666' }}>Org:</span>
-            <select
-              value={currentOrg}
-              onChange={(e) => handleOrgChange(e.target.value)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                background: 'white',
-                fontSize: '14px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                color: '#0066cc',
-              }}
-            >
-              {availableOrgs.map(orgId => (
-                <option key={orgId} value={orgId}>
-                  {orgId}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+
+        <div className="nav-header-right">
+          {availableOrgs.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="org-label" style={{ fontSize: '14px', color: '#666' }}>Org:</span>
+              <select
+                value={currentOrg}
+                onChange={(e) => handleOrgChange(e.target.value)}
+                className="org-select"
+              >
+                {availableOrgs.map(orgId => (
+                  <option key={orgId} value={orgId}>
+                    {orgId}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Mobile hamburger button */}
+          <button
+            className="mobile-menu-button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <div className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </button>
+        </div>
       </div>
-      <div>
+
+      {/* Desktop navigation */}
+      <div className="nav-links-desktop">
         <Link to={`/today${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/today' || location.pathname === '/')}>
           📅 Today
         </Link>
@@ -95,6 +114,28 @@ export default function Nav() {
           👥 Team
         </Link>
         <Link to={`/debug${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/debug')}>
+          🔍 Debug
+        </Link>
+      </div>
+
+      {/* Mobile navigation */}
+      <div className={`nav-links-mobile ${mobileMenuOpen ? 'open' : ''}`}>
+        <Link to={`/today${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/today' || location.pathname === '/')}>
+          📅 Today
+        </Link>
+        <Link to={`/goals${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname.startsWith('/goals'))}>
+          🎯 Goals
+        </Link>
+        <Link to={`/sprint${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/sprint')}>
+          📊 Sprint
+        </Link>
+        <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/analytics')}>
+          📈 Analytics
+        </Link>
+        <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/team')}>
+          👥 Team
+        </Link>
+        <Link to={`/debug${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/debug')}>
           🔍 Debug
         </Link>
       </div>
