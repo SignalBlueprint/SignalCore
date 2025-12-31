@@ -163,7 +163,7 @@ export type OrderStatus =
   | "cancelled"
   | "refunded";
 
-export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "processing" | "canceled";
 
 export interface CustomerInfo {
   name: string;
@@ -219,12 +219,14 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentMethod?: string; // "stripe", "paypal", "cash_on_delivery", etc.
   transactionId?: string;
+  stripePaymentIntentId?: string; // Stripe payment intent ID
   trackingNumber?: string;
   notes?: string;
   internalNotes?: string; // Admin-only notes
   createdAt: string;
   updatedAt: string;
   confirmedAt?: string;
+  paidAt?: string; // When payment was completed
   shippedAt?: string;
   deliveredAt?: string;
   cancelledAt?: string;

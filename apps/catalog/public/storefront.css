@@ -1379,3 +1379,57 @@ body {
     gap: 20px;
   }
 }
+
+/* Stripe Payment Element Styles */
+.stripe-payment-element {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #f9fafb;
+}
+
+#paymentElement {
+  min-height: 40px;
+}
+
+.payment-error {
+  margin-top: 15px;
+  padding: 12px 16px;
+  background-color: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.payment-error p {
+  margin: 5px 0;
+}
+
+#paymentLoading {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+}
+
+#paymentLoading .loading-spinner {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+/* Checkout button states */
+#placeOrderBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#placeOrderSpinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

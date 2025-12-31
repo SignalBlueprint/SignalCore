@@ -32,11 +32,21 @@ import type {
   PaymentStatus,
 } from "@sb/schemas";
 import { analyticsStorage } from "./analytics";
+import Stripe from "stripe";
 
 const suiteApp = getSuiteApp("catalog");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 const app = express();
+
+// Initialize Stripe
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeSecretKey) {
+  console.warn("⚠️  STRIPE_SECRET_KEY not configured - payment processing will not work");
+}
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+  apiVersion: "2025-12-15.clover",
+}) : null;
 
 // ============================================================================
 // Search Analytics
@@ -1703,6 +1713,270 @@ app.put("/api/orders/:id", async (req, res) => {
     console.error("Update order error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
+});
+
+// ============================================================================
+// Payment Processing (Stripe) Endpoints
+// ============================================================================
+
+// Create payment intent for an order
+app.post("/api/payments/create-intent", async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({
+        error: "Payment processing is not configured. Please contact the store administrator."
+      });
+    }
+
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Order ID is required" });
+    }
+
+    // Get the order
+    const order = await storage.get<Order>("orders", orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Check if order is already paid
+    if (order.paymentStatus === "paid") {
+      return res.status(400).json({ error: "Order is already paid" });
+    }
+
+    // Create Stripe payment intent
+    const amount = Math.round(order.pricing.total * 100); // Convert to cents
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: order.pricing.currency?.toLowerCase() || "usd",
+      metadata: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        orgId: order.orgId,
+      },
+      description: `Order ${order.orderNumber}`,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    // Update order with payment intent ID
+    order.stripePaymentIntentId = paymentIntent.id;
+    order.updatedAt = new Date().toISOString();
+    await storage.upsert("orders", order);
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: order.pricing.total,
+      currency: order.pricing.currency,
+    });
+  } catch (error) {
+    console.error("Create payment intent error:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Confirm payment and update order
+app.post("/api/payments/confirm", async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({
+        error: "Payment processing is not configured"
+      });
+    }
+
+    const { paymentIntentId } = req.body;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: "Payment intent ID is required" });
+    }
+
+    // Retrieve payment intent from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Find order by payment intent ID
+    const orders = await storage.list<Order>("orders", (o) => o.stripePaymentIntentId === paymentIntentId);
+
+    if (orders.length === 0) {
+      return res.status(404).json({ error: "Order not found for this payment" });
+    }
+
+    const order = orders[0];
+
+    // Update order based on payment status
+    if (paymentIntent.status === "succeeded") {
+      order.paymentStatus = "paid";
+      order.status = "confirmed";
+      order.confirmedAt = new Date().toISOString();
+      order.paidAt = new Date().toISOString();
+    } else if (paymentIntent.status === "processing") {
+      order.paymentStatus = "processing";
+    } else if (paymentIntent.status === "requires_payment_method") {
+      order.paymentStatus = "failed";
+    }
+
+    order.updatedAt = new Date().toISOString();
+    await storage.upsert("orders", order);
+
+    // Track payment completion event
+    if (paymentIntent.status === "succeeded") {
+      await analyticsStorage.trackEvent(order.orgId, "payment_completed", {
+        orderNumber: order.orderNumber,
+        total: order.pricing.total,
+        paymentMethod: "stripe",
+      }, {
+        orderId: order.id,
+      });
+    }
+
+    res.json({
+      success: paymentIntent.status === "succeeded",
+      status: paymentIntent.status,
+      order,
+    });
+  } catch (error) {
+    console.error("Confirm payment error:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Stripe webhook handler
+app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({ error: "Stripe not configured" });
+    }
+
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!sig) {
+      return res.status(400).json({ error: "Missing stripe-signature header" });
+    }
+
+    if (!webhookSecret) {
+      console.warn("⚠️  STRIPE_WEBHOOK_SECRET not configured - webhook verification disabled");
+      return res.status(200).json({ received: true });
+    }
+
+    // Verify webhook signature
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error("Webhook signature verification failed:", err);
+      return res.status(400).json({ error: "Webhook signature verification failed" });
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const orderId = paymentIntent.metadata.orderId;
+
+        if (orderId) {
+          const order = await storage.get<Order>("orders", orderId);
+          if (order) {
+            order.paymentStatus = "paid";
+            order.status = "confirmed";
+            order.confirmedAt = new Date().toISOString();
+            order.paidAt = new Date().toISOString();
+            order.updatedAt = new Date().toISOString();
+            await storage.upsert("orders", order);
+
+            // Track payment webhook event
+            await analyticsStorage.trackEvent(order.orgId, "payment_webhook_received", {
+              eventType: event.type,
+              orderNumber: order.orderNumber,
+              total: order.pricing.total,
+            }, {
+              orderId: order.id,
+            });
+
+            console.log(`✅ Payment succeeded for order ${order.orderNumber}`);
+          }
+        }
+        break;
+
+      case "payment_intent.payment_failed":
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
+        const failedOrderId = failedPayment.metadata.orderId;
+
+        if (failedOrderId) {
+          const order = await storage.get<Order>("orders", failedOrderId);
+          if (order) {
+            order.paymentStatus = "failed";
+            order.updatedAt = new Date().toISOString();
+            await storage.upsert("orders", order);
+
+            console.log(`❌ Payment failed for order ${order.orderNumber}`);
+          }
+        }
+        break;
+
+      case "payment_intent.canceled":
+        const canceledPayment = event.data.object as Stripe.PaymentIntent;
+        const canceledOrderId = canceledPayment.metadata.orderId;
+
+        if (canceledOrderId) {
+          const order = await storage.get<Order>("orders", canceledOrderId);
+          if (order) {
+            order.paymentStatus = "canceled";
+            order.status = "cancelled";
+            order.cancelledAt = new Date().toISOString();
+            order.updatedAt = new Date().toISOString();
+            await storage.upsert("orders", order);
+
+            // Restore inventory
+            for (const item of order.items) {
+              const product = await storage.get<Product>("products", item.productId);
+              if (product?.inventory) {
+                product.inventory.stockLevel += item.quantity;
+                if (product.status === "out_of_stock" && product.inventory.stockLevel > 0) {
+                  product.status = "active";
+                }
+                product.updatedAt = new Date().toISOString();
+                await storage.upsert("products", product);
+              }
+            }
+
+            console.log(`🚫 Payment canceled for order ${order.orderNumber}`);
+          }
+        }
+        break;
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook handler error:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Get Stripe publishable key (for frontend)
+app.get("/api/payments/config", (req, res) => {
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+
+  if (!publishableKey) {
+    return res.status(503).json({
+      error: "Payment processing is not configured"
+    });
+  }
+
+  res.json({
+    publishableKey,
+  });
 });
 
 // ============================================================================

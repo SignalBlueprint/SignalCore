@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shop - Catalog Store</title>
   <link rel="stylesheet" href="storefront.css">
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <!-- Header -->
@@ -219,15 +220,24 @@
 
         <div class="form-section">
           <h3>Payment</h3>
-          <div class="payment-notice">
-            <p>💳 Payment processing will be added in the next phase.</p>
-            <p>For now, orders will be created with "pending" payment status.</p>
+          <div id="paymentSection">
+            <div id="paymentElement" class="stripe-payment-element">
+              <!-- Stripe Payment Element will be inserted here -->
+            </div>
+            <div id="paymentError" class="payment-error" style="display: none;"></div>
+            <div id="paymentLoading" style="display: none; text-align: center; padding: 20px;">
+              <div class="loading-spinner">⏳</div>
+              <p>Processing payment...</p>
+            </div>
           </div>
         </div>
 
         <div class="form-actions">
           <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">Cancel</button>
-          <button type="submit" class="btn-primary" id="placeOrderBtn">Place Order</button>
+          <button type="submit" class="btn-primary" id="placeOrderBtn">
+            <span id="placeOrderText">Pay & Place Order</span>
+            <span id="placeOrderSpinner" style="display: none;">⏳ Processing...</span>
+          </button>
         </div>
       </form>
     </div>
