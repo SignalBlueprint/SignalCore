@@ -11,6 +11,9 @@ import libraryRouter from "./routes/library";
 import sessionsRouter from "./routes/sessions";
 import annotationsRouter from "./routes/annotations";
 import aiRouter from "./routes/ai";
+import bookmarksRouter from "./routes/bookmarks";
+import { apiLimiter, aiLimiter, writeLimiter } from "./middleware/rateLimiter";
+import { optionalAuth } from "./middleware/auth";
 
 const app = express();
 const suiteApp = getSuiteApp("lexome");
@@ -18,6 +21,13 @@ const PORT = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 // Middleware
 app.use(express.json());
+
+// Apply rate limiting to all API routes
+app.use("/api", apiLimiter);
+
+// Apply optional authentication to all API routes
+// This extracts user ID if provided but doesn't require it
+app.use("/api", optionalAuth);
 
 // Serve static files from React build or public folder
 const clientBuildPath = path.join(__dirname, "..", "dist", "client");
@@ -27,10 +37,11 @@ app.use(express.static(staticPath));
 
 // API Routes
 app.use("/api/books", booksRouter);
-app.use("/api/library", libraryRouter);
-app.use("/api/sessions", sessionsRouter);
-app.use("/api/annotations", annotationsRouter);
-app.use("/api/ai", aiRouter);
+app.use("/api/library", writeLimiter, libraryRouter);
+app.use("/api/sessions", writeLimiter, sessionsRouter);
+app.use("/api/annotations", writeLimiter, annotationsRouter);
+app.use("/api/ai", aiLimiter, aiRouter);
+app.use("/api/bookmarks", writeLimiter, bookmarksRouter);
 
 // Health check
 app.get(suiteApp.routes.health, (req, res) => {
@@ -87,6 +98,14 @@ app.get("/api", (req, res) => {
         analyzeCharacter: "POST /api/ai/analyze-character",
         questions: "POST /api/ai/questions",
         recommendations: "GET /api/ai/recommendations",
+      },
+      bookmarks: {
+        list: "GET /api/bookmarks",
+        book: "GET /api/bookmarks/book/:bookId",
+        get: "GET /api/bookmarks/:id",
+        create: "POST /api/bookmarks",
+        update: "PATCH /api/bookmarks/:id",
+        delete: "DELETE /api/bookmarks/:id",
       },
     },
   });

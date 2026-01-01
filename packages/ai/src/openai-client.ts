@@ -219,3 +219,124 @@ export async function expandTaskStructured(args: {
   });
 }
 
+interface GenerateTextOptions {
+  model?: string;
+  prompt: string;
+  system?: string;
+  maxTokens?: number;
+  temperature?: number;
+  useCache?: boolean;
+}
+
+/**
+ * Generate text using OpenAI chat completions
+ */
+export async function generateText(
+  options: GenerateTextOptions
+): Promise<string> {
+  const {
+    model = "gpt-4",
+    prompt,
+    system,
+    maxTokens = 1000,
+    temperature = 0.7,
+    useCache = true,
+  } = options;
+
+  // Create cache key
+  const cacheKey = system ? `${system}\n\n${prompt}` : prompt;
+  const inputHash = hashInput(cacheKey);
+  const startTime = Date.now();
+
+  // Check cache first
+  if (useCache) {
+    const cached = getJson<string>(inputHash);
+    if (cached !== null) {
+      recordAiCall({
+        model,
+        inputHash,
+        cached: true,
+        duration: Date.now() - startTime,
+      });
+
+      await publish(
+        "ai.run",
+        {
+          model,
+          inputHash,
+          cached: true,
+          duration: Date.now() - startTime,
+        },
+        {
+          sourceApp: "ai",
+        }
+      );
+
+      return cached;
+    }
+  }
+
+  // Make actual API call
+  try {
+    const openai = getOpenAIClient();
+
+    const messages: Array<{ role: "system" | "user"; content: string }> = [];
+    if (system) {
+      messages.push({ role: "system", content: system });
+    }
+    messages.push({ role: "user", content: prompt });
+
+    const response = await openai.chat.completions.create({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content in response");
+    }
+
+    // Store in cache
+    if (useCache) {
+      setJson(inputHash, content);
+    }
+
+    // Record AI call with token usage
+    const tokens = {
+      input: response.usage?.prompt_tokens,
+      output: response.usage?.completion_tokens,
+    };
+
+    recordAiCall({
+      model,
+      inputHash,
+      cached: false,
+      duration: Date.now() - startTime,
+      tokens,
+    });
+
+    await publish(
+      "ai.run",
+      {
+        model,
+        inputHash,
+        cached: false,
+        duration: Date.now() - startTime,
+        tokens,
+      },
+      {
+        sourceApp: "ai",
+      }
+    );
+
+    return content;
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+    throw new Error(
+      `OpenAI API call failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+

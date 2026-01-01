@@ -65,3 +65,16 @@ export const ReadingSessionSchema = z.object({
 });
 
 export type ReadingSession = z.infer<typeof ReadingSessionSchema>;
+
+export const BookmarkSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  bookId: z.string(),
+  location: z.string(), // Position in the book (e.g., chapter, page, offset)
+  title: z.string().optional(), // Optional user-provided title
+  note: z.string().optional(), // Optional note about this bookmark
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type Bookmark = z.infer<typeof BookmarkSchema>;
