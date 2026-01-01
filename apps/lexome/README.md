@@ -1,6 +1,6 @@
 # Lexome
 
-**Status:** 🟢 Fully Functional - Production-ready AI-powered reading platform
+**Status:** 🟢 Fully Functional - Production-ready AI-powered reading platform (Launched Jan 1, 2026)
 **Port:** 4026
 
 AI-enhanced e-reader that connects to Project Gutenberg's 70,000+ public domain books, providing intelligent context, annotations, and reading assistance through advanced AI capabilities. Features a modern React UI with comprehensive keyboard navigation, customizable reading settings, and seamless integration with OpenAI GPT-4.
@@ -100,7 +100,7 @@ Create an intelligent reading companion that:
    - ✅ Bookmark panel with quick access
    - ✅ Responsive design for mobile/tablet/desktop
 
-### 🚧 Planned/Future Features
+### 🔮 Future Enhancements
 
 #### 10. **Enhanced Reading Experience**
    - 🔲 EPUB file format support (currently HTML/text)
