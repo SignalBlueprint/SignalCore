@@ -14,6 +14,7 @@ import type {
   AICharacterAnalysis,
   AIQuestion,
   BookRecommendation,
+  Bookmark,
 } from '../types';
 
 const api = axios.create({
@@ -141,6 +142,32 @@ export const aiApi = {
 
   getRecommendations: (limit = 5) =>
     api.get<BookRecommendation[]>('/ai/recommendations', { params: { limit } }),
+};
+
+// Bookmarks API
+export const bookmarksApi = {
+  getAll: () =>
+    api.get<Bookmark[]>('/bookmarks'),
+
+  getByBook: (bookId: string) =>
+    api.get<Bookmark[]>(`/bookmarks/book/${bookId}`),
+
+  getById: (id: string) =>
+    api.get<Bookmark>(`/bookmarks/${id}`),
+
+  create: (data: {
+    bookId: string;
+    position: number;
+    title?: string;
+    note?: string;
+  }) =>
+    api.post<Bookmark>('/bookmarks', data),
+
+  update: (id: string, data: Partial<Pick<Bookmark, 'title' | 'note'>>) =>
+    api.patch<Bookmark>(`/bookmarks/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/bookmarks/${id}`),
 };
 
 export default api;

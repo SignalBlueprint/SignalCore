@@ -64,6 +64,52 @@ export default function AnnotationsPage() {
     }
   };
 
+  const handleExportAnnotations = () => {
+    const annotationsToExport = filteredAnnotations.length > 0 ? filteredAnnotations : annotations;
+
+    // Generate markdown content
+    let markdown = '# My Annotations\n\n';
+    markdown += `Generated on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    markdown += `Total annotations: ${annotationsToExport.length}\n\n`;
+    markdown += '---\n\n';
+
+    annotationsToExport.forEach((annotation, index) => {
+      markdown += `## Annotation ${index + 1}\n\n`;
+
+      if (annotation.tags.length > 0) {
+        markdown += `**Tags:** ${annotation.tags.join(', ')}\n\n`;
+      }
+
+      markdown += `**Date:** ${new Date(annotation.createdAt).toLocaleDateString()}\n\n`;
+
+      markdown += `### Selected Text\n\n`;
+      markdown += `> ${annotation.textSelection}\n\n`;
+
+      if (annotation.noteContent) {
+        markdown += `### My Note\n\n`;
+        markdown += `${annotation.noteContent}\n\n`;
+      }
+
+      if (annotation.aiContext) {
+        markdown += `### AI Context\n\n`;
+        markdown += `${annotation.aiContext}\n\n`;
+      }
+
+      markdown += '---\n\n';
+    });
+
+    // Create and download file
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lexome-annotations-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -78,9 +124,23 @@ export default function AnnotationsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-        My Annotations
-      </h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          My Annotations
+        </h1>
+        {annotations.length > 0 && (
+          <button
+            onClick={handleExportAnnotations}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+            title="Export annotations to Markdown"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export
+          </button>
+        )}
+      </div>
 
       {/* Search and Filters */}
       <div className="card p-4 mb-6">
