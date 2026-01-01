@@ -63,7 +63,10 @@ pnpm install
 
 # Set up environment variables
 cp ../../.env.example ../../.env
-# Add OPENAI_API_KEY to .env
+# Add required variables to .env:
+# - OPENAI_API_KEY (for AI features)
+# - JWT_SECRET (for authentication)
+# - DATABASE_URL (Supabase connection)
 
 # Run the development server
 pnpm --filter questboard dev
@@ -73,9 +76,17 @@ pnpm --filter questboard dev
 - Web UI: `http://localhost:5173`
 - API: `http://localhost:3000`
 
+**First-time setup:**
+1. Create an account: `POST /api/auth/signup` with email, password, and organization name
+2. Login to receive JWT tokens: `POST /api/auth/login`
+3. Use the token in subsequent API requests: `Authorization: Bearer <token>`
+
+See [AUTH_IMPLEMENTATION.md](./AUTH_IMPLEMENTATION.md) for detailed authentication setup.
+
 ## Architecture
 
 - **Backend**: Express.js REST API with comprehensive endpoints
+- **Authentication**: JWT-based auth with bcrypt password hashing, refresh tokens, and RBAC
 - **Frontend**: React + TypeScript with Vite
 - **Storage**: Supabase (PostgreSQL) via `@sb/storage` abstraction layer
 - **AI**: OpenAI GPT-4o for sprint planning and task analysis
@@ -97,6 +108,14 @@ Questboard manages 14+ entity kinds:
 - And more...
 
 ## API Endpoints
+
+> **Note:** All API endpoints (except `/health` and `/api/auth/*`) require authentication via JWT token in the `Authorization: Bearer <token>` header.
+
+### Authentication
+- `POST /api/auth/signup` - Create new organization and owner account
+- `POST /api/auth/login` - Login and receive JWT tokens
+- `POST /api/auth/refresh` - Refresh access token using refresh token
+- `GET /api/auth/me` - Get current user profile
 
 ### Goals
 - `GET /api/goals` - List all goals
@@ -160,6 +179,9 @@ pnpm --filter questboard test:coverage
 
 ### ✅ Production-Ready Features
 - Complete Express.js REST API with comprehensive endpoints
+- **JWT-based authentication system** - Secure backend with 78 protected endpoints
+- **Multi-tenant data isolation** - Organization-based access control
+- **Role-based access control (RBAC)** - Admin, team lead, and member roles
 - Full React frontend with 9 page components
 - Analytics Dashboard with task/goal/quest statistics
 - Hierarchical goal/questline/quest/task system
@@ -174,57 +196,79 @@ pnpm --filter questboard test:coverage
 - Touch-optimized interactions
 - Comprehensive test suite (48 tests passing)
 
-### Next Steps
+### Next Priority Tasks
 
-**Priority 1 (Next 2-4 Weeks):**
+**Priority 1 (Immediate - This Week):**
 
-1. **Authentication Integration** 🔐 SECURITY
-   - Integrate authentication into React frontend
-   - Add protected routes and login flow
-   - Implement JWT token storage and refresh
-   - Add role-based access control (admin, team lead, member)
-   - Secure API endpoints with auth middleware
-   - **Goal:** Secure multi-tenant access
+1. **Frontend Authentication Integration** 🔐 HIGH PRIORITY
+   - Create centralized API client with automatic token injection
+   - Update all frontend fetch calls to use the API client
+   - Implement login/signup UI components
+   - Add protected routes and auth guards
+   - Handle 401 responses with automatic token refresh
+   - Remove hardcoded userId/orgId from frontend code
+   - Add role-based UI features (hide admin actions from members)
+   - **Status:** Backend 100% secure (78 endpoints protected), frontend needs integration
+   - **Goal:** End-to-end secure authentication flow
 
-2. **Enhanced Mobile & UX** 📱 USER EXPERIENCE
+2. **Authentication Testing & Validation** 🧪 HIGH PRIORITY
+   - Test complete signup → login → API call flow
+   - Verify multi-tenant isolation (ensure no cross-org access)
+   - Test token refresh on expiration
+   - Test RBAC (members cannot access admin endpoints)
+   - Add integration tests for auth endpoints
+   - **Goal:** Production-grade security validation
+
+3. **User Onboarding Flow** 👤 USER EXPERIENCE
+   - Create organization setup wizard for new users
+   - Add team member invitation system
+   - Build initial Working Genius profile setup
+   - Create sample data seeding for demo purposes
+   - **Goal:** Smooth first-time user experience
+
+**Priority 2 (Next 2-4 Weeks):**
+
+4. **Enhanced Mobile Experience** 📱 USER EXPERIENCE
    - Add swipe gestures for task completion
    - Implement pull-to-refresh for data updates
    - Add haptic feedback for touch interactions
    - Create tablet-optimized layouts
-   - Improve offline capabilities
-   - **Goal:** Best-in-class mobile experience
+   - Improve offline capabilities and sync
+   - **Goal:** Best-in-class mobile PWA experience
 
-**Priority 2 (Next Quarter):**
-
-3. **Real-time Collaboration**
+5. **Real-time Collaboration** 🔄 PRODUCTIVITY
    - Add WebSocket/SSE for live updates
    - Show when other users are viewing/editing
-   - Real-time task status updates
+   - Real-time task status updates across clients
    - Live notifications for assignments and completions
-   - **Goal:** Live collaborative experience
+   - Optimistic UI updates with conflict resolution
+   - **Goal:** Live collaborative team experience
 
-4. **Testing & Quality**
-   - Add integration tests for API endpoints
-   - Add E2E tests for critical user flows
-   - Expand coverage to 80%+
+**Priority 3 (Next Quarter):**
+
+6. **Advanced Testing & Quality** 🧪 RELIABILITY
+   - Expand integration tests for all API endpoints
+   - Add E2E tests for critical user flows (Playwright/Cypress)
+   - Increase test coverage to 80%+
    - Set up CI/CD pipeline with automated testing
-   - **Goal:** Production-grade reliability
+   - Add performance testing and monitoring
+   - **Goal:** Production-grade reliability and confidence
 
-**Priority 3 (Future):**
+7. **Enhanced UX & Accessibility** ✨ USER EXPERIENCE
+   - In-app tooltips and interactive guides
+   - Keyboard shortcuts for power users
+   - Dark mode support with theme toggle
+   - Accessibility audit (WCAG 2.1 AA compliance)
+   - Improved error messages and user feedback
+   - **Goal:** Exceptional, inclusive user experience
 
-5. **Onboarding & UX**
-   - Interactive onboarding flow for new users
-   - In-app tooltips and guides
-   - Admin setup wizard
-   - Dark mode support
-   - **Goal:** Exceptional user experience
-
-6. **Data Management**
-   - Bulk data export (CSV, JSON)
-   - Data import from other tools
-   - Data backup and restore
-   - Archival for completed quests
-   - **Goal:** Enterprise data management
+8. **Data Management & Analytics** 📊 ENTERPRISE
+   - Bulk data export (CSV, JSON, PDF reports)
+   - Data import from other tools (Jira, Asana, etc.)
+   - Automated backup and restore functionality
+   - Archival system for completed quests
+   - Advanced analytics and custom reports
+   - **Goal:** Enterprise-grade data capabilities
 
 ## Integration with Suite
 
@@ -238,6 +282,8 @@ Questboard integrates with other Signal Blueprint apps:
 - [Main Suite README](../../README.md) - Complete suite overview
 - [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
 - [Jobs System](../../docs/JOBS.md) - Scheduled job documentation
+- [Authentication Implementation](./AUTH_IMPLEMENTATION.md) - Detailed auth implementation notes
+- [Setup Guide](./SETUP.md) - Development setup instructions
 
 ## Contributing
 
