@@ -17,6 +17,15 @@ jobs:
       contains(github.event.pull_request.user.login, 'claude')
 
     steps:
+      - name: Wait for CI checks
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          running-workflow-name: 'auto-merge'
+          allowed-conclusions: success,skipped
+
       - name: Auto-approve PR
         run: |
           gh pr review ${{ github.event.pull_request.number }} --approve --body "Auto-approved by claude-code auto-merge workflow"
@@ -24,28 +33,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
-      - name: Enable auto-merge with squash
+      - name: Merge PR
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} \
-            --squash \
-            --auto \
-            --delete-branch \
-            --body "Auto-merged by claude-code workflow"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-
-      - name: Force merge if auto-merge fails
-        if: failure()
-        run: |
-          # Wait a moment for any pending checks
-          sleep 2
-          # Force merge without waiting for checks
           gh pr merge ${{ github.event.pull_request.number }} \
             --squash \
             --delete-branch \
-            --admin \
-            --body "Force merged by claude-code workflow"
+            --body "Auto-merged by claude-code workflow"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
