@@ -546,7 +546,7 @@
                         ` : ''}
                         <div class="book-actions" onclick="event.stopPropagation()">
                             ${isLibrary ? `
-                                <button class="btn btn-primary" onclick="updateBookStatus('${userBook.id}', 'reading')">Read</button>
+                                <button class="btn btn-primary" onclick="openReader('${book.id}', '${userBook.id}')">Read</button>
                                 <button class="btn btn-secondary" onclick="removeFromLibrary('${userBook.id}')">Remove</button>
                             ` : `
                                 <button class="btn btn-primary" onclick="addToLibrary('${book.id}', ${book.gutenbergId})">Add to Library</button>
@@ -646,7 +646,7 @@
                 ` : ''}
                 <div style="margin-top: 20px;">
                     ${userBook ? `
-                        <button class="btn btn-primary" onclick="alert('Reader feature coming soon!')">Open Reader</button>
+                        <button class="btn btn-primary" onclick="openReader('${book.id}', '${userBook.id}')">Open Reader</button>
                         <button class="btn btn-secondary" onclick="closeBookModal()">Close</button>
                     ` : `
                         <button class="btn btn-primary" onclick="addToLibrary('${book.id}', ${book.gutenbergId}); closeBookModal();">Add to Library</button>
@@ -661,6 +661,11 @@
         // Close book detail modal
         function closeBookModal() {
             document.getElementById('bookModal').classList.remove('active');
+        }
+
+        // Open reader
+        function openReader(bookId, userBookId) {
+            window.location.href = `/reader.html?bookId=${bookId}&userBookId=${userBookId}`;
         }
 
         // Enter key search
