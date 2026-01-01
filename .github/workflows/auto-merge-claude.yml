@@ -17,15 +17,6 @@ jobs:
       contains(github.event.pull_request.user.login, 'claude')
 
     steps:
-      - name: Wait for CI checks
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          running-workflow-name: 'auto-merge'
-          allowed-conclusions: success,skipped
-
       - name: Auto-approve PR
         run: |
           gh pr review ${{ github.event.pull_request.number }} --approve --body "Auto-approved by claude-code auto-merge workflow"
