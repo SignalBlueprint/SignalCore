@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { get, post } from '../lib/api';
 
 const WG_PHASE_NAMES: Record<string, string> = {
   W: 'Wonder',
@@ -72,9 +73,7 @@ export default function AssignmentReviewPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/goals/${goalId}/assignment-review`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await get<AssignmentReview>(`/api/goals/${goalId}/assignment-review`);
       setReview(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch assignment review');
@@ -85,18 +84,11 @@ export default function AssignmentReviewPage() {
 
   const handleRebalance = async () => {
     if (!goalId) return;
-    
+
     try {
       setRebalancing(true);
-      const orgId = review?.orgId || 'default-org';
-      const response = await fetch(`/api/assignments/reassign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId }),
-      });
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
+      await post('/api/assignments/reassign');
+
       // Refresh review after rebalancing
       await fetchReview();
     } catch (err) {

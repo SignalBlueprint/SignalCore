@@ -75,16 +75,32 @@ const { orgId, userId, role } = (req as AuthenticatedRequest).user;
 
 ---
 
+## ✅ Frontend Integration Complete (2026-01-01)
+
+### **What was completed:**
+1. ✅ Created centralized API client (`/web/src/lib/api.ts`) with automatic token injection
+2. ✅ Updated all 10+ frontend pages to use the API client
+3. ✅ Implemented 401 response handling with automatic token refresh
+4. ✅ Removed all hardcoded userId/orgId from frontend code
+5. ✅ Integrated API client with AuthContext in App.tsx
+6. ✅ Updated all navigation links to remove orgId query parameters
+
+### **Files Updated:**
+- `web/src/lib/api.ts` - New centralized API client
+- `web/src/App.tsx` - API client configuration
+- `web/src/contexts/AuthContext.tsx` - Relative URLs
+- `web/src/pages/TodayPage.tsx` - Uses `get`, `post`
+- `web/src/pages/GoalsPage.tsx` - Uses `get`, `post`, `put`
+- `web/src/pages/TeamPage.tsx` - Uses `get`, `post`, `put`
+- `web/src/pages/TeamIntakePage.tsx` - Uses `get`, `put`
+- `web/src/pages/AnalyticsPage.tsx` - Uses `get`
+- `web/src/pages/AssignmentReviewPage.tsx` - Uses `get`, `post`
+- `web/src/pages/TaskDetailPage.tsx` - Uses `get`, `post`, `put`
+- `web/src/pages/JobsPage.tsx` - Uses `get`
+- `web/src/pages/DebugPage.tsx` - Uses `get`, `post`
+- `web/src/components/Nav.tsx` - Uses `get`
+
 ## 🚧 Next Steps
-
-### **Priority 1: Frontend Integration** (Next Task)
-Currently working on: Update frontend API calls to include auth tokens
-
-**What needs to be done:**
-1. Create centralized API client with automatic token injection
-2. Update all fetch calls to use the API client
-3. Handle 401 responses with token refresh logic
-4. Remove hardcoded userId/orgId from frontend code
 
 ### **Priority 2: Testing**
 1. Test complete signup → login → API call flow
@@ -100,29 +116,30 @@ Consider adding more granular permissions:
 
 ---
 
-## 🎯 Current Status: Backend Secure ✓
+## 🎯 Current Status: Full-Stack Authentication Complete ✓
 
-**Backend API:** 100% secured with JWT authentication
-**Frontend:** Needs token integration (in progress)
-**Testing:** Not yet tested end-to-end
-**Documentation:** This file + AUTHENTICATION_STRATEGY.md
+**Backend API:** ✅ 100% secured with JWT authentication (78 endpoints)
+**Frontend:** ✅ Fully integrated with centralized API client
+**Testing:** ⚠️ Needs end-to-end testing
+**Documentation:** This file + AUTHENTICATION_STRATEGY.md + README.md
 
 ---
 
-## 📝 Breaking Changes
+## 📝 Implementation Details
 
 ### For Frontend Developers:
-1. **All API calls now require authentication**
-   - Must include `Authorization: Bearer <token>` header
-   - Use AuthContext to get current token
+1. **All API calls automatically include authentication**
+   - Use the centralized API client: `import { get, post, put, del } from '../lib/api'`
+   - Authorization headers are injected automatically
+   - Token refresh happens automatically on 401 responses
 
-2. **Cannot specify orgId anymore**
+2. **No manual orgId management**
    - ❌ Bad: `POST /api/goals { orgId: "...", title: "..." }`
-   - ✅ Good: `POST /api/goals { title: "..." }` (orgId from JWT)
+   - ✅ Good: `post('/api/goals', { title: "..." })` (orgId from JWT)
 
 3. **Admin operations require admin role**
-   - Members will get 403 Forbidden on admin endpoints
-   - Check user role in UI to hide/show admin features
+   - Backend returns 403 Forbidden for non-admin users on admin endpoints
+   - Frontend should check `useAuth().role` to hide/show admin features
 
 ### For API Consumers:
 1. **Login first**
@@ -165,5 +182,5 @@ Consider adding more granular permissions:
 ---
 
 **Last Updated:** 2026-01-01
-**Status:** Backend authentication complete, frontend integration in progress
-**Next:** Create centralized API client for frontend
+**Status:** ✅ Full-stack authentication complete (backend + frontend)
+**Next:** End-to-end testing and user onboarding flow

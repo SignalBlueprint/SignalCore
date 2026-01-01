@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { get, post } from '../lib/api';
 
 interface DebugResponse {
   storage: {
@@ -47,23 +48,15 @@ export default function DebugPage() {
   const [runningQuestmaster, setRunningQuestmaster] = useState(false);
   const [questmasterResult, setQuestmasterResult] = useState<any>(null);
 
-  // Get orgId from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const orgId = urlParams.get('orgId') || 'default-org';
-
   useEffect(() => {
     fetchDebugInfo();
-  }, [location, orgId]);
+  }, [location]);
 
   const fetchDebugInfo = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/debug?orgId=${orgId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
+      const data = await get<DebugResponse>('/api/debug');
       // Debug: Log orgContext to console
       console.log('Debug API Response - orgContext:', data.orgContext);
       setDebugInfo(data);
@@ -80,17 +73,7 @@ export default function DebugPage() {
       setQuestmasterResult(null);
       setError(null);
 
-      const response = await fetch('/api/debug/run-questmaster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP ${response.status}`);
-      }
+      const result = await post<any>('/api/debug/run-questmaster');
 
       setQuestmasterResult(result);
       // Refresh debug info after running

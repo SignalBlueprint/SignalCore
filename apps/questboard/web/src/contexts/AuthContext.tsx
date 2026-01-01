@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchCurrentUser = async (authToken: string) => {
-    const response = await fetch('http://localhost:3000/api/auth/me', {
+    const response = await fetch('/api/auth/me', {
       headers: {
         'Authorization': `Bearer ${authToken}`,
       },
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshTokenInternal = async (refreshTok: string) => {
-    const response = await fetch('http://localhost:3000/api/auth/refresh', {
+    const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch('http://localhost:3000/api/auth/login', {
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, orgName?: string) => {
-    const response = await fetch('http://localhost:3000/api/auth/signup', {
+    const response = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuth();
     // Optionally call server logout endpoint
     if (token) {
-      fetch('http://localhost:3000/api/auth/logout', {
+      fetch('/api/auth/logout', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

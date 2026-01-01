@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { get, post, put } from '../lib/api';
 
 const WG_PHASE_NAMES: Record<string, string> = {
   W: 'Wonder',
@@ -49,10 +50,6 @@ export default function TeamPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get orgId from URL params or use default
-  const urlParams = new URLSearchParams(window.location.search);
-  const [orgId] = useState(urlParams.get('orgId') || 'default-org');
-
   const [teamSnapshot, setTeamSnapshot] = useState<TeamSnapshot | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,23 +65,17 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchTeamData();
-  }, [location, orgId]);
+  }, [location]);
 
   const fetchTeamData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const [teamRes, membersRes] = await Promise.all([
-        fetch(`/api/team?orgId=${orgId}`),
-        fetch(`/api/members?orgId=${orgId}`),
+
+      const [teamData, membersData] = await Promise.all([
+        get<TeamSnapshot>('/api/team'),
+        get<Member[]>('/api/members'),
       ]);
-
-      if (!teamRes.ok) throw new Error(`HTTP ${teamRes.status}`);
-      if (!membersRes.ok) throw new Error(`HTTP ${membersRes.status}`);
-
-      const teamData = await teamRes.json();
-      const membersData = await membersRes.json();
 
       setTeamSnapshot(teamData);
       setMembers(membersData);
@@ -98,13 +89,7 @@ export default function TeamPage() {
 
   const saveMemberProfile = async (memberId: string, profile: Partial<MemberProfile>) => {
     try {
-      const response = await fetch(`/api/team/profiles/${memberId}?orgId=${orgId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...profile, orgId }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await put(`/api/team/profiles/${memberId}`, profile);
 
       await fetchTeamData();
       setEditingProfile(null);
@@ -116,14 +101,8 @@ export default function TeamPage() {
   const saveTeamNotes = async () => {
     try {
       setSavingNotes(true);
-      const response = await fetch(`/api/team/settings?orgId=${orgId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, teamNotes }),
-      });
+      await put('/api/team/settings', { teamNotes });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
       await fetchTeamData();
     } catch (err) {
       alert(`Failed to save team notes: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -142,20 +121,10 @@ export default function TeamPage() {
       setAddingMember(true);
       setAddMemberError(null);
 
-      const response = await fetch(`/api/members?orgId=${orgId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newMemberEmail.trim(),
-          role: newMemberRole,
-          orgId,
-        }),
+      await post('/api/members', {
+        email: newMemberEmail.trim(),
+        role: newMemberRole,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
 
       // Success - reset form and refresh data
       setNewMemberEmail('');

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { get } from '../lib/api';
 
 interface JobRunSummary {
   id: string;
@@ -42,9 +42,6 @@ interface JobsData {
 }
 
 export default function JobsPage() {
-  const [searchParams] = useSearchParams();
-  const orgId = searchParams.get('orgId') || '';
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobsData, setJobsData] = useState<JobsData | null>(null);
@@ -53,14 +50,10 @@ export default function JobsPage() {
   const [filterJobId, setFilterJobId] = useState<string>('all');
 
   useEffect(() => {
-    if (!orgId) return;
-
     const fetchJobsData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/jobs?orgId=${orgId}`);
-        if (!response.ok) throw new Error('Failed to fetch jobs data');
-        const data = await response.json();
+        const data = await get<JobsData>('/api/jobs');
         setJobsData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -73,17 +66,7 @@ export default function JobsPage() {
     // Refresh every 30 seconds
     const interval = setInterval(fetchJobsData, 30000);
     return () => clearInterval(interval);
-  }, [orgId]);
-
-  if (!orgId) {
-    return (
-      <div className="p-8">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">Please select an organization to view job monitoring data.</p>
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   if (loading && !jobsData) {
     return (

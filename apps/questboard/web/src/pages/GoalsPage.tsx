@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { get, post, put } from '../lib/api';
 
 interface Goal {
   id: string;
@@ -69,8 +70,6 @@ interface LevelUpResponse {
 export default function GoalsPage() {
   const navigate = useNavigate();
   const { goalId } = useParams<{ goalId?: string }>();
-  const [searchParams] = useSearchParams();
-  const orgId = searchParams.get('orgId') || 'default-org';
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
@@ -92,7 +91,7 @@ export default function GoalsPage() {
 
   useEffect(() => {
     fetchGoalTree();
-  }, [orgId]);
+  }, []);
 
   useEffect(() => {
     if (goalId) {
@@ -111,13 +110,13 @@ export default function GoalsPage() {
       setLoading(true);
       setError(null);
       // Try goals-tree first, fallback to goals if it fails
-      let response = await fetch(`/api/goals-tree?orgId=${orgId}`);
-      if (!response.ok) {
+      let data;
+      try {
+        data = await get<Goal[]>('/api/goals-tree');
+      } catch (err) {
         // Fallback to old endpoint
-        response = await fetch(`/api/goals`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data = await get<Goal[]>('/api/goals');
       }
-      const data = await response.json();
       // Ensure all goals have default hierarchical fields
       const normalizedGoals = data.map((g: Goal) => ({
         ...g,
@@ -137,16 +136,14 @@ export default function GoalsPage() {
 
   const fetchGoalDetails = async (id: string) => {
     try {
-      const [goalRes, pathRes, milestonesRes, rollupRes, childrenRes] = await Promise.all([
-        fetch(`/api/goals/${id}`),
-        fetch(`/api/goals/${id}/path`).catch(() => ({ ok: false })), // Optional
-        fetch(`/api/goals/${id}/milestones`).catch(() => ({ ok: false })), // Optional
-        fetch(`/api/goals/${id}/rollup`).catch(() => ({ ok: false })), // Optional
-        fetch(`/api/goals/${id}/children`).catch(() => ({ ok: false })), // Optional
+      const [goal, path, milestones, rollup, children] = await Promise.all([
+        get<Goal>(`/api/goals/${id}`),
+        get<Goal[]>(`/api/goals/${id}/path`).catch(() => []), // Optional
+        get<Milestone[]>(`/api/goals/${id}/milestones`).catch(() => []), // Optional
+        get<GoalRollup>(`/api/goals/${id}/rollup`).catch(() => null), // Optional
+        get<Goal[]>(`/api/goals/${id}/children`).catch(() => []), // Optional
       ]);
 
-      if (!goalRes.ok) throw new Error(`HTTP ${goalRes.status}`);
-      const goal = await goalRes.json();
       // Normalize goal fields
       const normalizedGoal = {
         ...goal,
@@ -156,34 +153,10 @@ export default function GoalsPage() {
         orderIndex: goal.orderIndex ?? 0,
       };
       setSelectedGoal(normalizedGoal);
-
-      if (pathRes.ok) {
-        const path = await pathRes.json();
-        setGoalPath(path);
-      } else {
-        setGoalPath([]);
-      }
-
-      if (milestonesRes.ok) {
-        const ms = await milestonesRes.json();
-        setMilestones(ms);
-      } else {
-        setMilestones([]);
-      }
-
-      if (rollupRes.ok) {
-        const r = await rollupRes.json();
-        setRollup(r);
-      } else {
-        setRollup(null);
-      }
-
-      if (childrenRes.ok) {
-        const ch = await childrenRes.json();
-        setChildren(ch);
-      } else {
-        setChildren([]);
-      }
+      setGoalPath(path);
+      setMilestones(milestones);
+      setRollup(rollup);
+      setChildren(children);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch goal details');
       console.error('Fetch goal details error:', err);
@@ -199,35 +172,16 @@ export default function GoalsPage() {
     try {
       setCreating(true);
       setError(null);
-      const response = await fetch('/api/goals-tree', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orgId,
-          title: newGoalTitle.trim(),
-          parentGoalId: parentId || null,
-          level: 0,
-        }),
+      const goal = await post<Goal>('/api/goals-tree', {
+        title: newGoalTitle.trim(),
+        parentGoalId: parentId || null,
+        level: 0,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `HTTP ${response.status}` };
-        }
-        const errorMessage = errorData.details || errorData.error || `HTTP ${response.status}: ${errorText}`;
-        console.error('Create goal API error:', response.status, errorData);
-        throw new Error(errorMessage);
-      }
-      const goal = await response.json();
-      
       setNewGoalTitle('');
       setShowCreateForm(false);
       await fetchGoalTree();
-      navigate(`/goals/${goal.id}?orgId=${orgId}`);
+      navigate(`/goals/${goal.id}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('Create goal error:', err);
@@ -244,23 +198,7 @@ export default function GoalsPage() {
     try {
       setLevelingUp(true);
       setError(null);
-      const response = await fetch(`/api/goals/${selectedGoal.id}/level-up`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `HTTP ${response.status}` };
-        }
-        const errorMessage = errorData.details || errorData.error || `HTTP ${response.status}: ${errorText}`;
-        console.error('Level up API error:', response.status, errorData, errorText);
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
+      const data = await post<LevelUpResponse>(`/api/goals/${selectedGoal.id}/level-up`);
       setLevelUpResponse(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -277,18 +215,8 @@ export default function GoalsPage() {
 
     try {
       setApplyingLevelUp(true);
-      const response = await fetch(`/api/goals/${selectedGoal.id}/apply-level-up`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ levelUpResponse }),
-      });
+      const result = await post<any>(`/api/goals/${selectedGoal.id}/apply-level-up`, { levelUpResponse });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
-      }
-      const result = await response.json();
-      
       setLevelUpResponse(null);
       await fetchGoalDetails(selectedGoal.id);
       await fetchGoalTree();
@@ -307,22 +235,7 @@ export default function GoalsPage() {
     try {
       setImproving(true);
       setError(null);
-      const response = await fetch(`/api/goals/${selectedGoal.id}/improve`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `HTTP ${response.status}` };
-        }
-        const errorMessage = errorData.details || errorData.error || `HTTP ${response.status}: ${errorText}`;
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
+      const data = await post<any>(`/api/goals/${selectedGoal.id}/improve`);
       setImproveResponse(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -339,18 +252,8 @@ export default function GoalsPage() {
 
     try {
       setApplyingImprove(true);
-      const response = await fetch(`/api/goals/${selectedGoal.id}/apply-improve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ improved: improveResponse }),
-      });
+      const result = await post<any>(`/api/goals/${selectedGoal.id}/apply-improve`, { improved: improveResponse });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
-      }
-      const result = await response.json();
-      
       setImproveResponse(null);
       await fetchGoalDetails(selectedGoal.id);
       await fetchGoalTree();
@@ -399,7 +302,7 @@ export default function GoalsPage() {
       return (
         <div key={goal.id} style={{ marginLeft: `${depth * 16}px`, marginBottom: '4px' }}>
           <div
-            onClick={() => navigate(`/goals/${goal.id}?orgId=${orgId}`)}
+            onClick={() => navigate(`/goals/${goal.id}`)}
             style={{
               padding: '8px 12px',
               background: selectedGoal?.id === goal.id ? '#e3f2fd' : '#ffffff',
@@ -494,7 +397,7 @@ export default function GoalsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0 }}>Goal Tree</h3>
             <button
-              onClick={() => navigate(`/goals?orgId=${orgId}`)}
+              onClick={() => navigate('/goals')}
               style={{
                 padding: '6px 12px',
                 background: '#6c757d',
@@ -520,7 +423,7 @@ export default function GoalsPage() {
                 <span key={g.id}>
                   {i > 0 && ' → '}
                   <span
-                    onClick={() => navigate(`/goals/${g.id}?orgId=${orgId}`)}
+                    onClick={() => navigate(`/goals/${g.id}`)}
                     style={{ cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     {g.title}
@@ -560,7 +463,7 @@ export default function GoalsPage() {
               </div>
             </div>
             <button
-              onClick={() => navigate(`/goals?orgId=${orgId}`)}
+              onClick={() => navigate('/goals')}
               style={{
                 padding: '8px 16px',
                 background: '#6c757d',
@@ -855,7 +758,7 @@ export default function GoalsPage() {
                 {children.map(c => (
                   <li key={c.id} style={{ marginBottom: '8px' }}>
                     <span
-                      onClick={() => navigate(`/goals/${c.id}?orgId=${orgId}`)}
+                      onClick={() => navigate(`/goals/${c.id}`)}
                       style={{ cursor: 'pointer', textDecoration: 'underline', color: '#0066cc' }}
                     >
                       {c.title}

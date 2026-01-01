@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { get } from '../lib/api';
 
 interface AnalyticsData {
   orgId: string;
@@ -76,27 +76,20 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsPage() {
-  const [searchParams] = useSearchParams();
-  const orgId = searchParams.get('orgId') || 'default-org';
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [orgId]);
+  }, []);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/analytics?orgId=${orgId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await get<AnalyticsData>('/api/analytics');
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch analytics');
@@ -212,7 +205,7 @@ export default function AnalyticsPage() {
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📊 Analytics Dashboard</h1>
         <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
-          Organization: {orgId}
+          Organization: {data.orgId}
         </p>
       </div>
 
