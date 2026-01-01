@@ -26,10 +26,13 @@ export interface Org {
 export interface Member {
   id: string;
   orgId: string;
+  name?: string; // Display name
   email: string;
   role: Role;
+  avatar?: string; // Avatar emoji or URL
   workingGeniusProfile?: WorkingGeniusProfile;
   dailyCapacityMinutes?: number; // Daily work capacity in minutes (e.g., 480 = 8 hours)
+  currentWorkloadMinutes?: number; // Current workload in minutes
   createdAt: string;
   updatedAt: string;
 }
