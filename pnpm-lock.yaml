@@ -140,15 +140,6 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
-  apps/demoapp:
-    devDependencies:
-      tsx:
-        specifier: ^4.0.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
   apps/leadscout:
     dependencies:
       '@sb/ai':

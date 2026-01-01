@@ -10,7 +10,6 @@ export type AppId =
   | "catalog"
   | "outreach"
   | "console"
-  | "demoapp"
   | "lexome";
 
 export type AppStatus = "skeleton" | "wip" | "beta" | "prod";
@@ -96,18 +95,6 @@ export const SUITE_REGISTRY = {
     description: "Unified admin console for suite management",
     status: "skeleton",
     defaultPort: 4000,
-    routes: {
-      base: "/",
-      health: "/health",
-    },
-    owners: ["@signal-blueprint/platform"],
-  },
-  demoapp: {
-    id: "demoapp",
-    name: "Demoapp",
-    description: "[Add purpose description]",
-    status: "skeleton",
-    defaultPort: 4025,
     routes: {
       base: "/",
       health: "/health",
