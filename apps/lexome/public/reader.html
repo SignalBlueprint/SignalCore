@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reader - Lexome</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Theme variables */
+        body.light-theme {
+            --bg-color: #f5f5f5;
+            --reader-bg: #ffffff;
+            --text-color: #333333;
+            --header-bg: #667eea;
+            --border-color: #e0e0e0;
+            --menu-bg: #ffffff;
+            --button-hover: #f0f0f0;
+        }
+
+        body.dark-theme {
+            --bg-color: #1a1a1a;
+            --reader-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --header-bg: #4a5568;
+            --border-color: #4a4a4a;
+            --menu-bg: #2d2d2d;
+            --button-hover: #3a3a3a;
+        }
+
+        body.sepia-theme {
+            --bg-color: #f4ecd8;
+            --reader-bg: #fdf6e3;
+            --text-color: #5c4f3d;
+            --header-bg: #8b7355;
+            --border-color: #d4c4a8;
+            --menu-bg: #fdf6e3;
+            --button-hover: #ebe0c8;
+        }
+
+        /* Header */
+        .reader-header {
+            background: var(--header-bg);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .book-info {
+            max-width: 500px;
+        }
+
+        .book-info h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-display {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* Reader container */
+        .reader-container {
+            max-width: var(--reader-width);
+            margin: 40px auto;
+            padding: 40px;
+            background: var(--reader-bg);
+            min-height: calc(100vh - 200px);
+            border-radius: 10px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            line-height: var(--line-height);
+            font-size: var(--font-size);
+            font-family: var(--font-family);
+        }
+
+        .reader-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .reader-content p {
+            margin-bottom: 1.5em;
+        }
+
+        /* Settings panel */
+        .settings-panel {
+            position: fixed;
+            right: -350px;
+            top: 0;
+            bottom: 0;
+            width: 350px;
+            background: var(--menu-bg);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+            transition: right 0.3s;
+            z-index: 200;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .settings-panel.active {
+            right: 0;
+        }
+
+        .settings-section {
+            margin-bottom: 30px;
+        }
+
+        .settings-section h3 {
+            margin-bottom: 15px;
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        .setting-item {
+            margin-bottom: 15px;
+        }
+
+        .setting-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border-color);
+            outline: none;
+        }
+
+        .theme-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .theme-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            background: var(--reader-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .theme-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .font-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .font-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            background: var(--reader-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .font-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-color);
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #e53e3e;
+        }
+
+        /* Navigation controls */
+        .nav-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--menu-bg);
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #5568d3;
+        }
+
+        .nav-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .scroll-indicator {
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        /* Selection menu */
+        .selection-menu {
+            position: absolute;
+            background: var(--menu-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 300;
+            gap: 5px;
+        }
+
+        .selection-menu.active {
+            display: flex;
+        }
+
+        .selection-btn {
+            padding: 8px 12px;
+            background: var(--reader-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-color);
+            transition: background 0.3s;
+        }
+
+        .selection-btn:hover {
+            background: var(--button-hover);
+        }
+
+        /* AI Response Modal */
+        .ai-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 400;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-modal.active {
+            display: flex;
+        }
+
+        .ai-modal-content {
+            background: var(--menu-bg);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            color: var(--text-color);
+        }
+
+        .ai-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .ai-modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .ai-close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-color);
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .ai-close-btn:hover {
+            opacity: 1;
+        }
+
+        .ai-response {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .ai-loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .ai-loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .selected-text-preview {
+            background: var(--reader-bg);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-style: italic;
+            border-left: 4px solid #667eea;
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <!-- Header -->
+    <div class="reader-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">← Back</button>
+            <div class="book-info">
+                <h1 id="bookTitle">Loading...</h1>
+                <p id="bookAuthor"></p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="progress-display" id="progressDisplay">0%</div>
+            <button class="icon-btn" onclick="toggleSettings()" title="Settings">⚙️</button>
+        </div>
+    </div>
+
+    <!-- Reader content -->
+    <div class="reader-container" id="readerContainer">
+        <div class="reader-content" id="readerContent">
+            <div class="loading">Loading book content...</div>
+        </div>
+    </div>
+
+    <!-- Settings panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <h2 style="margin-bottom: 20px; color: var(--text-color);">Reader Settings</h2>
+
+        <div class="settings-section">
+            <h3>Theme</h3>
+            <div class="theme-buttons">
+                <button class="theme-btn active" data-theme="light" onclick="setTheme('light')">☀️ Light</button>
+                <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">🌙 Dark</button>
+                <button class="theme-btn" data-theme="sepia" onclick="setTheme('sepia')">📜 Sepia</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Font Family</h3>
+            <div class="font-buttons">
+                <button class="font-btn active" data-font="serif" onclick="setFont('serif')">Serif</button>
+                <button class="font-btn" data-font="sans" onclick="setFont('sans')">Sans</button>
+                <button class="font-btn" data-font="mono" onclick="setFont('mono')">Mono</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Font Size</h3>
+            <div class="setting-item">
+                <label class="setting-label">Size: <span id="fontSizeValue">18px</span></label>
+                <input type="range" min="14" max="28" value="18" class="slider" id="fontSizeSlider" oninput="setFontSize(this.value)">
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Line Height</h3>
+            <div class="setting-item">
+                <label class="setting-label">Height: <span id="lineHeightValue">1.8</span></label>
+                <input type="range" min="1.2" max="2.5" step="0.1" value="1.8" class="slider" id="lineHeightSlider" oninput="setLineHeight(this.value)">
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Reader Width</h3>
+            <div class="setting-item">
+                <label class="setting-label">Width: <span id="widthValue">700px</span></label>
+                <input type="range" min="500" max="1000" step="50" value="700" class="slider" id="widthSlider" oninput="setWidth(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <!-- Selection menu -->
+    <div class="selection-menu" id="selectionMenu">
+        <button class="selection-btn" onclick="explainSelection()">✨ Explain</button>
+        <button class="selection-btn" onclick="defineSelection()">📖 Define</button>
+        <button class="selection-btn" onclick="annotateSelection()">📝 Note</button>
+    </div>
+
+    <!-- AI Response Modal -->
+    <div class="ai-modal" id="aiModal">
+        <div class="ai-modal-content">
+            <div class="ai-modal-header">
+                <h3 id="aiModalTitle">AI Explanation</h3>
+                <button class="ai-close-btn" onclick="closeAIModal()">&times;</button>
+            </div>
+            <div class="selected-text-preview" id="selectedTextPreview"></div>
+            <div id="aiModalBody">
+                <div class="ai-loading">Loading AI response</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Reader state
+        let currentBookId = null;
+        let currentUserBookId = null;
+        let bookContent = '';
+        let currentProgress = 0;
+        let settings = {
+            theme: 'light',
+            font: 'serif',
+            fontSize: 18,
+            lineHeight: 1.8,
+            width: 700
+        };
+
+        // Font family mappings
+        const fontFamilies = {
+            serif: 'Georgia, "Times New Roman", serif',
+            sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            mono: '"Courier New", Courier, monospace'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadSettings();
+            applySettings();
+            await loadBook();
+            setupScrollTracking();
+            setupTextSelection();
+        });
+
+        // Load book from URL params
+        async function loadBook() {
+            const params = new URLSearchParams(window.location.search);
+            currentBookId = params.get('bookId');
+            currentUserBookId = params.get('userBookId');
+
+            if (!currentBookId) {
+                showError('No book specified');
+                return;
+            }
+
+            try {
+                // Load book details
+                const bookResponse = await fetch(`/api/books/${currentBookId}`);
+                const book = await bookResponse.json();
+
+                document.getElementById('bookTitle').textContent = book.title;
+                document.getElementById('bookAuthor').textContent = `by ${book.author}`;
+
+                // Load book content
+                const contentResponse = await fetch(`/api/books/${currentBookId}/content`);
+                const contentData = await contentResponse.json();
+                bookContent = contentData.content;
+
+                // Load user progress if available
+                if (currentUserBookId) {
+                    const userBookResponse = await fetch(`/api/library/books/${currentUserBookId}`);
+                    const userBook = await userBookResponse.json();
+                    currentProgress = userBook.progress || 0;
+
+                    // TODO: Restore scroll position from currentLocation
+                }
+
+                displayContent();
+                updateProgressDisplay();
+            } catch (error) {
+                console.error('Error loading book:', error);
+                showError('Failed to load book content');
+            }
+        }
+
+        // Display book content
+        function displayContent() {
+            const container = document.getElementById('readerContent');
+
+            // Simple text formatting
+            const formatted = bookContent
+                .split('\n\n')
+                .map(para => para.trim())
+                .filter(para => para.length > 0)
+                .map(para => `<p>${para}</p>`)
+                .join('');
+
+            container.innerHTML = formatted || '<p>No content available</p>';
+        }
+
+        // Show error
+        function showError(message) {
+            const container = document.getElementById('readerContent');
+            container.innerHTML = `<div class="error-state"><h3>Error</h3><p>${message}</p></div>`;
+        }
+
+        // Settings management
+        function loadSettings() {
+            const saved = localStorage.getItem('lexome-reader-settings');
+            if (saved) {
+                settings = { ...settings, ...JSON.parse(saved) };
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('lexome-reader-settings', JSON.stringify(settings));
+        }
+
+        function applySettings() {
+            document.body.className = `${settings.theme}-theme`;
+            document.documentElement.style.setProperty('--font-family', fontFamilies[settings.font]);
+            document.documentElement.style.setProperty('--font-size', `${settings.fontSize}px`);
+            document.documentElement.style.setProperty('--line-height', settings.lineHeight);
+            document.documentElement.style.setProperty('--reader-width', `${settings.width}px`);
+
+            // Update UI controls
+            document.getElementById('fontSizeValue').textContent = `${settings.fontSize}px`;
+            document.getElementById('fontSizeSlider').value = settings.fontSize;
+            document.getElementById('lineHeightValue').textContent = settings.lineHeight;
+            document.getElementById('lineHeightSlider').value = settings.lineHeight;
+            document.getElementById('widthValue').textContent = `${settings.width}px`;
+            document.getElementById('widthSlider').value = settings.width;
+
+            // Update active buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === settings.theme);
+            });
+            document.querySelectorAll('.font-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.font === settings.font);
+            });
+        }
+
+        function setTheme(theme) {
+            settings.theme = theme;
+            saveSettings();
+            applySettings();
+        }
+
+        function setFont(font) {
+            settings.font = font;
+            saveSettings();
+            applySettings();
+        }
+
+        function setFontSize(size) {
+            settings.fontSize = parseInt(size);
+            saveSettings();
+            applySettings();
+        }
+
+        function setLineHeight(height) {
+            settings.lineHeight = parseFloat(height);
+            saveSettings();
+            applySettings();
+        }
+
+        function setWidth(width) {
+            settings.width = parseInt(width);
+            saveSettings();
+            applySettings();
+        }
+
+        // Toggle settings panel
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('active');
+        }
+
+        // Scroll tracking
+        function setupScrollTracking() {
+            let saveTimeout;
+            window.addEventListener('scroll', () => {
+                updateProgressDisplay();
+
+                // Debounce progress saving
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveProgress, 2000);
+            });
+        }
+
+        function updateProgressDisplay() {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+            const progress = Math.round((scrollTop / (documentHeight - windowHeight)) * 100);
+            currentProgress = Math.min(100, Math.max(0, progress));
+
+            document.getElementById('progressDisplay').textContent = `${currentProgress}%`;
+        }
+
+        async function saveProgress() {
+            if (!currentUserBookId) return;
+
+            try {
+                await fetch(`/api/library/books/${currentUserBookId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        progress: currentProgress,
+                        currentLocation: `scroll:${window.pageYOffset}`
+                    })
+                });
+            } catch (error) {
+                console.error('Error saving progress:', error);
+            }
+        }
+
+        // Text selection
+        function setupTextSelection() {
+            document.getElementById('readerContent').addEventListener('mouseup', handleTextSelection);
+        }
+
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            if (selectedText.length > 0) {
+                showSelectionMenu(selection);
+            } else {
+                hideSelectionMenu();
+            }
+        }
+
+        function showSelectionMenu(selection) {
+            const menu = document.getElementById('selectionMenu');
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+
+            menu.style.left = `${rect.left + (rect.width / 2) - 150}px`;
+            menu.style.top = `${rect.top - 50 + window.pageYOffset}px`;
+            menu.classList.add('active');
+
+            // Store selection for later use
+            menu.dataset.selectedText = selection.toString();
+        }
+
+        function hideSelectionMenu() {
+            document.getElementById('selectionMenu').classList.remove('active');
+        }
+
+        async function explainSelection() {
+            const text = document.getElementById('selectionMenu').dataset.selectedText;
+            hideSelectionMenu();
+
+            if (!currentBookId) return;
+
+            showAIModal('AI Explanation', text);
+
+            try {
+                const response = await fetch('/api/ai/explain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, bookId: currentBookId })
+                });
+
+                const data = await response.json();
+                showAIResponse(data.explanation);
+            } catch (error) {
+                console.error('Error getting explanation:', error);
+                showAIResponse('Failed to get AI explanation. Please try again.');
+            }
+        }
+
+        async function defineSelection() {
+            const text = document.getElementById('selectionMenu').dataset.selectedText;
+            hideSelectionMenu();
+
+            if (!currentBookId) return;
+
+            // Get surrounding context (up to 200 chars before and after)
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            const container = range.commonAncestorContainer;
+            const fullText = container.textContent || '';
+            const startOffset = range.startOffset;
+            const contextStart = Math.max(0, startOffset - 200);
+            const contextEnd = Math.min(fullText.length, startOffset + text.length + 200);
+            const context = fullText.substring(contextStart, contextEnd);
+
+            showAIModal('Definition', text);
+
+            try {
+                const response = await fetch('/api/ai/define', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        word: text,
+                        context,
+                        bookId: currentBookId
+                    })
+                });
+
+                const data = await response.json();
+                showAIResponse(data.definition);
+            } catch (error) {
+                console.error('Error getting definition:', error);
+                showAIResponse('Failed to get definition. Please try again.');
+            }
+        }
+
+        async function annotateSelection() {
+            const text = document.getElementById('selectionMenu').dataset.selectedText;
+            const note = prompt(`Add a note for:\n"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+
+            hideSelectionMenu();
+
+            if (!note) return;
+
+            try {
+                // Calculate offsets (simplified - in production, use proper text position tracking)
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                const startOffset = range.startOffset;
+                const endOffset = startOffset + text.length;
+
+                const response = await fetch('/api/annotations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bookId: currentBookId,
+                        textSelection: text,
+                        startOffset,
+                        endOffset,
+                        noteContent: note,
+                        tags: [],
+                        isPublic: false
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Annotation saved!');
+                } else {
+                    alert('Failed to save annotation');
+                }
+            } catch (error) {
+                console.error('Error saving annotation:', error);
+                alert('Failed to save annotation');
+            }
+        }
+
+        function showAIModal(title, selectedText) {
+            document.getElementById('aiModalTitle').textContent = title;
+            document.getElementById('selectedTextPreview').textContent = `"${selectedText}"`;
+            document.getElementById('aiModalBody').innerHTML = '<div class="ai-loading">Loading AI response</div>';
+            document.getElementById('aiModal').classList.add('active');
+        }
+
+        function showAIResponse(response) {
+            document.getElementById('aiModalBody').innerHTML = `<div class="ai-response">${response}</div>`;
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').classList.remove('active');
+        }
+
+        // Navigation
+        function goBack() {
+            window.location.href = '/';
+        }
+
+        // Save progress before leaving
+        window.addEventListener('beforeunload', saveProgress);
+    </script>
+</body>
+</html>

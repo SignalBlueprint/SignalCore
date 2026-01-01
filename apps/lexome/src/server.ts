@@ -8,6 +8,9 @@ import * as path from "path";
 import { getSuiteApp } from "@sb/suite";
 import booksRouter from "./routes/books";
 import libraryRouter from "./routes/library";
+import sessionsRouter from "./routes/sessions";
+import annotationsRouter from "./routes/annotations";
+import aiRouter from "./routes/ai";
 
 const app = express();
 const suiteApp = getSuiteApp("lexome");
@@ -20,6 +23,9 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 // API Routes
 app.use("/api/books", booksRouter);
 app.use("/api/library", libraryRouter);
+app.use("/api/sessions", sessionsRouter);
+app.use("/api/annotations", annotationsRouter);
+app.use("/api/ai", aiRouter);
 
 // Health check
 app.get(suiteApp.routes.health, (req, res) => {
@@ -50,6 +56,32 @@ app.get("/api", (req, res) => {
         update: "PATCH /api/library/books/:id",
         remove: "DELETE /api/library/books/:id",
         stats: "GET /api/library/stats",
+      },
+      sessions: {
+        start: "POST /api/sessions/start",
+        end: "POST /api/sessions/:id/end",
+        history: "GET /api/sessions/history",
+        stats: "GET /api/sessions/stats",
+        active: "GET /api/sessions/active/:bookId",
+      },
+      annotations: {
+        list: "GET /api/annotations",
+        book: "GET /api/annotations/book/:bookId",
+        create: "POST /api/annotations",
+        update: "PATCH /api/annotations/:id",
+        delete: "DELETE /api/annotations/:id",
+        search: "GET /api/annotations/search?q=<query>",
+        tags: "GET /api/annotations/tags",
+        stats: "GET /api/annotations/stats",
+      },
+      ai: {
+        explain: "POST /api/ai/explain",
+        translate: "POST /api/ai/translate",
+        define: "POST /api/ai/define",
+        summarize: "POST /api/ai/summarize",
+        analyzeCharacter: "POST /api/ai/analyze-character",
+        questions: "POST /api/ai/questions",
+        recommendations: "GET /api/ai/recommendations",
       },
     },
   });
