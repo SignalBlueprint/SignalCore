@@ -7,6 +7,13 @@ import type { Book } from "../models/schemas";
 
 const GUTENDEX_API_URL = process.env.GUTENBERG_API_URL || "https://gutendex.com";
 
+// Create axios instance with proxy disabled for Gutenberg API
+const gutenbergAxios = axios.create({
+  proxy: false,
+  httpsAgent: undefined,
+  httpAgent: undefined,
+});
+
 interface GutenbergBook {
   id: number;
   title: string;
@@ -47,7 +54,7 @@ export class GutenbergService {
       if (params.page) queryParams.append("page", params.page.toString());
 
       const url = `${GUTENDEX_API_URL}/books?${queryParams.toString()}`;
-      const response = await axios.get<GutenbergResponse>(url);
+      const response = await gutenbergAxios.get<GutenbergResponse>(url);
 
       const books = response.data.results.map((gb) => this.transformGutenbergBook(gb));
 
@@ -68,7 +75,7 @@ export class GutenbergService {
   async getBookById(gutenbergId: number): Promise<Book | null> {
     try {
       const url = `${GUTENDEX_API_URL}/books/${gutenbergId}`;
-      const response = await axios.get<GutenbergBook>(url);
+      const response = await gutenbergAxios.get<GutenbergBook>(url);
       return this.transformGutenbergBook(response.data);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -92,7 +99,7 @@ export class GutenbergService {
   async getPopularBooks(page = 1): Promise<{ books: Book[]; total: number; nextPage: number | null }> {
     try {
       const url = `${GUTENDEX_API_URL}/books?page=${page}`;
-      const response = await axios.get<GutenbergResponse>(url);
+      const response = await gutenbergAxios.get<GutenbergResponse>(url);
 
       // Gutendex returns books sorted by popularity (download count) by default
       const books = response.data.results.map((gb) => this.transformGutenbergBook(gb));
@@ -169,7 +176,7 @@ export class GutenbergService {
    */
   async downloadBookContent(downloadUrl: string): Promise<string> {
     try {
-      const response = await axios.get<string>(downloadUrl, {
+      const response = await gutenbergAxios.get<string>(downloadUrl, {
         responseType: 'text',
       });
       return response.data;
