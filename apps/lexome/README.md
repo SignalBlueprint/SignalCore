@@ -1,9 +1,33 @@
-# Lexome
+# Lexome 📚
 
 **Status:** 🟢 Fully Functional - Complete backend API with AI-powered reading features
 **Port:** 4026
+**Type:** Full-stack Web Application (Express.js + React)
 
 AI-enhanced e-reader that connects to Project Gutenberg's 70,000+ public domain books, providing intelligent context, annotations, and reading assistance through advanced AI capabilities.
+
+![Made with React](https://img.shields.io/badge/React-18.2-blue?logo=react)
+![Backend](https://img.shields.io/badge/Express.js-4.18-green?logo=express)
+![AI Powered](https://img.shields.io/badge/AI-OpenAI%20GPT--4-purple?logo=openai)
+
+## Table of Contents
+
+- [Purpose](#purpose)
+- [Vision](#vision)
+- [Features Showcase](#features-showcase)
+- [Current Features](#current-features)
+- [Architecture](#architecture)
+- [API Endpoints](#api-endpoints-implemented)
+- [Integration with Suite](#integration-with-suite)
+- [Environment Variables](#environment-variables)
+- [Development Status](#development-status)
+- [Quick Start](#quick-start)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Troubleshooting](#troubleshooting)
+- [Deployment Considerations](#deployment-considerations)
+- [Contributing](#contributing)
+- [Documentation](#documentation)
+- [License](#license)
 
 ## Purpose
 
@@ -17,6 +41,39 @@ Create an intelligent reading companion that:
 - Tracks reading progress and offers personalized recommendations
 - Enables social reading with shared annotations and discussions
 - Integrates AI-powered features without disrupting the reading flow
+
+## Features Showcase
+
+### 📖 Smart Reading Experience
+- **70,000+ Books**: Access to Project Gutenberg's entire public domain library
+- **AI Reading Assistant**: Select any text for instant explanations, definitions, and historical context
+- **Customizable Reader**: Adjust font size, line height, dark/light mode, and font family
+- **Progress Tracking**: Visual progress indicators and automatic session tracking
+- **Keyboard Shortcuts**: Power user features for efficient navigation
+
+### 🤖 AI-Powered Features
+- **Text Explanation**: Historical and cultural context for complex passages
+- **Archaic Language Translation**: Convert old English to modern language
+- **Word Definitions**: Contextual definitions considering the book's era
+- **Summarization**: AI-generated chapter and section summaries
+- **Character Analysis**: Deep character insights and relationship mapping
+- **Comprehension Questions**: Generate questions to test understanding
+- **Smart Recommendations**: Personalized book suggestions based on reading history
+
+### 📝 Annotation & Organization
+- **Rich Annotations**: Create notes with AI-generated context
+- **Tagging System**: Organize annotations with custom tags
+- **Bookmarks**: Save important positions in books
+- **Search**: Find annotations by content or tags
+- **Public/Private**: Control annotation visibility
+- **Statistics**: Track your annotation patterns
+
+### 📊 Reading Analytics
+- **Session Tracking**: Monitor reading time, words read, and pages completed
+- **Library Management**: Organize books by reading status (want to read, reading, finished)
+- **Progress Indicators**: Visual tracking from 0-100% completion
+- **Reading History**: View all past reading sessions
+- **Personal Statistics**: Insights into your reading habits
 
 ## Current Features
 
@@ -256,7 +313,7 @@ Lexome integrates with other Signal Blueprint apps:
 
 | Name | Description | Default |
 | --- | --- | --- |
-| `PORT` | Port for the Lexome API server | `4024` |
+| `PORT` | Port for the Lexome API server | `4026` |
 | `NODE_ENV` | Environment (development/production) | `development` |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | Required |
 | `GUTENBERG_API_URL` | Project Gutenberg API endpoint | `https://gutendex.com` |
@@ -446,24 +503,61 @@ Lexome integrates with other Signal Blueprint apps:
 
 ## Quick Start
 
+### Prerequisites
+- Node.js v18+ (v22+ recommended)
+- pnpm package manager
+- OpenAI API key (for AI features)
+
+### Installation & Setup
+
 ```bash
-# Install dependencies (from monorepo root)
+# 1. Install dependencies (from monorepo root)
 pnpm install
 
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Add OPENAI_API_KEY to .env
+# 2. Set up environment variables
+cp .env.example .env
 
-# Run the development server
+# 3. Add your OpenAI API key to .env
+# OPENAI_API_KEY=sk-...
+
+# 4. Build workspace dependencies
+pnpm build --filter @sb/storage --filter @sb/ai --filter @sb/auth
+
+# 5. Run the development server
 pnpm --filter lexome dev
 ```
 
 The server will start on `http://localhost:4026`.
 
-**Available endpoints:**
-- `http://localhost:4026/api` - API documentation with all available endpoints
-- `http://localhost:4026/health` - Health check
-- `http://localhost:4026` - Frontend reading interface
+### Available Endpoints
+
+- `http://localhost:4026` - **Frontend reading interface** (React SPA)
+- `http://localhost:4026/api` - **API documentation** with all available endpoints
+- `http://localhost:4026/health` - **Health check** endpoint
+
+### First Steps
+
+1. **Browse Books**: Navigate to `/discover` to search Project Gutenberg's catalog
+2. **Add to Library**: Click "Add to Library" on any book
+3. **Start Reading**: Click "Read" to open the book in the full-screen reader
+4. **Use AI Features**: Select any text while reading to access AI explanations, definitions, and more
+5. **Create Annotations**: Highlight text and add personal notes with AI-generated context
+
+## Keyboard Shortcuts
+
+The reader supports the following keyboard shortcuts for power users:
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd + B` | Toggle bookmarks panel |
+| `Ctrl/Cmd + T` | Toggle chapter navigation |
+| `Ctrl/Cmd + ,` | Toggle reading settings |
+| `Esc` | Close all panels |
+
+**Reader Features:**
+- **Text Selection**: Select any text to open AI assistant menu
+- **Scroll Progress**: Visual indicator at top of page
+- **Auto-save**: Reading position saved automatically every 30 seconds
 
 ## Contributing
 
@@ -475,6 +569,107 @@ See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development gu
 - [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
 - [Project Gutenberg](https://www.gutenberg.org) - Source library
 - [Gutendex API](https://gutendex.com) - Gutenberg API documentation
+- [Debugging Notes](./DEBUGGING_NOTES.md) - Gutenberg API troubleshooting
+
+## Troubleshooting
+
+### Gutenberg API Issues
+
+#### Problem: HTTP 403 Forbidden or "host_not_allowed"
+**Cause**: Axios is using a proxy server that gutendex.com blocks
+
+**Solution**: The app includes a custom axios instance with proxy disabled in `src/services/gutenberg.ts`. Ensure you're running the latest version.
+
+#### Problem: DNS Resolution Error (EAI_AGAIN)
+**Cause**: Network environment cannot resolve gutendex.com hostname
+
+**Solutions**:
+1. **Check DNS**: Verify your network can resolve `gutendex.com`
+   ```bash
+   nslookup gutendex.com
+   ```
+
+2. **Use Alternative API**: Set `GUTENBERG_API_URL` environment variable to a mirror or local instance
+
+3. **Enable Mock Mode**: For development without network access, consider implementing local mock data
+
+#### Problem: OPENAI_API_KEY Not Found
+**Cause**: Environment variable not set
+
+**Solution**:
+```bash
+# Add to your .env file
+OPENAI_API_KEY=sk-your-api-key-here
+```
+
+### Common Development Issues
+
+#### Frontend Not Loading
+1. Ensure both client and server are running (`pnpm --filter lexome dev`)
+2. Check that port 4026 is not in use
+3. Clear browser cache and reload
+
+#### Build Failures
+```bash
+# Clean and rebuild workspace dependencies
+pnpm clean
+pnpm install
+pnpm build --filter @sb/storage --filter @sb/ai --filter @sb/auth --filter @sb/cache
+pnpm --filter lexome dev
+```
+
+## Deployment Considerations
+
+### Production Requirements
+
+1. **Network Access**: Ensure production environment can access `gutendex.com`
+   - DNS resolution must work for gutendex.com
+   - No proxy restrictions on outbound HTTPS traffic
+   - Consider implementing health checks for Gutenberg API availability
+
+2. **Environment Variables**:
+   ```bash
+   NODE_ENV=production
+   PORT=4026
+   OPENAI_API_KEY=sk-...
+   GUTENBERG_API_URL=https://gutendex.com
+   CACHE_ENABLED=true
+   ```
+
+3. **Caching Strategy**:
+   - Redis recommended for production caching
+   - Consider pre-populating cache with popular books
+   - Implement cache warming for frequently accessed content
+
+4. **Rate Limiting**:
+   - Already configured with tiered limits:
+     - General API: 100 requests/15 minutes
+     - AI endpoints: 20 requests/15 minutes
+     - Write operations: 50 requests/15 minutes
+   - Adjust based on your usage patterns
+
+5. **Monitoring**:
+   - Monitor Gutenberg API availability
+   - Track AI API costs and usage
+   - Monitor reading session metrics
+   - Set up alerts for rate limit violations
+
+### Build for Production
+
+```bash
+# Build client and server
+pnpm --filter lexome build
+
+# Start production server
+NODE_ENV=production pnpm --filter lexome start
+```
+
+### Alternative Deployment Options
+
+1. **API Gateway**: Route Gutenberg requests through an API gateway with proper network access
+2. **Local Mirror**: Host a local mirror of Project Gutenberg catalog
+3. **Hybrid Mode**: Cache popular books and fall back to API for others
+4. **CDN Integration**: Serve book content through CDN for improved performance
 
 ## License
 
