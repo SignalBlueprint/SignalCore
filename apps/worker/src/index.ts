@@ -17,6 +17,8 @@ import {
   getAllJobExecutions,
   getJobStats
 } from "./executions";
+import { startAlertManager, stopAlertManager } from "./alert-manager";
+import { setupAlertEventHandlers } from "./alert-events";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -45,6 +47,11 @@ async function main() {
         process.exit(1);
       }
 
+      // Start alert manager
+      logger.info("Starting alert manager");
+      await startAlertManager();
+      setupAlertEventHandlers();
+
       // Start scheduler with tracking runner
       logger.info("Starting Worker in daemon mode");
       scheduler.start({
@@ -70,15 +77,17 @@ async function main() {
       console.log("Press Ctrl+C to stop the scheduler\n");
 
       // Keep process alive
-      process.on("SIGINT", () => {
+      process.on("SIGINT", async () => {
         logger.info("Received SIGINT, stopping scheduler...");
         scheduler.stop();
+        await stopAlertManager();
         process.exit(0);
       });
 
-      process.on("SIGTERM", () => {
+      process.on("SIGTERM", async () => {
         logger.info("Received SIGTERM, stopping scheduler...");
         scheduler.stop();
+        await stopAlertManager();
         process.exit(0);
       });
 
@@ -283,21 +292,28 @@ async function main() {
   } else if (command === "queue:start") {
     // Start the queue manager
     try {
+      // Start alert manager
+      await startAlertManager();
+      setupAlertEventHandlers();
+
       const queueManager = getQueueManager();
       await queueManager.start();
       console.log("\n✓ Queue manager started\n");
+      console.log("✓ Alert manager started\n");
       console.log("Press Ctrl+C to stop\n");
 
       // Keep process alive
       process.on("SIGINT", async () => {
         logger.info("Received SIGINT, stopping queue manager...");
         await queueManager.stop();
+        await stopAlertManager();
         process.exit(0);
       });
 
       process.on("SIGTERM", async () => {
         logger.info("Received SIGTERM, stopping queue manager...");
         await queueManager.stop();
+        await stopAlertManager();
         process.exit(0);
       });
 
@@ -596,6 +612,128 @@ async function main() {
       });
       process.exit(1);
     }
+  } else if (command === "alert:status") {
+    // Show alert configuration and status
+    try {
+      const { getAlertManager } = await import("./alert-manager");
+      const alertManager = getAlertManager();
+      const config = alertManager.getConfig();
+
+      console.log("\n🔔 Alert Configuration\n");
+      console.log(`  Enabled: ${config.settings.enabled ? "✓ Yes" : "✗ No"}`);
+      console.log(`  Channels: ${config.settings.channels.join(", ")}`);
+
+      if (config.settings.slack) {
+        console.log(`\n  Slack:`);
+        console.log(`    Channel: ${config.settings.slack.channel}`);
+        console.log(`    Username: ${config.settings.slack.username || "Worker Bot"}`);
+      }
+
+      if (config.settings.throttle) {
+        console.log(`\n  Throttle:`);
+        console.log(`    Min Interval: ${config.settings.throttle.minInterval}s`);
+        console.log(`    Max Alerts/Hour: ${config.settings.throttle.maxAlertsPerJobPerHour}`);
+      }
+
+      console.log(`\n  Alert Rules:`);
+      const totalRules =
+        (config.jobFailures?.length || 0) +
+        (config.queueHealth?.length || 0) +
+        (config.performance?.length || 0) +
+        (config.dependencies?.length || 0);
+      const enabledRules = [
+        ...(config.jobFailures || []),
+        ...(config.queueHealth || []),
+        ...(config.performance || []),
+        ...(config.dependencies || []),
+      ].filter(r => r.enabled).length;
+
+      console.log(`    Total: ${totalRules}`);
+      console.log(`    Enabled: ${enabledRules}`);
+      console.log(`    Disabled: ${totalRules - enabledRules}`);
+      console.log("");
+    } catch (error) {
+      logger.error("Failed to get alert status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "alert:history") {
+    // Show recent alerts
+    try {
+      const limit = parseInt(args[args.indexOf("--limit") + 1] || "20");
+      const alerts = await storage.list<any>("alert-events", { limit });
+
+      console.log(`\n📜 Recent Alerts (${alerts.data.length})\n`);
+
+      if (alerts.data.length === 0) {
+        console.log("  No alerts found");
+      } else {
+        // Sort by triggeredAt descending
+        const sorted = alerts.data.sort(
+          (a, b) => new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime()
+        );
+
+        sorted.forEach((alert) => {
+          const severityIcon = {
+            critical: "🚨",
+            high: "⚠️",
+            medium: "⚡",
+            low: "ℹ️",
+          }[alert.severity] || "•";
+
+          console.log(`  ${severityIcon} ${alert.title}`);
+          console.log(`    Severity: ${alert.severity}`);
+          console.log(`    Alert: ${alert.alertName}`);
+          console.log(`    Time: ${new Date(alert.triggeredAt).toLocaleString()}`);
+          if (alert.jobId) {
+            console.log(`    Job: ${alert.jobId}`);
+          }
+          console.log("");
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to get alert history", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "alert:test") {
+    // Send a test alert
+    try {
+      const { getAlertManager } = await import("./alert-manager");
+      const alertManager = getAlertManager();
+      const config = alertManager.getConfig();
+
+      if (!config.settings.enabled) {
+        console.log("\n⚠️  Alerting is disabled in configuration\n");
+        process.exit(1);
+      }
+
+      console.log("\n📤 Sending test alert...\n");
+
+      // Send a test alert by directly calling the private method via type assertion
+      await (alertManager as any).sendAlert({
+        alertName: "test-alert",
+        severity: "low" as const,
+        title: "Test Alert",
+        message: "This is a test alert from the Worker app to verify your alerting configuration is working correctly.",
+        channels: config.settings.channels,
+        metadata: {
+          test: true,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      console.log("✓ Test alert sent successfully");
+      console.log(`  Channels: ${config.settings.channels.join(", ")}`);
+      console.log("");
+    } catch (error) {
+      logger.error("Failed to send test alert", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
   } else {
     console.log(`
 Worker - Job Runner and Scheduler
@@ -630,6 +768,11 @@ Advanced Queue Commands:
       --priority <priority>                                   Filter by priority
   pnpm --filter worker dev -- queue:dlq [--limit N]           View dead letter queue
   pnpm --filter worker dev -- queue:retry <dlqJobId>          Retry job from dead letter queue
+
+Alert Commands:
+  pnpm --filter worker dev -- alert:status                    Show alert configuration
+  pnpm --filter worker dev -- alert:history [--limit N]       Show recent alerts
+  pnpm --filter worker dev -- alert:test                      Send a test alert
 
 Examples:
   # Start daemon with default config (scheduler.yaml)

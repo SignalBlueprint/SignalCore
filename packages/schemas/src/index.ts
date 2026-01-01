@@ -12,3 +12,4 @@ export * from "./domains/siteforge";
 export * from "./domains/outreach";
 export * from "./domains/jobs";
 export * from "./domains/job-queue";
+export * from "./domains/alerts";

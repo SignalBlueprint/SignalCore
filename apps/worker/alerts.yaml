@@ -1,0 +1,146 @@
+# Worker App Alert Configuration
+# Configure alerts for job failures, queue health, and performance
+
+# Global alert settings
+settings:
+  # Enable/disable all alerting
+  enabled: true
+
+  # Default alert channels (can be overridden per alert)
+  channels:
+    - slack
+    # - email
+
+  # Slack configuration
+  slack:
+    channel: "#worker-alerts"
+    username: "Worker Bot"
+    iconEmoji: ":gear:"
+
+  # Email configuration (optional)
+  email:
+    to: "team@example.com"
+    from: "worker@signalblueprint.com"
+
+  # Alert throttling (prevent spam)
+  throttle:
+    # Minimum time between identical alerts (in seconds)
+    minInterval: 300  # 5 minutes
+    # Maximum alerts per job per hour
+    maxAlertsPerJobPerHour: 10
+
+# Job failure alerts
+jobFailures:
+  # Alert on repeated job failures
+  - name: "repeated-failures"
+    description: "Alert when a job fails multiple times in a row"
+    enabled: true
+    conditions:
+      consecutiveFailures: 3
+    severity: "high"
+    channels: ["slack"]
+
+  # Alert when critical jobs fail even once
+  - name: "critical-job-failure"
+    description: "Alert immediately when critical jobs fail"
+    enabled: true
+    conditions:
+      jobPattern: "^(questmaster|sprintplanner|github-sync)"
+      failureCount: 1
+    severity: "critical"
+    channels: ["slack"]
+
+  # Alert on timeout failures
+  - name: "job-timeout"
+    description: "Alert when jobs timeout"
+    enabled: true
+    conditions:
+      failureReason: "timeout"
+    severity: "medium"
+    channels: ["slack"]
+
+# Queue health alerts
+queueHealth:
+  # Alert when dead letter queue has jobs
+  - name: "dlq-jobs"
+    description: "Alert when jobs enter the dead letter queue"
+    enabled: true
+    conditions:
+      dlqSize: 1  # Alert on any DLQ job
+    severity: "high"
+    channels: ["slack"]
+
+  # Alert on large backlog
+  - name: "queue-backlog"
+    description: "Alert when queue backlog grows too large"
+    enabled: true
+    conditions:
+      pendingJobs: 50
+    severity: "medium"
+    channels: ["slack"]
+
+  # Alert when queue is paused
+  - name: "queue-paused"
+    description: "Alert when queue is manually paused"
+    enabled: true
+    conditions:
+      mode: "paused"
+    severity: "medium"
+    channels: ["slack"]
+
+  # Alert on high delayed job count
+  - name: "delayed-jobs"
+    description: "Alert when too many jobs are delayed/retrying"
+    enabled: true
+    conditions:
+      delayedJobs: 20
+    severity: "low"
+    channels: ["slack"]
+
+# Performance alerts
+performance:
+  # Alert when job success rate drops
+  - name: "low-success-rate"
+    description: "Alert when job success rate drops below threshold"
+    enabled: true
+    conditions:
+      jobPattern: ".*"  # All jobs
+      successRate: 0.8  # 80%
+      timeWindow: 3600  # 1 hour in seconds
+      minRuns: 5  # Only alert if job ran at least 5 times
+    severity: "medium"
+    channels: ["slack"]
+
+  # Alert when job duration increases significantly
+  - name: "duration-spike"
+    description: "Alert when job duration increases significantly"
+    enabled: true
+    conditions:
+      jobPattern: ".*"  # All jobs
+      durationIncrease: 2.0  # 2x normal duration
+      timeWindow: 3600  # 1 hour
+      minRuns: 3
+    severity: "low"
+    channels: ["slack"]
+
+  # Alert on concurrency saturation
+  - name: "concurrency-limit"
+    description: "Alert when queue is at max concurrency for extended period"
+    enabled: true
+    conditions:
+      concurrencyUtilization: 0.9  # 90% of max concurrency
+      duration: 300  # 5 minutes
+    severity: "low"
+    channels: ["slack"]
+
+# Dependency failure alerts
+dependencies:
+  # Alert when a job fails due to dependency failure
+  - name: "dependency-chain-failure"
+    description: "Alert when job dependency chains fail"
+    enabled: true
+    conditions:
+      hasDependencies: true
+      failureReason: "dependency"
+    severity: "high"
+    channels: ["slack"]

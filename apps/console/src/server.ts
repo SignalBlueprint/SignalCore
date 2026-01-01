@@ -758,6 +758,155 @@ app.get("/api/queue/overview", async (req, res) => {
   }
 });
 
+// ========================================
+// Alert API Endpoints
+// ========================================
+
+// Get alert configuration
+app.get("/api/alerts/config", async (req, res) => {
+  try {
+    const alertsConfigPath = path.join(__dirname, "..", "..", "worker", "alerts.yaml");
+    const fs = await import("fs");
+
+    if (!fs.existsSync(alertsConfigPath)) {
+      return res.status(404).json({ error: "Alert configuration not found" });
+    }
+
+    const yaml = await import("js-yaml");
+    const content = fs.readFileSync(alertsConfigPath, "utf8");
+    const config = yaml.load(content);
+
+    res.json(config);
+  } catch (error) {
+    console.error("Error getting alert config:", error);
+    res.status(500).json({ error: "Failed to get alert configuration" });
+  }
+});
+
+// Get alert history
+app.get("/api/alerts/history", async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const severity = req.query.severity as string | undefined;
+    const jobId = req.query.jobId as string | undefined;
+
+    const alerts = await storage.list<any>("alert-events", { limit: 500 });
+
+    // Filter alerts
+    let filtered = alerts.data;
+    if (severity) {
+      filtered = filtered.filter((a) => a.severity === severity);
+    }
+    if (jobId) {
+      filtered = filtered.filter((a) => a.jobId === jobId);
+    }
+
+    // Sort by triggeredAt descending
+    const sorted = filtered.sort(
+      (a, b) => new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime()
+    );
+
+    // Apply limit
+    const limited = sorted.slice(0, limit);
+
+    res.json({
+      total: filtered.length,
+      data: limited,
+    });
+  } catch (error) {
+    console.error("Error getting alert history:", error);
+    res.status(500).json({ error: "Failed to get alert history" });
+  }
+});
+
+// Get alert statistics
+app.get("/api/alerts/stats", async (req, res) => {
+  try {
+    const alerts = await storage.list<any>("alert-events", { limit: 1000 });
+
+    // Calculate stats
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const last7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const recent24h = alerts.data.filter(
+      (a) => new Date(a.triggeredAt) >= last24h
+    );
+    const recent7d = alerts.data.filter(
+      (a) => new Date(a.triggeredAt) >= last7d
+    );
+
+    const bySeverity = {
+      critical: alerts.data.filter((a) => a.severity === "critical").length,
+      high: alerts.data.filter((a) => a.severity === "high").length,
+      medium: alerts.data.filter((a) => a.severity === "medium").length,
+      low: alerts.data.filter((a) => a.severity === "low").length,
+    };
+
+    const byAlertName: Record<string, number> = {};
+    alerts.data.forEach((a) => {
+      byAlertName[a.alertName] = (byAlertName[a.alertName] || 0) + 1;
+    });
+
+    const topAlerts = Object.entries(byAlertName)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    res.json({
+      total: alerts.data.length,
+      last24h: recent24h.length,
+      last7d: recent7d.length,
+      bySeverity,
+      topAlerts,
+      mostRecent: alerts.data.sort(
+        (a, b) => new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime()
+      )[0],
+    });
+  } catch (error) {
+    console.error("Error getting alert stats:", error);
+    res.status(500).json({ error: "Failed to get alert statistics" });
+  }
+});
+
+// Send a test alert
+app.post("/api/alerts/test", async (req, res) => {
+  try {
+    const { sendSlackMessage, isSlackEnabled } = await import("@sb/notify");
+
+    if (!isSlackEnabled()) {
+      return res.status(400).json({ error: "Slack notifications are not enabled" });
+    }
+
+    const message = "🧪 Test Alert\n\nThis is a test alert from the Console app to verify your alerting configuration.";
+
+    // Read slack config from alerts.yaml
+    const alertsConfigPath = path.join(__dirname, "..", "..", "worker", "alerts.yaml");
+    const fs = await import("fs");
+    const yaml = await import("js-yaml");
+
+    let slackChannel = "#worker-alerts";
+    if (fs.existsSync(alertsConfigPath)) {
+      const content = fs.readFileSync(alertsConfigPath, "utf8");
+      const config = yaml.load(content) as any;
+      slackChannel = config?.settings?.slack?.channel || slackChannel;
+    }
+
+    const success = await sendSlackMessage(slackChannel, message, {
+      username: "Console Test",
+      iconEmoji: ":test_tube:",
+    });
+
+    if (success) {
+      res.json({ success: true, message: "Test alert sent successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to send test alert" });
+    }
+  } catch (error) {
+    console.error("Error sending test alert:", error);
+    res.status(500).json({ error: "Failed to send test alert" });
+  }
+});
+
 // Serve index.html for all other routes (client-side routing)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
