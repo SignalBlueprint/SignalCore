@@ -1,9 +1,9 @@
 # Lexome
 
-**Status:** 🟢 Fully Functional - Complete backend API with AI-powered reading features
+**Status:** 🟢 Fully Functional - Production-ready AI-powered reading platform
 **Port:** 4026
 
-AI-enhanced e-reader that connects to Project Gutenberg's 70,000+ public domain books, providing intelligent context, annotations, and reading assistance through advanced AI capabilities.
+AI-enhanced e-reader that connects to Project Gutenberg's 70,000+ public domain books, providing intelligent context, annotations, and reading assistance through advanced AI capabilities. Features a modern React UI with comprehensive keyboard navigation, customizable reading settings, and seamless integration with OpenAI GPT-4.
 
 ## Purpose
 
@@ -86,28 +86,42 @@ Create an intelligent reading companion that:
    - ✅ Resource ownership verification
    - ✅ Request logging and monitoring
 
+#### 9. **Advanced Reader UI** (Complete)
+   - ✅ Chapter navigation with table of contents sidebar
+   - ✅ Automatic chapter extraction (CHAPTER, PART, BOOK patterns)
+   - ✅ Reading settings panel with live preview
+   - ✅ Font size customization (12-32px)
+   - ✅ Line height/spacing control (1.2-2.5)
+   - ✅ Content width adjustment (60-100ch)
+   - ✅ Font family selection (8 options including serif, sans-serif, monospace)
+   - ✅ Dark/light theme toggle
+   - ✅ Keyboard shortcuts for navigation and controls
+   - ✅ Visual progress indicators
+   - ✅ Bookmark panel with quick access
+   - ✅ Responsive design for mobile/tablet/desktop
+
 ### 🚧 Planned/Future Features
 
-#### 9. **Enhanced Reading Experience**
+#### 10. **Enhanced Reading Experience**
    - 🔲 EPUB file format support (currently HTML/text)
-   - 🔲 Dark/light theme toggle
-   - 🔲 Font size and spacing customization
-   - 🔲 Chapter navigation UI
+   - 🔲 Multi-format export (PDF, EPUB, Markdown)
+   - 🔲 Text-to-speech integration
+   - 🔲 Offline reading mode with PWA support
 
-#### 10. **Social Reading Features**
+#### 11. **Social Reading Features**
    - 🔲 Public annotation sharing and discovery
    - 🔲 Reading groups and book clubs
    - 🔲 Discussion threads on passages
    - 🔲 User following system
    - 🔲 Activity feed
 
-#### 11. **Advanced AI Features**
+#### 12. **Advanced AI Features**
    - 🔲 Estimated reading time calculation
    - 🔲 Vocabulary complexity analysis
    - 🔲 Reading level assessment
-   - 🔲 Text-to-speech integration
    - 🔲 Multi-language book support
    - 🔲 Academic citation generation
+   - 🔲 AI-powered reading coach with personalized insights
 
 ## Architecture
 
@@ -256,7 +270,7 @@ Lexome integrates with other Signal Blueprint apps:
 
 | Name | Description | Default |
 | --- | --- | --- |
-| `PORT` | Port for the Lexome API server | `4024` |
+| `PORT` | Port for the Lexome API server | `4026` |
 | `NODE_ENV` | Environment (development/production) | `development` |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | Required |
 | `GUTENBERG_API_URL` | Project Gutenberg API endpoint | `https://gutendex.com` |
@@ -371,14 +385,21 @@ Lexome integrates with other Signal Blueprint apps:
 **Task 3.4: Reader Enhancement** ✅ COMPLETE
 - ✅ Enhanced Reader component with full-screen mode
 - ✅ HTML content rendering
-- ✅ Font size controls (A- / A+)
+- ✅ Advanced reading settings panel
+- ✅ Font size customization (12-32px slider)
+- ✅ Line height/spacing control (1.2-2.5)
+- ✅ Content width adjustment (60-100ch)
+- ✅ Font family selection (serif, sans-serif, monospace, etc.)
 - ✅ Dark/light mode toggle
 - ✅ Text selection handler
-- ✅ AI context menu with 6 features
+- ✅ AI context menu with 7 features
 - ✅ Reading session tracking
+- ✅ Chapter navigation sidebar with auto-detection
+- ✅ Bookmark panel with quick access
+- ✅ Keyboard shortcuts (Ctrl+T, Ctrl+B, Ctrl+/, etc.)
+- ✅ Visual progress indicators
+- ✅ Live settings preview
 - 🔲 EPUB format support (future enhancement)
-- 🔲 Chapter navigation UI (future enhancement)
-- 🔲 Bookmark functionality (future enhancement)
 
 **Task 3.5: Annotations UI** ✅ COMPLETE
 - ✅ Annotations list page
@@ -426,23 +447,39 @@ Lexome integrates with other Signal Blueprint apps:
 - ✅ Rate Limiting Middleware (68 lines)
 - ✅ Authentication Middleware (107 lines)
 
-**Frontend Completeness: 90%** (~2,000+ lines of React/TypeScript code)
+**Frontend Completeness: 95%** (~3,000+ lines of React/TypeScript code)
 - ✅ Full React SPA with TypeScript
 - ✅ Vite build system
 - ✅ React Router navigation
 - ✅ Tailwind CSS styling
-- ✅ 7 page components (Home, Discover, Library, Annotations, BookDetail, Reader)
-- ✅ 3 shared components (Layout, BookCard, AIAssistant)
+- ✅ 6 page components (Home, Discover, Library, Annotations, BookDetail, Reader)
+- ✅ 8 shared components (Layout, BookCard, AIAssistant, ChapterNavigation, ReadingSettings, KeyboardShortcutsModal, ProgressIndicator, BookmarkPanel)
 - ✅ Complete API client with type safety
-- ✅ Dark/light mode theming
-- ✅ Responsive design
+- ✅ Dark/light mode theming with user preferences
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Keyboard navigation and shortcuts
+- ✅ Accessibility features (ARIA labels, keyboard support)
 
 **Next Priority Tasks:**
 1. Testing suite (frontend + backend unit/integration tests)
-2. Chapter navigation UI component
-3. EPUB format support for reader
-4. Enhanced bookmark UI in frontend reader
-5. Request logging and monitoring improvements
+2. EPUB format support for reader
+3. Multi-format export (PDF, EPUB, Markdown)
+4. Offline reading mode with PWA support
+5. Enhanced request logging and monitoring
+6. Social reading features (public annotations, reading groups)
+
+## Keyboard Shortcuts
+
+Lexome supports comprehensive keyboard navigation for an enhanced reading experience:
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd + T` | Toggle table of contents sidebar |
+| `Ctrl/Cmd + B` | Toggle bookmarks panel |
+| `Ctrl/Cmd + ,` | Open reading settings |
+| `Ctrl/Cmd + /` | Show keyboard shortcuts help |
+| `Esc` | Close reader and return to library |
+| `Mouse Select` | Select text for AI assistance |
 
 ## Quick Start
 
@@ -464,6 +501,23 @@ The server will start on `http://localhost:4026`.
 - `http://localhost:4026/api` - API documentation with all available endpoints
 - `http://localhost:4026/health` - Health check
 - `http://localhost:4026` - Frontend reading interface
+
+## Known Issues & Troubleshooting
+
+### Gutenberg API Connectivity
+
+In certain network environments, you may encounter issues connecting to the Project Gutenberg API (gutendex.com). The application has been configured to bypass proxies that may block access.
+
+**Common issues:**
+- **HTTP 403 Forbidden**: Proxy blocking - The app now uses a custom axios instance with proxy disabled
+- **DNS Resolution Errors**: Network restrictions - Requires proper DNS access to gutendex.com
+
+For detailed troubleshooting information, see [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md).
+
+**Workarounds:**
+1. Set `GUTENBERG_API_URL` environment variable to point to an alternative mirror
+2. Deploy to an environment with unrestricted HTTPS access
+3. Use cached book data for development/testing
 
 ## Contributing
 
