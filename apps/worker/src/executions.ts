@@ -4,6 +4,7 @@
 
 import { storage } from "@sb/storage";
 import type { JobExecution, JobExecutionStats } from "@sb/schemas";
+import { getAlertManager } from "./alert-manager";
 
 const JOB_EXECUTION_KIND = "job-executions";
 
@@ -68,6 +69,16 @@ export async function markJobSuccess(params: {
   };
 
   await storage.upsert(JOB_EXECUTION_KIND, updatedExecution);
+
+  // Trigger alerts for successful execution (for performance monitoring)
+  try {
+    const alertManager = getAlertManager();
+    await alertManager.onJobExecutionComplete(updatedExecution);
+  } catch (error) {
+    // Don't fail job execution if alerting fails
+    console.error("Failed to process success alerts:", error);
+  }
+
   return updatedExecution;
 }
 
@@ -99,6 +110,16 @@ export async function markJobFailure(params: {
   };
 
   await storage.upsert(JOB_EXECUTION_KIND, updatedExecution);
+
+  // Trigger alerts for failed execution
+  try {
+    const alertManager = getAlertManager();
+    await alertManager.onJobExecutionComplete(updatedExecution);
+  } catch (error) {
+    // Don't fail job execution if alerting fails
+    console.error("Failed to process failure alerts:", error);
+  }
+
   return updatedExecution;
 }
 

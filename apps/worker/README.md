@@ -322,9 +322,58 @@ schedules:
 | `0 0 1 * *` | First day of every month at midnight |
 | `30 8 * * 1-5` | 8:30 AM Monday through Friday |
 
+### Alert Configuration (`alerts.yaml`)
+
+The Worker app includes a comprehensive alerting system that monitors job health and sends notifications via Slack, email, or Discord.
+
+**File Location:** `apps/worker/alerts.yaml`
+
+**Example Configuration:**
+
+```yaml
+settings:
+  enabled: true
+  channels:
+    - slack
+  slack:
+    channel: "#worker-alerts"
+    username: "Worker Bot"
+  throttle:
+    minInterval: 300  # 5 minutes between identical alerts
+    maxAlertsPerJobPerHour: 10
+
+jobFailures:
+  - name: "repeated-failures"
+    enabled: true
+    conditions:
+      consecutiveFailures: 3
+    severity: "high"
+    channels: ["slack"]
+
+queueHealth:
+  - name: "dlq-jobs"
+    enabled: true
+    conditions:
+      dlqSize: 1  # Alert on any DLQ job
+    severity: "high"
+    channels: ["slack"]
+
+performance:
+  - name: "low-success-rate"
+    enabled: true
+    conditions:
+      successRate: 0.8  # Alert if below 80%
+      timeWindow: 3600  # 1 hour
+      minRuns: 5
+    severity: "medium"
+    channels: ["slack"]
+```
+
+See the [Alerting](#alerting) section for full details.
+
 ### Environment Variables
 
-Some jobs require environment variables:
+Some jobs and features require environment variables:
 
 ```bash
 # GitHub Integration
@@ -332,6 +381,16 @@ GITHUB_TOKEN=your_github_personal_access_token
 
 # OpenAI (for AI features in jobs)
 OPENAI_API_KEY=your_openai_api_key
+
+# Alerting (Slack)
+NOTIFY_SLACK_ENABLED=true
+SLACK_WEBHOOK_URL=your_slack_webhook_url
+# OR
+SLACK_BOT_TOKEN=your_slack_bot_token
+
+# Alerting (Email) - Optional
+NOTIFY_EMAIL_ENABLED=true
+SENDGRID_API_KEY=your_sendgrid_api_key
 ```
 
 ## Creating New Jobs
@@ -697,20 +756,25 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - 24-hour performance metrics
    - Failure tracking with error details
 
+✅ **Advanced Job Queue**
+   - Priority-based job scheduling (critical, high, normal, low)
+   - Job dependency chains
+   - Dead letter queue for permanently failed jobs
+   - Concurrency control and rate limiting
+   - Queue pause/resume/drain modes
+   - Configurable retry with backoff strategies
+
+✅ **Alerting**
+   - Multi-channel notifications (Slack, Email, Discord)
+   - Job failure alerts with configurable thresholds
+   - Queue health monitoring (DLQ, backlog, paused state)
+   - Performance degradation detection
+   - Alert throttling to prevent spam
+   - CLI and API for alert management
+
 ### Planned Features
 
-1. **Advanced Job Queue**
-   - Dead letter queue for permanently failed jobs
-   - Job priority system
-   - Queue pause/resume functionality
-
-2. **Alerting**
-   - Email/Slack/Discord notifications
-   - Failure alerts with configurable thresholds
-   - Custom alert rules
-   - Escalation policies
-
-4. **Advanced Scheduling**
+1. **Advanced Scheduling**
    - Job dependency chains
    - Conditional execution based on results
    - Dynamic schedule adjustments
@@ -721,6 +785,211 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - Testing framework for jobs
    - Enhanced debugging tools
    - Auto-generated documentation
+
+## Alerting
+
+The Worker app includes a comprehensive alerting system that monitors job execution, queue health, and performance.
+
+### Features
+
+- **Multi-Channel Notifications**: Send alerts via Slack, Email, or Discord
+- **Job Failure Alerts**: Detect repeated failures, critical job failures, and timeouts
+- **Queue Health Alerts**: Monitor dead letter queue, backlog, and queue state
+- **Performance Alerts**: Track success rates, duration spikes, and concurrency saturation
+- **Throttling**: Prevent alert spam with configurable rate limits
+- **Event-Driven**: Automatically triggered by job and queue events
+
+### Configuration
+
+Edit `apps/worker/alerts.yaml` to configure alert rules:
+
+```yaml
+settings:
+  enabled: true
+  channels: [slack]
+  slack:
+    channel: "#worker-alerts"
+    username: "Worker Bot"
+    iconEmoji: ":gear:"
+  throttle:
+    minInterval: 300  # Seconds between identical alerts
+    maxAlertsPerJobPerHour: 10
+
+jobFailures:
+  - name: "repeated-failures"
+    description: "Alert when a job fails multiple times in a row"
+    enabled: true
+    conditions:
+      consecutiveFailures: 3
+    severity: "high"
+    channels: ["slack"]
+
+  - name: "critical-job-failure"
+    description: "Alert immediately when critical jobs fail"
+    enabled: true
+    conditions:
+      jobPattern: "^(questmaster|sprintplanner|github-sync)"
+      failureCount: 1
+    severity: "critical"
+    channels: ["slack"]
+
+queueHealth:
+  - name: "dlq-jobs"
+    description: "Alert when jobs enter the dead letter queue"
+    enabled: true
+    conditions:
+      dlqSize: 1
+    severity: "high"
+    channels: ["slack"]
+
+  - name: "queue-backlog"
+    description: "Alert when queue backlog grows too large"
+    enabled: true
+    conditions:
+      pendingJobs: 50
+    severity: "medium"
+    channels: ["slack"]
+
+performance:
+  - name: "low-success-rate"
+    description: "Alert when job success rate drops below threshold"
+    enabled: true
+    conditions:
+      jobPattern: ".*"
+      successRate: 0.8  # 80%
+      timeWindow: 3600  # 1 hour
+      minRuns: 5
+    severity: "medium"
+    channels: ["slack"]
+
+  - name: "duration-spike"
+    description: "Alert when job duration increases significantly"
+    enabled: true
+    conditions:
+      jobPattern: ".*"
+      durationIncrease: 2.0  # 2x normal duration
+      timeWindow: 3600
+      minRuns: 3
+    severity: "low"
+    channels: ["slack"]
+```
+
+### Alert Commands
+
+```bash
+# View alert configuration
+pnpm --filter worker dev -- alert:status
+
+# View recent alerts
+pnpm --filter worker dev -- alert:history
+pnpm --filter worker dev -- alert:history --limit 50
+
+# Send a test alert
+pnpm --filter worker dev -- alert:test
+```
+
+### Alert API Endpoints
+
+The Console app exposes REST API endpoints for alerts:
+
+```bash
+# Get alert configuration
+GET /api/alerts/config
+
+# Get alert history
+GET /api/alerts/history?limit=50&severity=high&jobId=daily.questmaster
+
+# Get alert statistics
+GET /api/alerts/stats
+
+# Send a test alert
+POST /api/alerts/test
+```
+
+### Environment Variables
+
+Configure alert channels via environment variables:
+
+```bash
+# Slack (webhook or bot token)
+NOTIFY_SLACK_ENABLED=true
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+# OR
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+
+# Email (via SendGrid)
+NOTIFY_EMAIL_ENABLED=true
+SENDGRID_API_KEY=your-sendgrid-api-key
+
+# Discord (webhook)
+NOTIFY_DISCORD_ENABLED=true
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR/WEBHOOK
+```
+
+### Alert Types
+
+#### Job Failure Alerts
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| repeated-failures | Job fails N times consecutively | high |
+| critical-job-failure | Critical jobs fail once | critical |
+| job-timeout | Job execution times out | medium |
+
+#### Queue Health Alerts
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| dlq-jobs | Jobs move to dead letter queue | high |
+| queue-backlog | Pending jobs exceed threshold | medium |
+| queue-paused | Queue is manually paused | medium |
+| delayed-jobs | Too many jobs delayed/retrying | low |
+
+#### Performance Alerts
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| low-success-rate | Success rate drops below threshold | medium |
+| duration-spike | Job duration increases significantly | low |
+| concurrency-limit | Queue at max concurrency for extended period | low |
+
+### Alert Throttling
+
+Alerts are automatically throttled to prevent spam:
+
+- **Minimum Interval**: Configurable seconds between identical alerts
+- **Max Alerts Per Hour**: Per-job hourly alert limit
+- **Window-Based**: Throttle windows reset after 1 hour
+
+### Integration
+
+Alerts are automatically integrated with:
+- **Job Execution Tracking**: Monitors all job completions and failures
+- **Queue Manager**: Listens to queue events (DLQ, failures, retries)
+- **Event System**: Subscribes to job and queue events
+- **Console Dashboard**: View alert history and statistics
+
+### Customizing Alerts
+
+To add custom alert rules:
+
+1. Edit `alerts.yaml` and add a new rule
+2. Alerts are automatically loaded on worker startup
+3. No code changes required
+4. Reload config with `alert:status` to verify
+
+### Testing Alerts
+
+```bash
+# Send a test alert to verify configuration
+pnpm --filter worker dev -- alert:test
+
+# Trigger a job failure to test failure alerts
+pnpm --filter worker dev -- job nonexistent.job
+
+# Check alert history
+pnpm --filter worker dev -- alert:history
+```
 
 ## Resources
 
