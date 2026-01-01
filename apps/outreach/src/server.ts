@@ -15,21 +15,8 @@ import { getSuiteApp } from "@sb/suite";
 import { StorageCampaignRepository } from "./campaignRepository";
 import { executeCampaign, getCampaignHistory } from "./campaignService";
 import { handleSendGridWebhook } from "./webhookHandler";
-
-interface LeadProfile {
-  id: string;
-  email: string;
-  businessName?: string;
-  domain?: string;
-  painPoint?: string;
-  industry?: string;
-  score?: number;
-  tags?: string[];
-}
-
-interface LeadProvider {
-  getLeads(filters: AudienceFilters): Promise<LeadProfile[]>;
-}
+import { createLeadScoutClient } from "./leadscoutClient";
+import { LeadScoutLeadProvider, type LeadProfile, type LeadProvider } from "./leadscoutProvider";
 
 class MockLeadProvider implements LeadProvider {
   private leads: LeadProfile[];
@@ -76,7 +63,13 @@ class MockLeadProvider implements LeadProvider {
 
 const suiteApp = getSuiteApp("outreach");
 const port = Number(process.env.PORT ?? suiteApp.defaultPort);
-const leadProvider = new MockLeadProvider();
+
+// Initialize LeadScout integration
+const useLeadScout = process.env.USE_LEADSCOUT !== "false"; // Default to true
+const leadProvider: LeadProvider = useLeadScout
+  ? new LeadScoutLeadProvider(createLeadScoutClient())
+  : new MockLeadProvider();
+
 const repository = new StorageCampaignRepository();
 
 const createCampaignSchema = z.object({
@@ -127,7 +120,7 @@ function matchLead(lead: LeadProfile, filters: AudienceFilters): boolean {
   }
   if (filters.tags && filters.tags.length > 0) {
     const leadTags = lead.tags ?? [];
-    const hasAll = filters.tags.every((tag) => leadTags.includes(tag));
+    const hasAll = filters.tags.every((tag: string) => leadTags.includes(tag));
     if (!hasAll) {
       return false;
     }
@@ -140,6 +133,14 @@ const DEFAULT_FALLBACKS: Record<string, string> = {
   domain: "your site",
   pain_point: "a growth bottleneck",
   industry: "your industry",
+  company_size: "your company",
+  funding_status: "your funding stage",
+  qualification_reason: "your business needs",
+  key_insight: "your growth potential",
+  opportunity: "new growth opportunities",
+  recommended_action: "exploring our solution",
+  tech_stack: "your technology stack",
+  score: "high potential",
 };
 
 function renderTemplate(template: string, variables: Record<string, string>): string {
@@ -158,6 +159,14 @@ function compileMessage(
     domain: lead.domain ?? DEFAULT_FALLBACKS.domain,
     pain_point: lead.painPoint ?? DEFAULT_FALLBACKS.pain_point,
     industry: lead.industry ?? DEFAULT_FALLBACKS.industry,
+    company_size: lead.companySize ?? DEFAULT_FALLBACKS.company_size,
+    funding_status: lead.fundingStatus ?? DEFAULT_FALLBACKS.funding_status,
+    qualification_reason: lead.qualificationReason ?? DEFAULT_FALLBACKS.qualification_reason,
+    key_insight: lead.keyInsight ?? DEFAULT_FALLBACKS.key_insight,
+    opportunity: lead.opportunity ?? DEFAULT_FALLBACKS.opportunity,
+    recommended_action: lead.recommendedAction ?? DEFAULT_FALLBACKS.recommended_action,
+    tech_stack: lead.techStack ?? DEFAULT_FALLBACKS.tech_stack,
+    score: lead.score?.toString() ?? DEFAULT_FALLBACKS.score,
   };
 
   return {
@@ -240,7 +249,7 @@ const server = http.createServer(async (req, res) => {
 
     const campaign = await repository.create({
       name: parsed.data.name,
-      audienceFilters: parsed.data.audienceFilters,
+      audienceFilters: parsed.data.audienceFilters ?? {},
       template: parsed.data.template,
     });
     sendJson(res, 201, { campaign });
