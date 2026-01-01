@@ -1,7 +1,7 @@
 # Lexome
 
-**Status:** 🟡 Planning - New app in development
-**Port:** 4024
+**Status:** 🟡 WIP - Core features in development
+**Port:** 4026
 
 AI-enhanced e-reader that connects to Project Gutenberg library, providing valuable context, annotations, and reading assistance during reading sessions.
 
@@ -372,7 +372,7 @@ cp ../../.env.example ../../.env
 pnpm --filter lexome dev
 ```
 
-Then open `http://localhost:4024` in your browser.
+Then open `http://localhost:4026` in your browser.
 
 ## Contributing
 
