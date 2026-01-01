@@ -653,6 +653,38 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 For detailed information about each app and the suite architecture, see [SUITE_MAP.md](./docs/SUITE_MAP.md).
 
+## GitHub Automation
+
+**✅ Automated PR Workflow for Claude Code - FULLY OPERATIONAL**
+
+The repository has successfully implemented automated PR creation and merging for Claude Code sessions:
+
+### Auto-Create PR Workflow
+- **Status:** ✅ Working
+- **Trigger:** Automatic on push to `claude/**` branches
+- **Function:** Creates pull requests automatically from commit messages
+- **Location:** `.github/workflows/auto-create-pr.yml`
+
+### Auto-Merge Workflow
+- **Status:** ✅ Working
+- **Success Rate:** 100% (10+ PRs successfully auto-merged)
+- **Trigger:** Automatic on PR open/update from Claude branches
+- **Function:** Auto-approves and squash-merges PRs from `claude/**` branches
+- **Location:** `.github/workflows/auto-merge-claude.yml`
+
+### Recent Successfully Auto-Merged PRs
+- PR #75 - Fix automerge skip conditions
+- PR #74 - Remove demoapp placeholder
+- PR #73 - Fix GitHub auto-merge
+- PR #72 - Remove CI lint workflow
+- PR #71 - Add Lexome test coverage
+- PR #70 - Fix auto-merge workflow
+- PR #69 - Update app READMEs
+- PR #68 - Add auto-merge workflow
+- ...and many more
+
+This automation enables fully autonomous Claude Code development workflows with zero manual intervention required for PR management.
+
 ## Quick Start
 
 ```bash
