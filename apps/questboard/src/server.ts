@@ -93,6 +93,7 @@ import {
   spawnGoalFromTemplate,
 } from "./store";
 import { adaptTemplate } from "@sb/ai";
+import authRoutes from "./routes/auth";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -128,6 +129,9 @@ app.use((req, res, next) => {
 app.get("/health", (req, res) => {
   res.status(200).type("text/plain").send("ok");
 });
+
+// Mount auth routes
+app.use("/api/auth", authRoutes);
 
 // Status endpoint
 app.get("/api/status", async (req, res) => {
