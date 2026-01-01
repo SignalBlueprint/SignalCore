@@ -2,7 +2,8 @@
  * HTML template generator for website components
  */
 
-import { PageComponent, SiteMetadata, ComponentType } from "@sb/schemas";
+import { PageComponent, SiteMetadata, ComponentType, TemplateStyle, IndustryType, ColorScheme } from "@sb/schemas";
+import { getTemplateStyles } from "./template-styles";
 
 /**
  * Generate complete HTML page from components and metadata
@@ -10,11 +11,14 @@ import { PageComponent, SiteMetadata, ComponentType } from "@sb/schemas";
 export function generateHTML(
   metadata: SiteMetadata,
   components: PageComponent[],
-  businessName: string
+  businessName: string,
+  templateStyle: TemplateStyle = "modern",
+  industryType?: IndustryType,
+  colorScheme?: ColorScheme
 ): string {
   const sortedComponents = [...components].sort((a, b) => a.order - b.order);
 
-  const head = generateHead(metadata);
+  const head = generateHead(metadata, templateStyle, industryType, colorScheme);
   const body = generateBody(sortedComponents, businessName);
 
   return `<!DOCTYPE html>
@@ -27,8 +31,20 @@ ${body}
 /**
  * Generate HTML head section
  */
-function generateHead(metadata: SiteMetadata): string {
+function generateHead(
+  metadata: SiteMetadata,
+  templateStyle: TemplateStyle = "modern",
+  industryType?: IndustryType,
+  colorScheme?: ColorScheme
+): string {
   const keywords = metadata.keywords.join(", ");
+
+  // Get the template-specific styles
+  const styles = getTemplateStyles({
+    style: templateStyle,
+    industryType,
+    colorScheme,
+  });
 
   return `<head>
   <meta charset="UTF-8">
@@ -47,191 +63,7 @@ function generateHead(metadata: SiteMetadata): string {
   <!-- Favicon -->
   ${metadata.favicon ? `<link rel="icon" href="${metadata.favicon}">` : ""}
 
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
-
-    section {
-      padding: 60px 20px;
-    }
-
-    h1, h2, h3, h4 {
-      margin-bottom: 1rem;
-      line-height: 1.2;
-    }
-
-    h1 {
-      font-size: 3rem;
-      font-weight: 700;
-    }
-
-    h2 {
-      font-size: 2.5rem;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-
-    h3 {
-      font-size: 1.5rem;
-      font-weight: 600;
-    }
-
-    p {
-      margin-bottom: 1rem;
-      font-size: 1.125rem;
-    }
-
-    .btn {
-      display: inline-block;
-      padding: 12px 32px;
-      background: ${metadata.themeColor};
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
-      margin-top: 40px;
-    }
-
-    .card {
-      padding: 30px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      transition: transform 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    }
-
-    .text-center {
-      text-align: center;
-    }
-
-    .hero {
-      min-height: 600px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 100px 20px;
-    }
-
-    .hero h1 {
-      margin-bottom: 1.5rem;
-    }
-
-    .hero p {
-      font-size: 1.5rem;
-      margin-bottom: 2rem;
-      opacity: 0.95;
-    }
-
-    .footer {
-      background: #1a1a1a;
-      color: white;
-      text-align: center;
-      padding: 40px 20px;
-    }
-
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 30px;
-      margin-top: 40px;
-    }
-
-    .pricing-card {
-      padding: 40px 30px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      text-align: center;
-      border: 2px solid transparent;
-      transition: all 0.3s ease;
-    }
-
-    .pricing-card:hover {
-      border-color: ${metadata.themeColor};
-      transform: scale(1.05);
-    }
-
-    .price {
-      font-size: 3rem;
-      font-weight: 700;
-      color: ${metadata.themeColor};
-      margin: 20px 0;
-    }
-
-    .testimonial {
-      background: #f8f9fa;
-      padding: 30px;
-      border-radius: 12px;
-      font-style: italic;
-    }
-
-    .testimonial-author {
-      margin-top: 15px;
-      font-weight: 600;
-      font-style: normal;
-      color: ${metadata.themeColor};
-    }
-
-    @media (max-width: 768px) {
-      h1 {
-        font-size: 2rem;
-      }
-
-      h2 {
-        font-size: 1.75rem;
-      }
-
-      .hero {
-        min-height: 400px;
-        padding: 60px 20px;
-      }
-
-      .hero p {
-        font-size: 1.25rem;
-      }
-
-      section {
-        padding: 40px 20px;
-      }
-    }
-  </style>
+  <style>${styles}</style>
 </head>`;
 }
 
