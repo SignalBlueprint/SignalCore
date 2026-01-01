@@ -24,6 +24,14 @@ Outreach enables teams to create, manage, and execute communication campaigns at
   - `{{domain}}` - Website domain
   - `{{pain_point}}` - Industry pain point
   - `{{industry}}` - Industry classification
+  - `{{score}}` - Lead score
+  - `{{company_size}}` - Company size (from LeadScout intelligence)
+  - `{{funding_status}}` - Funding status (from LeadScout intelligence)
+  - `{{qualification_reason}}` - Qualification reason (from LeadScout intelligence)
+  - `{{key_insight}}` - Key insight (from LeadScout intelligence)
+  - `{{opportunity}}` - Opportunity (from LeadScout intelligence)
+  - `{{recommended_action}}` - Recommended action (from LeadScout intelligence)
+  - `{{tech_stack}}` - Technology stack (from LeadScout intelligence)
 - **Template compilation** - Preview personalized messages
 - **Campaign message preview** - See how messages will look to recipients
 
@@ -32,7 +40,8 @@ Outreach enables teams to create, manage, and execute communication campaigns at
   - Industry (technology, healthcare, finance, etc.)
   - Score range (minimum/maximum lead score)
   - Tags (custom lead tags)
-- **Mock lead provider** for testing
+- **LeadScout integration** - Fetch real leads from LeadScout API
+- **Mock lead provider** for testing (fallback option)
 - **Dynamic audience selection** - Automatically targets matching leads
 
 ### Campaign Management & Execution ✨ NEW
@@ -58,6 +67,9 @@ cp ../../.env.example ../../.env
 #   FROM_NAME - Sender name (e.g., "Your Company")
 #   NOTIFY_EMAIL_ENABLED=true - Enable email sending
 #   EMAIL_RATE_LIMIT=10 - Max emails per second (default: 10)
+#   LEADSCOUT_URL - LeadScout API URL (default: http://localhost:4021)
+#   LEADSCOUT_ORG_ID - Organization ID for LeadScout (optional)
+#   USE_LEADSCOUT - Enable LeadScout integration (default: true)
 
 # Run the development server
 pnpm --filter outreach dev
@@ -93,7 +105,7 @@ To enable actual email sending:
 - **Frontend**: Static HTML/CSS/JavaScript with modern UI
 - **Storage**: Supabase via `@sb/storage` abstraction layer (persistent)
 - **Templates**: Custom template engine with variable substitution
-- **Lead Integration**: Mock lead provider (will integrate with LeadScout)
+- **Lead Integration**: LeadScout API integration with fallback to mock provider
 
 ## API Endpoints
 
@@ -160,6 +172,9 @@ Returns personalized messages for each targeted lead showing how variables will 
 - **✨ Delivery tracking** - Webhook handling for delivery, open, click, bounce events
 - **✨ Rate limiting** - Configurable emails per second to respect provider limits
 - **✨ Campaign statistics** - Sent count, failed count, last sent date
+- **✨ LeadScout integration** - Fetch leads from LeadScout API with intelligence data
+- **✨ Lead status updates** - Automatically mark leads as "contacted" after campaign sent
+- **✨ Rich template variables** - Support for company size, funding status, tech stack, and AI insights
 
 ### 🎯 Ready for Production Use
 The Outreach app is now fully functional and ready to send real email campaigns!
@@ -188,18 +203,24 @@ The Outreach app is now fully functional and ready to send real email campaigns!
    - **Goal:** Visual analytics and data-driven campaign optimization
    - **Benefit:** Better insights into campaign effectiveness
 
+**✅ COMPLETED (Jan 2026):** LeadScout Integration 🔗 CROSS-APP WORKFLOW
+- ✅ Connect to LeadScout API for lead import
+- ✅ Fetch leads with filters (industry, score, tags)
+- ✅ Map lead fields to email template variables
+- ✅ Support LeadScout intelligence data in templates (company size, funding, tech stack, etc.)
+- ✅ Update lead status to "contacted" when campaign emails are sent
+- ✅ Automatic email derivation from lead URLs
+- **Status:** Production-ready! ✨
+
 **Priority 2 (Next 1-2 Months):**
 
-3. **LeadScout Integration** 🔗 CROSS-APP WORKFLOW
-   - Connect to LeadScout API for lead import
-   - Add "Import from LeadScout" button in campaign creation
-   - Build lead list selection UI with filters (score, status, tags)
-   - Auto-populate campaign targeting from lead segments
-   - Map lead fields to email template variables
-   - Track campaign performance metrics back to LeadScout
-   - Update lead status when contacted via campaign
-   - Show "Last Contacted" date in LeadScout
-   - **Goal:** Seamless lead-to-campaign workflow
+3. **Enhanced LeadScout Integration** 🔗 UI ENHANCEMENT
+   - Add "Import from LeadScout" button in campaign creation UI
+   - Build lead list selection UI with preview
+   - Show lead intelligence data in campaign preview
+   - Display "Last Contacted" date in LeadScout UI
+   - Add bidirectional sync for campaign metrics
+   - **Goal:** Seamless lead-to-campaign workflow with rich UI
    - **Benefit:** Complete sales automation from discovery to outreach
 
 **Priority 3 (Next Quarter):**

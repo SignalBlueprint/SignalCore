@@ -52,12 +52,12 @@ async function processEvent(event: SendGridEvent): Promise<void> {
     // Try to find by campaign and lead ID (from custom args)
     const allHistory = await storage.list<EmailSendHistory>("email_send_history");
     historyEntry = allHistory.find(
-      (h) => h.campaignId === campaignId && h.leadId === leadId
+      (h: EmailSendHistory) => h.campaignId === campaignId && h.leadId === leadId
     ) || null;
   } else if (sg_message_id) {
     // Try to find by SendGrid message ID
     const allHistory = await storage.list<EmailSendHistory>("email_send_history");
-    historyEntry = allHistory.find((h) => h.messageId === sg_message_id) || null;
+    historyEntry = allHistory.find((h: EmailSendHistory) => h.messageId === sg_message_id) || null;
   }
 
   if (!historyEntry) {

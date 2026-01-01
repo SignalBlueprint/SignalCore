@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 import type { Campaign, EmailSendHistory } from "@sb/schemas";
 import { StorageCampaignRepository } from "./campaignRepository";
 import { logger } from "@sb/logger";
+import { createLeadScoutClient } from "./leadscoutClient";
 
 export interface LeadWithEmail {
   id: string;
@@ -17,6 +18,15 @@ export interface LeadWithEmail {
   domain?: string;
   painPoint?: string;
   industry?: string;
+  score?: number;
+  // LeadScout intelligence-based fields
+  companySize?: string;
+  fundingStatus?: string;
+  qualificationReason?: string;
+  keyInsight?: string;
+  opportunity?: string;
+  recommendedAction?: string;
+  techStack?: string;
 }
 
 export interface CampaignExecutionResult {
@@ -32,6 +42,14 @@ const DEFAULT_FALLBACKS: Record<string, string> = {
   domain: "your site",
   pain_point: "a growth bottleneck",
   industry: "your industry",
+  company_size: "your company",
+  funding_status: "your funding stage",
+  qualification_reason: "your business needs",
+  key_insight: "your growth potential",
+  opportunity: "new growth opportunities",
+  recommended_action: "exploring our solution",
+  tech_stack: "your technology stack",
+  score: "high potential",
 };
 
 function renderTemplate(template: string, variables: Record<string, string>): string {
@@ -65,6 +83,14 @@ export async function executeCampaign(
       domain: lead.domain ?? DEFAULT_FALLBACKS.domain,
       pain_point: lead.painPoint ?? DEFAULT_FALLBACKS.pain_point,
       industry: lead.industry ?? DEFAULT_FALLBACKS.industry,
+      company_size: lead.companySize ?? DEFAULT_FALLBACKS.company_size,
+      funding_status: lead.fundingStatus ?? DEFAULT_FALLBACKS.funding_status,
+      qualification_reason: lead.qualificationReason ?? DEFAULT_FALLBACKS.qualification_reason,
+      key_insight: lead.keyInsight ?? DEFAULT_FALLBACKS.key_insight,
+      opportunity: lead.opportunity ?? DEFAULT_FALLBACKS.opportunity,
+      recommended_action: lead.recommendedAction ?? DEFAULT_FALLBACKS.recommended_action,
+      tech_stack: lead.techStack ?? DEFAULT_FALLBACKS.tech_stack,
+      score: lead.score?.toString() ?? DEFAULT_FALLBACKS.score,
     };
 
     const subject = renderTemplate(campaign.template.subject, variables);
@@ -84,7 +110,7 @@ export async function executeCampaign(
   });
 
   // Send emails in bulk
-  const results = await sendBulkEmails(messages, (sent, total) => {
+  const results = await sendBulkEmails(messages, (sent: number, total: number) => {
     if (onProgress) {
       onProgress(sent, total);
     }
@@ -92,6 +118,8 @@ export async function executeCampaign(
 
   // Process results and create history
   const now = new Date().toISOString();
+  const leadScoutClient = createLeadScoutClient();
+
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const lead = leads[i];
@@ -115,6 +143,22 @@ export async function executeCampaign(
 
     if (result.success) {
       sentCount++;
+
+      // Update lead status in LeadScout to "contacted"
+      try {
+        await leadScoutClient.updateLeadStatus(lead.id, "contacted");
+        logger.info("Updated lead status in LeadScout", {
+          leadId: lead.id,
+          status: "contacted",
+          campaignId: campaign.id
+        });
+      } catch (error) {
+        logger.warn("Failed to update lead status in LeadScout", {
+          leadId: lead.id,
+          error
+        });
+        // Don't fail the campaign if status update fails
+      }
     } else {
       failedCount++;
     }
@@ -151,7 +195,7 @@ export async function getCampaignHistory(
   campaignId: string
 ): Promise<EmailSendHistory[]> {
   const allHistory = await storage.list<EmailSendHistory>("email_send_history");
-  return allHistory.filter((h) => h.campaignId === campaignId);
+  return allHistory.filter((h: EmailSendHistory) => h.campaignId === campaignId);
 }
 
 /**
@@ -159,5 +203,5 @@ export async function getCampaignHistory(
  */
 export async function getLeadHistory(leadId: string): Promise<EmailSendHistory[]> {
   const allHistory = await storage.list<EmailSendHistory>("email_send_history");
-  return allHistory.filter((h) => h.leadId === leadId);
+  return allHistory.filter((h: EmailSendHistory) => h.leadId === leadId);
 }
