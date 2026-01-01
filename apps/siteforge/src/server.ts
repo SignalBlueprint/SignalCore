@@ -99,6 +99,9 @@ const server = http.createServer(async (req, res) => {
       const domain = String(body?.domain ?? "").trim();
       const niche = String(body?.niche ?? "").trim();
       const notes = body?.notes ? String(body.notes) : undefined;
+      const templateStyle = body?.templateStyle as "modern" | "minimal" | "bold" | undefined;
+      const industryType = body?.industryType as "saas" | "ecommerce" | "portfolio" | "general" | undefined;
+      const colorScheme = body?.colorScheme as { primary: string; secondary?: string; accent?: string; background?: string; text?: string; } | undefined;
 
       if (!businessName || !domain || !niche) {
         sendJson(res, 400, {
@@ -114,6 +117,9 @@ const server = http.createServer(async (req, res) => {
         domain,
         niche,
         notes,
+        templateStyle,
+        industryType,
+        colorScheme,
         status: "draft",
         createdAt: now,
         updatedAt: now,
@@ -138,6 +144,52 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     sendJson(res, 200, { project });
+    return;
+  }
+
+  if (req.method === "PUT" && url.pathname.startsWith("/projects/")) {
+    const pathParts = url.pathname.split("/");
+    const id = pathParts[2];
+
+    // Make sure this is a direct PUT to /projects/:id (not a sub-route like /generate)
+    if (!id || pathParts.length !== 3) {
+      notFound(res);
+      return;
+    }
+
+    try {
+      const project = await projectRepo.getById(id);
+      if (!project) {
+        notFound(res);
+        return;
+      }
+
+      const body = await parseJsonBody(req);
+      const businessName = body?.businessName ? String(body.businessName).trim() : project.businessName;
+      const domain = body?.domain ? String(body.domain).trim() : project.domain;
+      const niche = body?.niche ? String(body.niche).trim() : project.niche;
+      const notes = body?.notes !== undefined ? (body.notes ? String(body.notes) : undefined) : project.notes;
+      const templateStyle = body?.templateStyle as "modern" | "minimal" | "bold" | undefined ?? project.templateStyle;
+      const industryType = body?.industryType as "saas" | "ecommerce" | "portfolio" | "general" | undefined ?? project.industryType;
+      const colorScheme = body?.colorScheme as { primary: string; secondary?: string; accent?: string; background?: string; text?: string; } | undefined ?? project.colorScheme;
+
+      const updatedProject: SiteProject = {
+        ...project,
+        businessName,
+        domain,
+        niche,
+        notes,
+        templateStyle,
+        industryType,
+        colorScheme,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await projectRepo.update(updatedProject);
+      sendJson(res, 200, { project: updatedProject });
+    } catch (error) {
+      sendJson(res, 400, { error: "Invalid JSON payload" });
+    }
     return;
   }
 

@@ -54,7 +54,10 @@ export async function generateWebsite(
     const html = generateHTML(
       contentResult.metadata,
       contentResult.components,
-      project.businessName
+      project.businessName,
+      project.templateStyle || "modern",
+      project.industryType,
+      project.colorScheme
     );
 
     console.log(

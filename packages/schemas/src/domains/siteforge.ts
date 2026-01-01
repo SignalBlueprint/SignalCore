@@ -4,6 +4,18 @@
 
 export type SiteProjectStatus = "draft" | "queued" | "generating" | "ready" | "failed";
 
+export type TemplateStyle = "modern" | "minimal" | "bold";
+
+export type IndustryType = "saas" | "ecommerce" | "portfolio" | "general";
+
+export interface ColorScheme {
+  primary: string;
+  secondary?: string;
+  accent?: string;
+  background?: string;
+  text?: string;
+}
+
 export interface SiteProject {
   id: string;
   businessName: string;
@@ -11,6 +23,9 @@ export interface SiteProject {
   niche: string;
   notes?: string;
   status: SiteProjectStatus;
+  templateStyle?: TemplateStyle;
+  industryType?: IndustryType;
+  colorScheme?: ColorScheme;
   generatedSite?: GeneratedSite;
   error?: string;
   createdAt: string;

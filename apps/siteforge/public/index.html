@@ -83,7 +83,7 @@
 
   <!-- Add Project Modal -->
   <div id="projectModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 600px;">
       <div class="modal-header">Create New Website Project</div>
       <form id="projectForm">
         <div class="form-group">
@@ -102,6 +102,38 @@
           <label>Notes</label>
           <textarea id="notes" placeholder="Any specific requirements or notes..."></textarea>
         </div>
+
+        <!-- Template Configuration -->
+        <div style="border-top: 2px solid #e5e7eb; margin: 20px 0; padding-top: 20px;">
+          <h3 style="font-size: 16px; margin-bottom: 15px; color: #374151;">🎨 Template Customization</h3>
+
+          <div class="form-group">
+            <label>Template Style</label>
+            <select id="templateStyle" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="modern">Modern (Default) - Contemporary gradient design</option>
+              <option value="minimal">Minimal - Clean and elegant</option>
+              <option value="bold">Bold - Vibrant and impactful</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Industry Type</label>
+            <select id="industryType" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Auto-detect from niche</option>
+              <option value="saas">SaaS - Blue & purple palette</option>
+              <option value="ecommerce">E-commerce - Pink & amber palette</option>
+              <option value="portfolio">Portfolio - Indigo & cyan palette</option>
+              <option value="general">General - Neutral palette</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Custom Primary Color (optional)</label>
+            <input type="color" id="primaryColor" style="width: 100px; height: 40px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer;">
+            <small style="display: block; margin-top: 5px; color: #6b7280;">Leave default to use industry palette</small>
+          </div>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">Create Project</button>

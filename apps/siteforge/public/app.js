@@ -55,6 +55,19 @@ function renderProjects() {
 }
 
 function renderProject(project) {
+  const templateIcon = {
+    modern: '✨',
+    minimal: '🎯',
+    bold: '💥'
+  }[project.templateStyle || 'modern'] || '✨';
+
+  const industryIcon = {
+    saas: '💻',
+    ecommerce: '🛍️',
+    portfolio: '🎨',
+    general: '📄'
+  }[project.industryType || 'general'] || '📄';
+
   return `
     <div class="project-card">
       <div class="project-header">
@@ -64,6 +77,8 @@ function renderProject(project) {
       <div class="project-meta">
         <span class="badge badge-${project.status}">${formatStatus(project.status)}</span>
         <span class="project-niche">${escapeHtml(project.niche)}</span>
+        ${project.templateStyle ? `<span class="badge" style="background: #ede9fe; color: #5b21b6;">${templateIcon} ${project.templateStyle}</span>` : ''}
+        ${project.industryType ? `<span class="badge" style="background: #dbeafe; color: #1e40af;">${industryIcon} ${project.industryType}</span>` : ''}
       </div>
       ${project.notes ? `<div class="project-notes">${escapeHtml(project.notes)}</div>` : ''}
       <div class="project-actions">
@@ -107,11 +122,22 @@ function closeModal() {
 async function handleAddProject(e) {
   e.preventDefault();
 
+  const templateStyle = document.getElementById('templateStyle').value || undefined;
+  const industryType = document.getElementById('industryType').value || undefined;
+  const primaryColorInput = document.getElementById('primaryColor');
+  const primaryColor = primaryColorInput.value;
+
+  // Only include color scheme if user changed from default
+  const colorScheme = (primaryColor && primaryColor !== '#000000') ? { primary: primaryColor } : undefined;
+
   const projectData = {
     businessName: document.getElementById('businessName').value.trim(),
     domain: document.getElementById('domain').value.trim(),
     niche: document.getElementById('niche').value.trim(),
-    notes: document.getElementById('notes').value.trim() || undefined
+    notes: document.getElementById('notes').value.trim() || undefined,
+    templateStyle,
+    industryType,
+    colorScheme
   };
 
   try {

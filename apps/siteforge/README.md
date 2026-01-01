@@ -137,7 +137,7 @@ curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
 
 ## Current Status
 
-### ✅ Implemented Features (v1.0)
+### ✅ Implemented Features (v1.1)
 - ✅ Complete REST API with project CRUD
 - ✅ Persistent storage using `@sb/storage`
 - ✅ Full web UI for project management
@@ -151,13 +151,16 @@ curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
 - ✅ **Background Job Processing** - Async generation with queue management
 - ✅ **Site Preview & Export** - Live HTML preview and JSON export
 - ✅ **Event Publishing** - Integration with suite event system
+- ✅ **Template Variations** - 3 visual styles (Modern, Minimal, Bold)
+- ✅ **Industry-Specific Styling** - Auto-optimized color palettes for SaaS, E-commerce, Portfolio
+- ✅ **Color Customization** - Custom primary color support with full color scheme system
 
 ### ⚠️ Future Enhancements
-- **Multiple Templates** - Currently single responsive template, add variations
 - **Visual Builder** - Drag-and-drop customization UI
 - **Deployment** - Vercel, Netlify, or static hosting integration
 - **Asset Management** - Image upload and stock photo integration
 - **Multi-page Sites** - Currently single-page, expand to full sites
+- **Advanced Color Customization** - Full color picker UI for all color scheme properties
 
 ## Technical Architecture
 
@@ -192,16 +195,41 @@ curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
 - `src/repository.ts` - Data persistence layer
 - `src/server.ts` - Express API server with endpoints
 
+### Template System ✨ NEW
+
+**Three Visual Styles:**
+- **Modern** - Contemporary gradient design with smooth animations and modern aesthetics
+- **Minimal** - Clean, elegant typography-focused design with simple aesthetics
+- **Bold** - Vibrant, impactful design with high contrast and striking visual elements
+
+**Industry-Specific Color Palettes:**
+- **SaaS** - Professional blue & purple tones
+- **E-commerce** - Energetic pink & amber palette
+- **Portfolio** - Creative indigo & cyan scheme
+- **General** - Versatile neutral palette
+
+**Customization Options:**
+- Template style selection (modern/minimal/bold)
+- Industry type selection for auto-optimized color schemes
+- Custom primary color override
+- Future: Full color scheme customization
+
+**API Support:**
+- `templateStyle` field on SiteProject (`modern` | `minimal` | `bold`)
+- `industryType` field on SiteProject (`saas` | `ecommerce` | `portfolio` | `general`)
+- `colorScheme` object with `primary`, `secondary`, `accent`, `background`, `text` colors
+- All template configuration is optional (defaults to `modern` with `general` palette)
+
 ### Next Steps (Roadmap v2.0)
 
-**Priority 1 (Next 2 Weeks):** 🔥
+**Priority 1 (Next 2 Weeks):** ✅ COMPLETED
 
-1. **Template Variations**
-   - Add 2-3 different visual templates (modern, minimal, bold)
-   - Implement template selection in UI
-   - Add basic color scheme customization
-   - Industry-specific styling (SaaS, E-commerce, Portfolio)
-   - **Goal:** Give users visual template choices
+1. ~~**Template Variations**~~ ✅
+   - ~~Add 2-3 different visual templates (modern, minimal, bold)~~ ✅
+   - ~~Implement template selection in UI~~ ✅
+   - ~~Add basic color scheme customization~~ ✅
+   - ~~Industry-specific styling (SaaS, E-commerce, Portfolio)~~ ✅
+   - **Goal:** ~~Give users visual template choices~~ ✅
 
 **Priority 2 (Next Month):**
 
