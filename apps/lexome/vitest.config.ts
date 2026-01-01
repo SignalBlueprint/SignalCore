@@ -23,7 +23,7 @@ export default defineConfig({
     },
     server: {
       deps: {
-        inline: ['@sb/storage', '@sb/cache', '@sb/ai'],
+        inline: ['@sb/storage', '@sb/cache', '@sb/ai', '@sb/events', '@sb/db', '@sb/telemetry', '@sb/config', '@sb/schemas'],
       },
     },
   },
@@ -34,6 +34,11 @@ export default defineConfig({
       '@sb/storage': path.resolve(__dirname, '../../packages/storage/src/index.ts'),
       '@sb/cache': path.resolve(__dirname, '../../packages/cache/src/index.ts'),
       '@sb/ai': path.resolve(__dirname, '../../packages/ai/src/index.ts'),
+      '@sb/events': path.resolve(__dirname, '../../packages/events/src/index.ts'),
+      '@sb/db': path.resolve(__dirname, '../../packages/db/src/index.ts'),
+      '@sb/telemetry': path.resolve(__dirname, '../../packages/telemetry/src/index.ts'),
+      '@sb/config': path.resolve(__dirname, '../../packages/config/src/index.ts'),
+      '@sb/schemas': path.resolve(__dirname, '../../packages/schemas/src/index.ts'),
     },
   },
 })
