@@ -11,6 +11,7 @@ import libraryRouter from "./routes/library";
 import sessionsRouter from "./routes/sessions";
 import annotationsRouter from "./routes/annotations";
 import aiRouter from "./routes/ai";
+import bookmarksRouter from "./routes/bookmarks";
 
 const app = express();
 const suiteApp = getSuiteApp("lexome");
@@ -31,6 +32,7 @@ app.use("/api/library", libraryRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/annotations", annotationsRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/bookmarks", bookmarksRouter);
 
 // Health check
 app.get(suiteApp.routes.health, (req, res) => {
@@ -87,6 +89,14 @@ app.get("/api", (req, res) => {
         analyzeCharacter: "POST /api/ai/analyze-character",
         questions: "POST /api/ai/questions",
         recommendations: "GET /api/ai/recommendations",
+      },
+      bookmarks: {
+        list: "GET /api/bookmarks",
+        book: "GET /api/bookmarks/book/:bookId",
+        get: "GET /api/bookmarks/:id",
+        create: "POST /api/bookmarks",
+        update: "PATCH /api/bookmarks/:id",
+        delete: "DELETE /api/bookmarks/:id",
       },
     },
   });

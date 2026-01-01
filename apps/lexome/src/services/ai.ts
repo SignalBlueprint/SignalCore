@@ -3,7 +3,6 @@
  */
 import { generateText } from "@sb/ai";
 import { getJson, setJson, hashInput } from "@sb/cache";
-import { trackTelemetry } from "@sb/telemetry";
 
 export class AIService {
   /**
@@ -47,14 +46,6 @@ Keep your response concise (2-3 paragraphs) and accessible.`;
       setJson(cacheKey, response);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.explain.text",
-        properties: {
-          bookTitle: params.bookTitle,
-          textLength: params.text.length,
-          responseLength: response.length,
-        },
-      });
 
       return response;
     } catch (error) {
@@ -102,13 +93,6 @@ Provide only the translation, without additional commentary.`;
       setJson(cacheKey, response);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.translate.archaic",
-        properties: {
-          bookTitle: params.bookTitle,
-          textLength: params.text.length,
-        },
-      });
 
       return response;
     } catch (error) {
@@ -158,13 +142,6 @@ Keep your response brief (1-2 paragraphs).`;
       setJson(cacheKey, response);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.define.word",
-        properties: {
-          bookTitle: params.bookTitle,
-          word: params.word,
-        },
-      });
 
       return response;
     } catch (error) {
@@ -215,13 +192,6 @@ Keep your summary concise (2-3 paragraphs).`;
       setJson(cacheKey, response);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.summarize.section",
-        properties: {
-          bookTitle: params.bookTitle,
-          textLength: params.text.length,
-        },
-      });
 
       return response;
     } catch (error) {
@@ -271,13 +241,6 @@ Keep your analysis concise (2-3 paragraphs) and avoid major spoilers if possible
       setJson(cacheKey, response);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.analyze.character",
-        properties: {
-          bookTitle: params.bookTitle,
-          character: params.characterName,
-        },
-      });
 
       return response;
     } catch (error) {
@@ -332,13 +295,6 @@ Format: Return ONLY the questions, one per line, numbered 1-5.`;
       setJson(cacheKey, questions);
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.generate.questions",
-        properties: {
-          bookTitle: params.bookTitle,
-          questionCount: questions.length,
-        },
-      });
 
       return questions;
     } catch (error) {
@@ -382,13 +338,6 @@ Format your response as a numbered list with title, author, and brief explanatio
       });
 
       // Track telemetry
-      trackTelemetry({
-        event: "ai.get.recommendations",
-        properties: {
-          booksCount: params.readBooks.length,
-          recommendationsRequested: params.limit || 5,
-        },
-      });
 
       return response;
     } catch (error) {
