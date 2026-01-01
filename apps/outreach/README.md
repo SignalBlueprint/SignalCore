@@ -129,35 +129,52 @@ Returns personalized messages for each targeted lead showing how variables will 
 
 ### Next Steps
 
-**Priority 1 (Next 2 Weeks):** 🔥 CRITICAL
+**Priority 1 (Next 2-4 Weeks):** 🔥 CRITICAL - CORE FUNCTIONALITY
 
-1. **Email Service Integration**
-   - Choose email provider (SendGrid, AWS SES, or Postmark)
-   - Set up provider account and domain verification
-   - Implement email sending functionality
-   - Add email queue with rate limiting
-   - Build basic delivery tracking
-   - Add bounce and complaint handling
+1. **Email Service Integration** ⚠️ BLOCKING PRODUCTION USE
+   - Week 1-2: Choose and integrate email provider
+     - Evaluate SendGrid vs AWS SES vs Postmark (cost, features, deliverability)
+     - Set up provider account and API keys
+     - Complete domain verification and DNS setup (SPF, DKIM, DMARC)
+   - Week 2-3: Implement email sending
+     - Create email service wrapper in @sb/notify
+     - Implement email queue with rate limiting (respect provider limits)
+     - Add email template rendering engine
+     - Build campaign execution job (integrate with Worker app)
+   - Week 3-4: Delivery tracking and handling
+     - Implement basic delivery tracking (sent, delivered, failed)
+     - Add bounce and complaint webhook handling
+     - Store email send history and status
+     - Build retry logic for failed sends
    - **Goal:** Enable real email campaign execution
+   - **Success Criteria:** Can send 1000+ emails per campaign with tracking
+   - **Current Blocker:** Cannot send emails - core functionality missing!
 
-**Priority 2 (Next Month):**
+**Priority 2 (Next 1-2 Months):**
 
-2. **Campaign Execution & Analytics**
-   - Store campaign execution history
-   - Track sent messages and delivery status
-   - Add email open tracking
-   - Implement click tracking with link wrapping
-   - Build campaign analytics dashboard
-   - Show campaign performance metrics (open rate, click rate)
-   - **Goal:** Track and measure campaign effectiveness
+2. **Campaign Execution & Analytics** 📊 MEASUREMENT
+   - Store campaign execution history in database
+   - Track sent messages count and delivery status per campaign
+   - Add email open tracking (tracking pixel implementation)
+   - Implement click tracking with link wrapping and redirect endpoint
+   - Build campaign analytics dashboard in UI
+   - Show campaign performance metrics (sent, delivered, opened, clicked, bounced)
+   - Calculate open rate, click rate, click-to-open rate
+   - Add recipient-level activity tracking
+   - **Goal:** Track and measure campaign effectiveness with detailed metrics
+   - **Benefit:** Data-driven campaign optimization
 
-3. **LeadScout Integration**
-   - Connect to LeadScout for lead import
-   - Add "Import from LeadScout" button
-   - Build lead list selection and filtering
-   - Auto-populate campaign targeting from lead data
-   - Track campaign performance back to leads
+3. **LeadScout Integration** 🔗 CROSS-APP WORKFLOW
+   - Connect to LeadScout API for lead import
+   - Add "Import from LeadScout" button in campaign creation
+   - Build lead list selection UI with filters (score, status, tags)
+   - Auto-populate campaign targeting from lead segments
+   - Map lead fields to email template variables
+   - Track campaign performance metrics back to LeadScout
+   - Update lead status when contacted via campaign
+   - Show "Last Contacted" date in LeadScout
    - **Goal:** Seamless lead-to-campaign workflow
+   - **Benefit:** Complete sales automation from discovery to outreach
 
 **Priority 3 (Next Quarter):**
 

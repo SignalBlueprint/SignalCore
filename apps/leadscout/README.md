@@ -166,34 +166,43 @@ Returns AI-powered insights about the lead including company size, industry, qua
 
 ### Next Steps
 
-**Priority 1 (Next 2 Weeks):** 🔥
+**Priority 1 (Next 2-4 Weeks):** 🔥 HIGH PRIORITY
 
 1. **AI Intelligence UI Integration**
-   - Add "Analyze Lead" button to lead detail view
-   - Display AI intelligence insights panel
-   - Show qualification level badges (high/medium/low)
-   - Display recommended actions and risk factors
-   - Show technology stack and company insights
-   - Add loading states and error handling
-   - **Goal:** Make AI intelligence visible and actionable
+   - Add "Analyze Lead" button to lead detail view in UI
+   - Display AI intelligence insights panel with expandable sections
+   - Show qualification level badges (high/medium/low) with color coding
+   - Display recommended actions list and risk factors
+   - Show detected technology stack and company insights
+   - Add loading states during AI analysis and error handling
+   - Cache AI results and show "last analyzed" timestamp
+   - **Goal:** Make AI intelligence visible and actionable in the UI (backend already complete)
+   - **Status:** Backend AI service fully implemented, needs frontend integration
 
-**Priority 2 (Next Month):**
+**Priority 2 (Next 1-2 Months):**
 
-2. **Outreach Integration**
-   - Add "Send to Campaign" button in lead detail view
-   - Connect to Outreach app API
-   - Build lead list selection and export to campaigns
-   - Create campaign targeting based on lead segments
-   - Track campaign performance back to leads
-   - **Goal:** Complete sales funnel from discovery to outreach
+2. **Outreach Integration** 🔗 CROSS-APP WORKFLOW
+   - Add "Send to Campaign" button in lead detail view and bulk actions
+   - Connect to Outreach app API for campaign creation
+   - Build lead list selection UI with filters
+   - Export qualified leads to Outreach campaigns
+   - Map lead data to campaign template variables
+   - Create campaign targeting based on lead segments (industry, score, tags)
+   - Track campaign performance metrics back to leads
+   - Add "Last Contacted" field to leads
+   - **Goal:** Complete sales funnel from lead discovery to outreach
+   - **Benefit:** Seamless workflow connecting two apps
 
-3. **Lead Enrichment Automation**
-   - Integrate email finding API (Hunter.io or Apollo)
-   - Add company data enrichment (Clearbit or similar)
-   - Implement automated enrichment worker job
-   - Add manual "Enrich Lead" button
-   - Show enrichment status and last updated
-   - **Goal:** Automatic lead data enhancement
+3. **Lead Enrichment Automation** 🤖 AUTOMATION
+   - Integrate email finding API (Hunter.io or Apollo.io)
+   - Add company data enrichment service (Clearbit or similar)
+   - Implement automated enrichment worker job (scheduled via Worker app)
+   - Add manual "Enrich Lead" button for on-demand enrichment
+   - Show enrichment status badge and last updated timestamp
+   - Store enrichment history and data sources
+   - Add enrichment cost tracking
+   - **Goal:** Automatic lead data enhancement with minimal manual effort
+   - **Benefit:** Higher quality lead data for outreach
 
 **Priority 3 (Next Quarter):**
 

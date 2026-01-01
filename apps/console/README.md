@@ -165,43 +165,48 @@ The console exposes several API endpoints for data access:
 
 ### ⚠️ Known Limitations
 - Team data is mock/in-memory (not persistent) - migration to @sb/storage needed
-- Authentication not integrated into frontend UI yet (backend only)
-- No real-time WebSocket updates (manual refresh needed)
-- No admin user management interface
+- Authentication available in backend but not integrated into frontend UI yet
+- No real-time WebSocket/SSE updates (manual refresh needed)
+- No admin user management interface in UI
+- No centralized error tracking or performance monitoring
 
 ### Next Steps
 
-**Priority 1 (Next 2 Weeks):**
+**Priority 1 (Next 2-4 Weeks):**
 
-1. **Authentication Frontend Integration** 🔥
+1. **Authentication Frontend Integration** 🔥 HIGH PRIORITY
    - Add login/signup UI to Console frontend
    - Implement JWT token storage and refresh logic
-   - Add authentication state management
-   - Build protected route components
-   - Create user profile dropdown with logout
+   - Add authentication state management (React Context or Zustand)
+   - Build protected route components with auth guards
+   - Create user profile dropdown with logout button
+   - Add org switcher for multi-org users
+   - **Goal:** Secure Console app and provide foundation for suite-wide auth
 
 2. **Team Data Persistence**
-   - Migrate team data from in-memory to `@sb/storage`
-   - Persist Working Genius profiles
-   - Add team member CRUD operations
-   - Store user preferences
+   - Migrate team data from in-memory mock to `@sb/storage`
+   - Persist Working Genius profiles to database
+   - Implement team member CRUD operations via API
+   - Store user preferences and settings
+   - Add team member invitation system
+   - **Goal:** Make team management production-ready
 
-**Priority 2 (Next Month):**
+**Priority 2 (Next 1-2 Months):**
 
-4. **Real-time Updates**
+3. **Real-time Updates**
    - Add WebSocket/SSE for live updates
    - Real-time app status monitoring
    - Live event stream viewer
    - Push notifications for critical events
 
-5. **Unified Analytics Dashboard**
+4. **Unified Analytics Dashboard**
    - Aggregate metrics from all suite apps
    - Build cross-app analytics views
    - Add suite-wide KPI tracking
    - Create executive summary dashboard
    - Track AI costs and usage trends
 
-6. **Notification System**
+5. **Notification System**
    - Build notification center with alerts
    - Add email notifications for critical events
    - Implement Slack/Discord webhooks
@@ -209,13 +214,13 @@ The console exposes several API endpoints for data access:
 
 **Priority 3 (Next Quarter):**
 
-7. **Enhanced Team Management**
+6. **Enhanced Team Management**
    - Build team member invitation system
    - Implement Working Genius assessment flow
    - Add team analytics and capacity insights
    - Create team calendar and availability tracking
 
-8. **Suite Orchestration**
+7. **Suite Orchestration**
    - Monitor app deployment status
    - Environment configuration management
    - Suite-wide settings panel

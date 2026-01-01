@@ -1,17 +1,31 @@
 # Worker - Job Runner and Scheduler
 
-The Worker app is a CLI-based job runner with automatic scheduling capabilities. It executes background jobs like daily quest management, sprint planning, and external integrations.
+**Status:** 🟢 Production Ready - Complete scheduling system with advanced queue management
+**Port:** N/A (CLI-based)
+
+The Worker app is a production-ready CLI-based job runner with automatic scheduling capabilities, advanced queue management, dependency chains, and comprehensive alerting. It executes background jobs like daily quest management, sprint planning, and external integrations.
 
 ## Features
 
+### Core Scheduling
 - **Scheduled Job Execution**: Automatic job execution using cron expressions
 - **Manual Job Execution**: Run any job on-demand via CLI
-- **YAML Configuration**: Simple, readable job scheduling configuration
+- **YAML Configuration**: Simple, readable job scheduling configuration (scheduler.yaml)
 - **Timezone Support**: Schedule jobs in different timezones
 - **Job Registry**: Extensible job registration system
 - **Event Publishing**: Jobs publish events for integration with other apps
 - **Comprehensive Logging**: Detailed logging for monitoring and debugging
 - **Signal Handling**: Graceful shutdown on SIGINT/SIGTERM
+
+### Advanced Features ✨
+- **Job Execution Tracking**: Centralized execution history with statistics
+- **Priority-Based Queue**: Critical, high, normal, low priority levels
+- **Job Dependency Chains**: Complex workflows with dependent job execution
+- **Dead Letter Queue**: Failed job isolation and retry management
+- **Concurrency Control**: Rate limiting and parallel execution management
+- **Automatic Retries**: Configurable retry logic with exponential backoff
+- **Multi-Channel Alerting**: Slack, Email, Discord notifications
+- **Performance Monitoring**: Success rates, duration tracking, queue health
 
 ## Quick Start
 
@@ -852,26 +866,26 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
 
 ## Next Steps
 
-### Completed Features
+### ✅ Production-Ready Features (All Completed)
 
-✅ **Job Execution Tracking**
+**Job Execution Tracking**
    - Centralized execution tracking with @sb/storage
    - Execution history with statistics
    - CLI commands for viewing history and stats
 
-✅ **Job Reliability**
+**Job Reliability**
    - Automatic retry logic with exponential backoff
    - Configurable retry attempts and lookback windows
    - Execution cleanup for storage management
 
-✅ **Monitoring Dashboard**
+**Monitoring Dashboard**
    - Real-time job monitoring in Console app
    - Visual job registry with status indicators
    - Execution history and statistics
    - 24-hour performance metrics
    - Failure tracking with error details
 
-✅ **Advanced Job Queue**
+**Advanced Job Queue**
    - Priority-based job scheduling (critical, high, normal, low)
    - Job dependency chains
    - Dead letter queue for permanently failed jobs
@@ -879,7 +893,7 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - Queue pause/resume/drain modes
    - Configurable retry with backoff strategies
 
-✅ **Alerting**
+**Alerting**
    - Multi-channel notifications (Slack, Email, Discord)
    - Job failure alerts with configurable thresholds
    - Queue health monitoring (DLQ, backlog, paused state)
@@ -887,7 +901,7 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - Alert throttling to prevent spam
    - CLI and API for alert management
 
-### Planned Features
+### 🔮 Future Enhancements
 
 1. **Advanced Scheduling Enhancements**
    - Conditional execution based on results
