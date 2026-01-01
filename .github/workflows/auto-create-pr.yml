@@ -29,7 +29,8 @@ jobs:
           PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --json number --jq 'length')
           echo "pr_exists=$PR_EXISTS" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT if available to trigger downstream workflows, otherwise use GITHUB_TOKEN
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Create Pull Request
         if: steps.check-pr.outputs.pr_exists == '0'
@@ -56,4 +57,5 @@ jobs:
 
           echo "Created PR: $PR_URL"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT if available to trigger downstream workflows, otherwise use GITHUB_TOKEN
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}

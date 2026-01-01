@@ -1,4 +1,5 @@
 name: Auto-merge Claude PRs
+# Test change to verify auto-merge workflow functionality
 
 on:
   pull_request_target:
