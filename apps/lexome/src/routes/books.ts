@@ -5,8 +5,10 @@ import { Router } from "express";
 import { gutenbergService } from "../services/gutenberg";
 import { bookRepository } from "../repositories/bookRepository";
 import { getJson, setJson, hashInput } from "@sb/cache";
+import { EPUBService } from "../services/epub";
 
 const router: ReturnType<typeof Router> = Router();
+const epubService = new EPUBService();
 
 /**
  * Search books in Gutenberg catalog
@@ -163,21 +165,68 @@ router.get("/:id/content", async (req, res) => {
 
     // Try to get content from cache
     const cacheKey = hashInput(`book:content:${book.id}`);
-    const cached = getJson<string>(cacheKey);
+    const cached = getJson<any>(cacheKey);
     if (cached) {
-      return res.json({ content: cached });
+      return res.json(cached);
     }
 
-    // Download content
-    const content = await gutenbergService.downloadBookContent(book.downloadUrl);
+    let result: any
+
+    // Handle EPUB files
+    if (book.format === 'epub' && book.downloadUrl) {
+      const epubContent = await epubService.parseEPUBFromUrl(book.downloadUrl);
+      result = {
+        format: 'epub',
+        content: epubContent,
+      }
+    } else {
+      // Download HTML/text content
+      const content = await gutenbergService.downloadBookContent(book.downloadUrl);
+      result = {
+        format: book.format,
+        content,
+      }
+    }
 
     // Cache the content
-    setJson(cacheKey, content);
+    setJson(cacheKey, result);
 
-    res.json({ content });
+    res.json(result);
   } catch (error) {
     console.error("Error fetching book content:", error);
     res.status(500).json({ error: "Failed to fetch book content" });
+  }
+});
+
+/**
+ * Parse EPUB file
+ * POST /api/books/epub/parse
+ * Body: { url: string }
+ */
+router.post("/epub/parse", async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    // Try cache first
+    const cacheKey = hashInput(`epub:parse:${url}`);
+    const cached = getJson(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const epubContent = await epubService.parseEPUBFromUrl(url);
+
+    // Cache the result
+    setJson(cacheKey, epubContent);
+
+    res.json(epubContent);
+  } catch (error) {
+    console.error("Error parsing EPUB:", error);
+    res.status(500).json({ error: "Failed to parse EPUB file" });
   }
 });
 

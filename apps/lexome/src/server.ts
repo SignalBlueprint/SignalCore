@@ -14,6 +14,7 @@ import aiRouter from "./routes/ai";
 import bookmarksRouter from "./routes/bookmarks";
 import { apiLimiter, aiLimiter, writeLimiter } from "./middleware/rateLimiter";
 import { optionalAuth } from "./middleware/auth";
+import { requestLogger, errorLogger } from "./middleware/requestLogger";
 
 const app = express();
 const suiteApp = getSuiteApp("lexome");
@@ -21,6 +22,14 @@ const PORT = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 // Middleware
 app.use(express.json());
+
+// Request logging (development: colored console, production: structured JSON)
+if (process.env.NODE_ENV === 'production') {
+  const { structuredLogger } = require('./middleware/requestLogger');
+  app.use(structuredLogger);
+} else {
+  app.use(requestLogger);
+}
 
 // Apply rate limiting to all API routes
 app.use("/api", apiLimiter);
@@ -65,6 +74,7 @@ app.get("/api", (req, res) => {
         category: "GET /api/books/category/:category",
         details: "GET /api/books/:id",
         content: "GET /api/books/:id/content",
+        epubParse: "POST /api/books/epub/parse (Body: { url: string })",
       },
       library: {
         list: "GET /api/library",
@@ -110,6 +120,9 @@ app.get("/api", (req, res) => {
     },
   });
 });
+
+// Error logging middleware (must be after all routes)
+app.use(errorLogger);
 
 // Serve index.html for all other routes (client-side routing)
 app.get("*", (req, res) => {
