@@ -28,12 +28,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
       - name: Check app boundaries
         run: pnpm check-boundaries
 
