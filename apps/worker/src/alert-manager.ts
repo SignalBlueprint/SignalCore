@@ -5,7 +5,7 @@
 
 import { logger } from "@sb/logger";
 import { storage } from "@sb/storage";
-import { sendSlackMessage, sendEmail, isSlackEnabled, isEmailEnabled } from "@sb/notify";
+import { sendSlackMessage, sendEmail, sendDiscordMessage, isSlackEnabled, isEmailEnabled, isDiscordEnabled } from "@sb/notify";
 import type {
   AlertConfig,
   AlertEvent,
@@ -554,6 +554,35 @@ export class AlertManager {
         const body = `${alert.message}\n\nTriggered at: ${alert.triggeredAt}`;
 
         await sendEmail(to, subject, body);
+        break;
+      }
+
+      case "discord": {
+        if (!isDiscordEnabled()) {
+          logger.warn("Discord notifications disabled, skipping alert");
+          return;
+        }
+
+        const username = this.config.settings.discord?.username || "Worker Bot";
+        const avatarUrl = this.config.settings.discord?.avatarUrl;
+
+        // Map severity to Discord embed colors (decimal format)
+        const severityColors = {
+          critical: 16711680,  // Red (#FF0000)
+          high: 16744448,      // Orange (#FFA500)
+          medium: 16776960,    // Yellow (#FFFF00)
+          low: 3447003,        // Blue (#3498DB)
+        };
+
+        const color = severityColors[alert.severity];
+        const title = `${emoji} ${alert.title} [${alert.severity.toUpperCase()}]`;
+
+        await sendDiscordMessage(alert.message, {
+          username,
+          avatarUrl,
+          color,
+          title,
+        });
         break;
       }
 

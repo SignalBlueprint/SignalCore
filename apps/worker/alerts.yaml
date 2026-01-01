@@ -9,6 +9,7 @@ settings:
   # Default alert channels (can be overridden per alert)
   channels:
     - slack
+    # - discord
     # - email
 
   # Slack configuration
@@ -16,6 +17,11 @@ settings:
     channel: "#worker-alerts"
     username: "Worker Bot"
     iconEmoji: ":gear:"
+
+  # Discord configuration (optional)
+  discord:
+    username: "Worker Bot"
+    # avatarUrl: "https://example.com/avatar.png"
 
   # Email configuration (optional)
   email:

@@ -37,6 +37,10 @@ export interface AlertSettings {
     to: string;
     from: string;
   };
+  discord?: {
+    username?: string;
+    avatarUrl?: string;
+  };
   throttle?: {
     minInterval: number;         // Minimum seconds between identical alerts
     maxAlertsPerJobPerHour: number;

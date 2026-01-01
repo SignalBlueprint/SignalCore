@@ -8,8 +8,10 @@ import { logger } from "@sb/logger";
 
 const SLACK_ENABLED = getEnv("NOTIFY_SLACK_ENABLED") === "true";
 const EMAIL_ENABLED = getEnv("NOTIFY_EMAIL_ENABLED") === "true";
+const DISCORD_ENABLED = getEnv("NOTIFY_DISCORD_ENABLED") === "true";
 const SLACK_WEBHOOK_URL = getEnv("SLACK_WEBHOOK_URL");
 const SLACK_BOT_TOKEN = getEnv("SLACK_BOT_TOKEN");
+const DISCORD_WEBHOOK_URL = getEnv("DISCORD_WEBHOOK_URL");
 
 /**
  * Send a message to a Slack channel
@@ -129,5 +131,87 @@ export function isSlackEnabled(): boolean {
  */
 export function isEmailEnabled(): boolean {
   return EMAIL_ENABLED;
+}
+
+/**
+ * Send a message to a Discord channel via webhook
+ */
+export async function sendDiscordMessage(
+  text: string,
+  options?: {
+    username?: string;
+    avatarUrl?: string;
+    color?: number; // Decimal color code (e.g., 16711680 for red)
+    title?: string;
+  }
+): Promise<boolean> {
+  if (!DISCORD_ENABLED) {
+    logger.info("Discord notifications disabled, skipping message");
+    return false;
+  }
+
+  if (!DISCORD_WEBHOOK_URL) {
+    logger.warn("Discord webhook URL not configured");
+    return false;
+  }
+
+  try {
+    const payload: {
+      content?: string;
+      username?: string;
+      avatar_url?: string;
+      embeds?: Array<{
+        title?: string;
+        description: string;
+        color?: number;
+        timestamp: string;
+      }>;
+    } = {
+      username: options?.username || "Worker Bot",
+      avatar_url: options?.avatarUrl,
+    };
+
+    // Use embeds for rich formatting if title or color provided
+    if (options?.title || options?.color) {
+      payload.embeds = [
+        {
+          title: options?.title,
+          description: text,
+          color: options?.color,
+          timestamp: new Date().toISOString(),
+        },
+      ];
+    } else {
+      // Simple text message
+      payload.content = text;
+    }
+
+    const response = await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Discord webhook failed: ${response.statusText}`);
+    }
+
+    logger.info("Discord message sent successfully");
+    return true;
+  } catch (error) {
+    logger.error("Failed to send Discord message", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Check if Discord notifications are enabled
+ */
+export function isDiscordEnabled(): boolean {
+  return DISCORD_ENABLED && !!DISCORD_WEBHOOK_URL;
 }
 
