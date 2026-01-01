@@ -1,0 +1,57 @@
+name: Auto-create PR for Claude branches
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if PR already exists
+        id: check-pr
+        run: |
+          # Get the current branch name
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          # Check if a PR already exists for this branch
+          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --json number --jq 'length')
+          echo "pr_exists=$PR_EXISTS" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        if: steps.check-pr.outputs.pr_exists == '0'
+        run: |
+          BRANCH_NAME="${{ steps.check-pr.outputs.branch }}"
+
+          # Get the latest commit message as PR title
+          PR_TITLE=$(git log -1 --pretty=%s)
+
+          # Get the latest commit body as PR description
+          PR_BODY=$(git log -1 --pretty=%b)
+
+          # If no body, use a default message
+          if [ -z "$PR_BODY" ]; then
+            PR_BODY="Auto-created PR for claude-code changes on branch $BRANCH_NAME"
+          fi
+
+          # Create the PR
+          gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            --base main \
+            --head "$BRANCH_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
