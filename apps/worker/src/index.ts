@@ -6,8 +6,10 @@
 
 // Import jobs to register them
 import "./jobs";
-import { getJobs, scheduler } from "@sb/jobs";
+import { getJobs, scheduler, getQueueManager } from "@sb/jobs";
 import { logger } from "@sb/logger";
+import { storage } from "@sb/storage";
+import type { QueuedJob, DeadLetterJob, JobPriority } from "@sb/schemas";
 import { loadSchedulerConfig, validateSchedulerConfig } from "./config";
 import { runJobWithTracking } from "./job-runner";
 import {
@@ -278,6 +280,322 @@ async function main() {
       });
       process.exit(1);
     }
+  } else if (command === "queue:start") {
+    // Start the queue manager
+    try {
+      const queueManager = getQueueManager();
+      await queueManager.start();
+      console.log("\n✓ Queue manager started\n");
+      console.log("Press Ctrl+C to stop\n");
+
+      // Keep process alive
+      process.on("SIGINT", async () => {
+        logger.info("Received SIGINT, stopping queue manager...");
+        await queueManager.stop();
+        process.exit(0);
+      });
+
+      process.on("SIGTERM", async () => {
+        logger.info("Received SIGTERM, stopping queue manager...");
+        await queueManager.stop();
+        process.exit(0);
+      });
+
+      await new Promise(() => {});
+    } catch (error) {
+      logger.error("Failed to start queue manager", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:status") {
+    // Show queue status and statistics
+    try {
+      const queueManager = getQueueManager();
+      const stats = await queueManager.getStats();
+      const config = queueManager.getConfig();
+
+      console.log("\n📊 Queue Status\n");
+      console.log(`  Mode: ${config.mode}`);
+      console.log(`  Max Concurrency: ${config.maxConcurrency}`);
+      console.log(`  Active Workers: ${stats.activeWorkers}/${stats.maxConcurrency}`);
+      console.log("");
+
+      console.log("📈 Queue Statistics\n");
+      console.log(`  Total Jobs: ${stats.totalJobs}`);
+      console.log(`  Ready: ${stats.readyJobs}`);
+      console.log(`  Running: ${stats.runningJobs}`);
+      console.log(`  Pending: ${stats.pendingJobs}`);
+      console.log(`  Delayed: ${stats.delayedJobs}`);
+      console.log(`  Completed: ${stats.completedJobs}`);
+      console.log(`  Failed: ${stats.failedJobs}`);
+      console.log(`  Dead Letter: ${stats.deadLetterJobs}`);
+      console.log("");
+
+      console.log("🎯 Priority Breakdown\n");
+      console.log(`  Critical: ${stats.criticalJobs}`);
+      console.log(`  High: ${stats.highPriorityJobs}`);
+      console.log(`  Normal: ${stats.normalPriorityJobs}`);
+      console.log(`  Low: ${stats.lowPriorityJobs}`);
+      console.log("");
+
+      if (stats.averageWaitTime !== undefined) {
+        console.log("⏱️  Performance Metrics\n");
+        console.log(`  Avg Wait Time: ${Math.round(stats.averageWaitTime)}ms`);
+        if (stats.averageExecutionTime !== undefined) {
+          console.log(`  Avg Execution Time: ${Math.round(stats.averageExecutionTime)}ms`);
+        }
+        if (stats.successRate !== undefined) {
+          console.log(`  Success Rate: ${stats.successRate.toFixed(1)}%`);
+        }
+        console.log("");
+      }
+    } catch (error) {
+      logger.error("Failed to get queue status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:enqueue" && jobId) {
+    // Enqueue a new job
+    try {
+      const queueManager = getQueueManager();
+
+      // Parse options
+      let priority: JobPriority = "normal";
+      let orgId: string | undefined;
+      let scheduledFor: Date | undefined;
+      let dependsOn: string[] | undefined;
+      let concurrencyKey: string | undefined;
+
+      for (let i = 2; i < args.length; i++) {
+        if (args[i] === "--priority" && i + 1 < args.length) {
+          priority = args[i + 1] as JobPriority;
+        }
+        if (args[i] === "--org" && i + 1 < args.length) {
+          orgId = args[i + 1];
+        }
+        if (args[i] === "--scheduled-for" && i + 1 < args.length) {
+          scheduledFor = new Date(args[i + 1]);
+        }
+        if (args[i] === "--depends-on" && i + 1 < args.length) {
+          dependsOn = args[i + 1].split(",");
+        }
+        if (args[i] === "--concurrency-key" && i + 1 < args.length) {
+          concurrencyKey = args[i + 1];
+        }
+      }
+
+      const queuedJob = await queueManager.enqueue({
+        jobId,
+        priority,
+        input: orgId ? { orgId } : undefined,
+        scheduledFor,
+        dependsOn,
+        concurrencyKey,
+        orgId,
+      });
+
+      console.log("\n✓ Job enqueued successfully\n");
+      console.log(`  Job ID: ${queuedJob.id}`);
+      console.log(`  Job Type: ${queuedJob.jobId}`);
+      console.log(`  Priority: ${queuedJob.priority}`);
+      console.log(`  Status: ${queuedJob.status}`);
+      if (queuedJob.scheduledFor) {
+        console.log(`  Scheduled For: ${queuedJob.scheduledFor}`);
+      }
+      if (queuedJob.dependsOn) {
+        console.log(`  Dependencies: ${queuedJob.dependsOn.join(", ")}`);
+      }
+      console.log("");
+    } catch (error) {
+      logger.error("Failed to enqueue job", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:pause") {
+    // Pause the queue
+    try {
+      const queueManager = getQueueManager();
+      await queueManager.pause();
+      console.log("\n⏸️  Queue paused\n");
+    } catch (error) {
+      logger.error("Failed to pause queue", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:resume") {
+    // Resume the queue
+    try {
+      const queueManager = getQueueManager();
+      await queueManager.resume();
+      console.log("\n▶️  Queue resumed\n");
+    } catch (error) {
+      logger.error("Failed to resume queue", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:drain") {
+    // Drain the queue
+    try {
+      const queueManager = getQueueManager();
+      await queueManager.drain();
+      console.log("\n🚰 Queue draining (will stop after all jobs complete)\n");
+    } catch (error) {
+      logger.error("Failed to drain queue", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:cancel" && jobId) {
+    // Cancel a queued job (jobId here is the queuedJobId)
+    try {
+      const queueManager = getQueueManager();
+      await queueManager.cancel(jobId);
+      console.log(`\n✓ Cancelled job: ${jobId}\n`);
+    } catch (error) {
+      logger.error("Failed to cancel job", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:list") {
+    // List all queued jobs
+    try {
+      // Parse options
+      let limit = 50;
+      let status: string | undefined;
+      let priority: JobPriority | undefined;
+
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--limit" && i + 1 < args.length) {
+          limit = parseInt(args[i + 1], 10);
+        }
+        if (args[i] === "--status" && i + 1 < args.length) {
+          status = args[i + 1];
+        }
+        if (args[i] === "--priority" && i + 1 < args.length) {
+          priority = args[i + 1] as JobPriority;
+        }
+      }
+
+      const allJobs = await storage.list<QueuedJob>("queued-jobs", { limit });
+      let jobs = allJobs.data;
+
+      // Apply filters
+      if (status) {
+        jobs = jobs.filter((j) => j.status === status);
+      }
+      if (priority) {
+        jobs = jobs.filter((j) => j.priority === priority);
+      }
+
+      console.log("\n📋 Queued Jobs\n");
+      if (jobs.length === 0) {
+        console.log("  No jobs found");
+      } else {
+        jobs.forEach((job) => {
+          const statusIcon =
+            job.status === "completed" ? "✓" :
+            job.status === "failed" ? "✗" :
+            job.status === "running" ? "⏳" :
+            job.status === "ready" ? "🟢" :
+            job.status === "pending" ? "🟡" :
+            job.status === "delayed" ? "⏰" : "⚪";
+
+          const priorityIcon =
+            job.priority === "critical" ? "🔴" :
+            job.priority === "high" ? "🟠" :
+            job.priority === "normal" ? "🟢" : "🔵";
+
+          console.log(`  ${statusIcon} ${priorityIcon} ${job.jobId}`);
+          console.log(`    ID: ${job.id}`);
+          console.log(`    Status: ${job.status}`);
+          console.log(`    Priority: ${job.priority}`);
+          console.log(`    Enqueued: ${job.enqueuedAt}`);
+          if (job.scheduledFor) {
+            console.log(`    Scheduled: ${job.scheduledFor}`);
+          }
+          if (job.attempt > 0) {
+            console.log(`    Attempts: ${job.attempt}/${job.maxAttempts}`);
+          }
+          if (job.dependsOn && job.dependsOn.length > 0) {
+            console.log(`    Dependencies: ${job.dependsOn.length}`);
+          }
+          if (job.error) {
+            console.log(`    Error: ${job.error}`);
+          }
+          console.log("");
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to list queued jobs", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:dlq") {
+    // View dead letter queue
+    try {
+      // Parse options
+      let limit = 50;
+
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === "--limit" && i + 1 < args.length) {
+          limit = parseInt(args[i + 1], 10);
+        }
+      }
+
+      const dlqJobs = await storage.list<DeadLetterJob>("dead-letter-jobs", { limit });
+
+      console.log("\n💀 Dead Letter Queue\n");
+      if (dlqJobs.data.length === 0) {
+        console.log("  No jobs in dead letter queue");
+      } else {
+        dlqJobs.data.forEach((job) => {
+          const canRetry = job.canRetry ? "✓ Can Retry" : "✗ Cannot Retry";
+          console.log(`  ${job.jobId} [${canRetry}]`);
+          console.log(`    ID: ${job.id}`);
+          console.log(`    Original Job: ${job.originalJobId}`);
+          console.log(`    Failure: ${job.failureReason}`);
+          console.log(`    Attempts: ${job.attempts}`);
+          console.log(`    Moved to DLQ: ${job.movedToDLQAt}`);
+          if (job.retryCount > 0) {
+            console.log(`    Retry Count: ${job.retryCount}`);
+          }
+          if (job.error) {
+            console.log(`    Error: ${job.error}`);
+          }
+          console.log("");
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to list dead letter queue", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
+  } else if (command === "queue:retry" && jobId) {
+    // Retry a job from dead letter queue (jobId is the DLQ job ID)
+    try {
+      const queueManager = getQueueManager();
+      const newJob = await queueManager.retryDeadLetter(jobId);
+
+      console.log("\n✓ Job retried from dead letter queue\n");
+      console.log(`  New Job ID: ${newJob.id}`);
+      console.log(`  Job Type: ${newJob.jobId}`);
+      console.log(`  Priority: ${newJob.priority}`);
+      console.log(`  Status: ${newJob.status}`);
+      console.log("");
+    } catch (error) {
+      logger.error("Failed to retry job from DLQ", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exit(1);
+    }
   } else {
     console.log(`
 Worker - Job Runner and Scheduler
@@ -290,6 +608,28 @@ Usage:
   pnpm --filter worker dev -- history <jobId> [--limit N]     Show execution history for a job
   pnpm --filter worker dev -- executions [--limit N]          Show all recent executions
   pnpm --filter worker dev -- stats <jobId>                   Show statistics for a job
+
+Advanced Queue Commands:
+  pnpm --filter worker dev -- queue:start                     Start the advanced queue manager
+  pnpm --filter worker dev -- queue:status                    Show queue status and statistics
+  pnpm --filter worker dev -- queue:enqueue <jobId> [opts]    Enqueue a job to the queue
+    Options:
+      --priority <critical|high|normal|low>                   Job priority (default: normal)
+      --org <orgId>                                           Organization ID
+      --scheduled-for <ISO date>                              Schedule for future execution
+      --depends-on <jobId1,jobId2>                            Job dependencies (comma-separated)
+      --concurrency-key <key>                                 Concurrency group key
+  pnpm --filter worker dev -- queue:pause                     Pause queue processing
+  pnpm --filter worker dev -- queue:resume                    Resume queue processing
+  pnpm --filter worker dev -- queue:drain                     Drain queue (finish jobs, then stop)
+  pnpm --filter worker dev -- queue:cancel <queuedJobId>      Cancel a queued job
+  pnpm --filter worker dev -- queue:list [opts]               List queued jobs
+    Options:
+      --limit N                                               Limit results (default: 50)
+      --status <status>                                       Filter by status
+      --priority <priority>                                   Filter by priority
+  pnpm --filter worker dev -- queue:dlq [--limit N]           View dead letter queue
+  pnpm --filter worker dev -- queue:retry <dlqJobId>          Retry job from dead letter queue
 
 Examples:
   # Start daemon with default config (scheduler.yaml)

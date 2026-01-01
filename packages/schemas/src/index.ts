@@ -11,3 +11,4 @@ export * from "./domains/catalog";
 export * from "./domains/siteforge";
 export * from "./domains/outreach";
 export * from "./domains/jobs";
+export * from "./domains/job-queue";

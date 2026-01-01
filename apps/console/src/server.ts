@@ -11,9 +11,9 @@ import * as path from "path";
 import { SUITE_APPS, getSuiteApp } from "@sb/suite";
 import { readEvents } from "@sb/events";
 import { getTelemetryState } from "@sb/telemetry";
-import type { Member, JobExecution } from "@sb/schemas";
+import type { Member, JobExecution, QueuedJob, DeadLetterJob, JobPriority } from "@sb/schemas";
 import authRouter from "./routes/auth";
-import { getJobs } from "@sb/jobs";
+import { getJobs, getQueueManager } from "@sb/jobs";
 import { storage } from "@sb/storage";
 
 const app = express();
@@ -476,6 +476,285 @@ app.get("/api/worker/overview", async (req, res) => {
   } catch (error) {
     console.error("Error getting worker overview:", error);
     res.status(500).json({ error: "Failed to get worker overview" });
+  }
+});
+
+// ========================================
+// Advanced Queue API Endpoints
+// ========================================
+
+// Get queue status and statistics
+app.get("/api/queue/status", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    const stats = await queueManager.getStats();
+    const config = queueManager.getConfig();
+
+    res.json({
+      config: {
+        mode: config.mode,
+        maxConcurrency: config.maxConcurrency,
+        concurrencyLimits: config.concurrencyLimits,
+        priorityWeights: config.priorityWeights,
+        deadLetterEnabled: config.deadLetterEnabled,
+        pausedAt: config.pausedAt,
+        drainingStartedAt: config.drainingStartedAt,
+      },
+      stats,
+    });
+  } catch (error) {
+    console.error("Error getting queue status:", error);
+    res.status(500).json({ error: "Failed to get queue status" });
+  }
+});
+
+// Get all queued jobs
+app.get("/api/queue/jobs", async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+    const status = req.query.status as string | undefined;
+    const priority = req.query.priority as JobPriority | undefined;
+    const orgId = req.query.orgId as string | undefined;
+
+    const allJobs = await storage.list<QueuedJob>("queued-jobs", { limit: 1000 });
+    let jobs = allJobs.data;
+
+    // Apply filters
+    if (status) {
+      jobs = jobs.filter((j) => j.status === status);
+    }
+    if (priority) {
+      jobs = jobs.filter((j) => j.priority === priority);
+    }
+    if (orgId) {
+      jobs = jobs.filter((j) => j.orgId === orgId);
+    }
+
+    // Sort by enqueued time (most recent first)
+    jobs.sort((a, b) => new Date(b.enqueuedAt).getTime() - new Date(a.enqueuedAt).getTime());
+
+    // Apply limit
+    jobs = jobs.slice(0, limit);
+
+    res.json(jobs);
+  } catch (error) {
+    console.error("Error getting queued jobs:", error);
+    res.status(500).json({ error: "Failed to get queued jobs" });
+  }
+});
+
+// Get a specific queued job
+app.get("/api/queue/jobs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await storage.get<QueuedJob>("queued-jobs", id);
+
+    if (!job) {
+      return res.status(404).json({ error: "Queued job not found" });
+    }
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error getting queued job:", error);
+    res.status(500).json({ error: "Failed to get queued job" });
+  }
+});
+
+// Enqueue a new job
+app.post("/api/queue/enqueue", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    const {
+      jobId,
+      priority,
+      input,
+      scheduledFor,
+      dependsOn,
+      maxAttempts,
+      retryDelay,
+      retryBackoff,
+      timeout,
+      concurrencyKey,
+      rateLimit,
+      orgId,
+      userId,
+      tags,
+      metadata,
+    } = req.body;
+
+    if (!jobId) {
+      return res.status(400).json({ error: "jobId is required" });
+    }
+
+    const queuedJob = await queueManager.enqueue({
+      jobId,
+      priority,
+      input,
+      scheduledFor: scheduledFor ? new Date(scheduledFor) : undefined,
+      dependsOn,
+      maxAttempts,
+      retryDelay,
+      retryBackoff,
+      timeout,
+      concurrencyKey,
+      rateLimit,
+      orgId,
+      userId,
+      tags,
+      metadata,
+    });
+
+    res.status(201).json(queuedJob);
+  } catch (error) {
+    console.error("Error enqueuing job:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to enqueue job",
+    });
+  }
+});
+
+// Cancel a queued job
+app.post("/api/queue/cancel/:id", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    const { id } = req.params;
+
+    await queueManager.cancel(id);
+
+    res.json({ success: true, message: `Job ${id} cancelled` });
+  } catch (error) {
+    console.error("Error cancelling job:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to cancel job",
+    });
+  }
+});
+
+// Pause the queue
+app.post("/api/queue/pause", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    await queueManager.pause();
+
+    res.json({ success: true, message: "Queue paused" });
+  } catch (error) {
+    console.error("Error pausing queue:", error);
+    res.status(500).json({ error: "Failed to pause queue" });
+  }
+});
+
+// Resume the queue
+app.post("/api/queue/resume", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    await queueManager.resume();
+
+    res.json({ success: true, message: "Queue resumed" });
+  } catch (error) {
+    console.error("Error resuming queue:", error);
+    res.status(500).json({ error: "Failed to resume queue" });
+  }
+});
+
+// Drain the queue
+app.post("/api/queue/drain", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    await queueManager.drain();
+
+    res.json({ success: true, message: "Queue draining" });
+  } catch (error) {
+    console.error("Error draining queue:", error);
+    res.status(500).json({ error: "Failed to drain queue" });
+  }
+});
+
+// Get dead letter queue
+app.get("/api/queue/dlq", async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+    const orgId = req.query.orgId as string | undefined;
+
+    const allDlqJobs = await storage.list<DeadLetterJob>("dead-letter-jobs", { limit: 1000 });
+    let dlqJobs = allDlqJobs.data;
+
+    // Apply filters
+    if (orgId) {
+      dlqJobs = dlqJobs.filter((j) => j.orgId === orgId);
+    }
+
+    // Sort by moved to DLQ time (most recent first)
+    dlqJobs.sort(
+      (a, b) => new Date(b.movedToDLQAt).getTime() - new Date(a.movedToDLQAt).getTime()
+    );
+
+    // Apply limit
+    dlqJobs = dlqJobs.slice(0, limit);
+
+    res.json(dlqJobs);
+  } catch (error) {
+    console.error("Error getting dead letter queue:", error);
+    res.status(500).json({ error: "Failed to get dead letter queue" });
+  }
+});
+
+// Retry a job from dead letter queue
+app.post("/api/queue/dlq/retry/:id", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    const { id } = req.params;
+
+    const newJob = await queueManager.retryDeadLetter(id);
+
+    res.json({ success: true, job: newJob });
+  } catch (error) {
+    console.error("Error retrying job from DLQ:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to retry job from DLQ",
+    });
+  }
+});
+
+// Queue overview dashboard
+app.get("/api/queue/overview", async (req, res) => {
+  try {
+    const queueManager = getQueueManager();
+    const stats = await queueManager.getStats();
+    const config = queueManager.getConfig();
+
+    // Get recent queued jobs
+    const allJobs = await storage.list<QueuedJob>("queued-jobs", { limit: 100 });
+    const recentJobs = allJobs.data
+      .sort((a, b) => new Date(b.enqueuedAt).getTime() - new Date(a.enqueuedAt).getTime())
+      .slice(0, 10);
+
+    // Get DLQ summary
+    const dlqJobs = await storage.list<DeadLetterJob>("dead-letter-jobs", { limit: 10 });
+
+    // Job type breakdown
+    const jobTypeBreakdown: Record<string, number> = {};
+    allJobs.data.forEach((job) => {
+      jobTypeBreakdown[job.jobId] = (jobTypeBreakdown[job.jobId] || 0) + 1;
+    });
+
+    res.json({
+      config: {
+        mode: config.mode,
+        maxConcurrency: config.maxConcurrency,
+        pausedAt: config.pausedAt,
+        drainingStartedAt: config.drainingStartedAt,
+      },
+      stats,
+      recentJobs,
+      deadLetterQueue: {
+        total: dlqJobs.data.length,
+        recent: dlqJobs.data.slice(0, 5),
+      },
+      jobTypeBreakdown,
+    });
+  } catch (error) {
+    console.error("Error getting queue overview:", error);
+    res.status(500).json({ error: "Failed to get queue overview" });
   }
 });
 

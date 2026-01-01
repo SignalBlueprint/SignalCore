@@ -10,6 +10,9 @@ import { getTelemetryState } from "@sb/telemetry";
 // Export scheduler
 export * from "./scheduler";
 
+// Export queue manager
+export * from "./queue-manager";
+
 /**
  * Job execution context
  */
