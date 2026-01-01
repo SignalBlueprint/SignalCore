@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useLocation, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { get, post } from '../lib/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface DailyDeckItem {
@@ -77,8 +78,6 @@ interface DailyDeckResponse {
 export default function TodayPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const orgIdFromUrl = searchParams.get('orgId') || 'default-org';
   const [data, setData] = useState<DailyDeckResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,8 +85,6 @@ export default function TodayPage() {
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
   const [goalPaths, setGoalPaths] = useState<Map<string, Array<{ id: string; title: string }>>>(new Map());
-
-  const orgId = orgIdFromUrl;
 
   useEffect(() => {
     fetchDailyDeck();
@@ -98,39 +95,30 @@ export default function TodayPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/daily-deck?orgId=${orgId}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[TodayPage] API error:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
+      const result = await get<DailyDeckResponse>('/api/daily-deck');
       console.log('[TodayPage] API response:', result);
-      
+
       // Validate response structure
       if (result.exists && !result.dailyDeck) {
         console.warn('[TodayPage] API returned exists=true but no dailyDeck:', result);
         setError('API returned invalid data structure (exists=true but no dailyDeck)');
       }
-      
+
       setData(result);
 
       // Fetch goal paths for quests that have goalId
       if (result.dailyDeck?.items) {
         const goalPathPromises: Promise<void>[] = [];
         const pathMap = new Map<string, Array<{ id: string; title: string }>>();
-        
+
         for (const item of result.dailyDeck.items) {
           // Try to get goalId from quest
           if (item.questId) {
             goalPathPromises.push(
-              fetch(`/api/quests/${item.questId}`)
-                .then(res => res.ok ? res.json() : null)
+              get<any>(`/api/quests/${item.questId}`)
                 .then(quest => {
                   if (quest?.goalId) {
-                    return fetch(`/api/goals/${quest.goalId}/path`)
-                      .then(res => res.ok ? res.json() : [])
+                    return get<any[]>(`/api/goals/${quest.goalId}/path`)
                       .then(path => {
                         if (path && path.length > 0) {
                           pathMap.set(item.questId, path.map((g: any) => ({ id: g.id, title: g.title })));
@@ -143,7 +131,7 @@ export default function TodayPage() {
             );
           }
         }
-        
+
         await Promise.all(goalPathPromises);
         setGoalPaths(pathMap);
       }
@@ -161,16 +149,7 @@ export default function TodayPage() {
       setRunningQuestmaster(true);
       setError(null);
 
-      const response = await fetch('/api/debug/run-questmaster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
+      await post('/api/debug/run-questmaster');
 
       // Refresh the deck after running
       await fetchDailyDeck();
@@ -187,13 +166,12 @@ export default function TodayPage() {
       setError(null);
       setSeedSuccess(false);
 
-      const response = await fetch('/api/seed-demo', { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await post('/api/seed-demo');
 
       setSeedSuccess(true);
 
       setTimeout(() => {
-        window.location.href = '/today?orgId=demo-org';
+        window.location.href = '/today';
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to seed demo data');
@@ -282,47 +260,6 @@ export default function TodayPage() {
     );
   }
 
-  // Empty state: No org selected (only if orgId is actually empty/null)
-  if (!orgId) {
-    return (
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}>
-        <div style={{
-          textAlign: 'center',
-          padding: '60px 20px',
-          background: '#fff3cd',
-          borderRadius: '12px',
-          color: '#856404',
-        }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
-          <h3 style={{ fontSize: '24px', marginBottom: '12px' }}>No Organization Selected</h3>
-          <p style={{ fontSize: '16px', marginBottom: '20px' }}>
-            Please select an organization from the dropdown in the navigation bar, or use the debug page.
-          </p>
-          <Link
-            to="/debug"
-            style={{
-              display: 'inline-block',
-              padding: '14px 28px',
-              background: '#856404',
-              color: 'white',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: 'bold',
-              fontSize: '16px',
-            }}
-          >
-            Go to Debug Page →
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   // Empty state: No data or no deck exists
   if (!data || !data.exists || !data.dailyDeck) {
     const hasNoData = data?.counts && data.counts.tasks === 0 && data.counts.quests === 0;
@@ -338,7 +275,7 @@ export default function TodayPage() {
           <div>
             <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
             <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
-              {formatDate(new Date().toISOString())} • {orgId}
+              {formatDate(new Date().toISOString())}
             </p>
           </div>
         </div>
@@ -575,7 +512,7 @@ export default function TodayPage() {
         <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
           <h1 style={{ fontSize: '36px', margin: '0 0 8px 0' }}>📅 Today</h1>
           <p style={{ margin: 0, color: '#666', fontSize: '16px' }}>
-            {formatDate(dailyDeck.date || new Date().toISOString().split('T')[0])} • {orgId}
+            {formatDate(dailyDeck.date || new Date().toISOString().split('T')[0])}
           </p>
         </div>
         <button
@@ -739,7 +676,7 @@ export default function TodayPage() {
             {items.map((item, idx) => (
               <div
                 key={item.taskId}
-                onClick={() => navigate(`/tasks/${item.taskId}?orgId=${orgId}`)}
+                onClick={() => navigate(`/tasks/${item.taskId}`)}
                 className="card card-clickable"
                 style={{
                   padding: '20px',
@@ -775,14 +712,14 @@ export default function TodayPage() {
                             <span key={g.id}>
                               {i > 0 && ' → '}
                               <Link
-                                to={`/goals-tree/${g.id}?orgId=${orgId}`}
+                                to={`/goals/${g.id}`}
                                 style={{ textDecoration: 'underline', color: '#0066cc' }}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {g.title}
                               </Link>
                             </span>
-                          ))} → 
+                          ))} →
                         </span>
                       )}
                       <strong>{item.questlineTitle}</strong> → {item.questTitle}

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { get } from '../lib/api';
 
 export default function Nav() {
   const location = useLocation();
@@ -22,8 +23,7 @@ export default function Nav() {
     }
 
     // Fetch available orgs
-    fetch('/api/orgs')
-      .then(res => res.json())
+    get<any[]>('/api/orgs')
       .then(orgs => {
         const orgIds = orgs.map((org: any) => org.id);
         setAvailableOrgs(orgIds.length > 0 ? orgIds : ['default-org']);
@@ -175,50 +175,50 @@ export default function Nav() {
 
       {/* Desktop navigation */}
       <div className="nav-links-desktop">
-        <Link to={`/today${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/today' || location.pathname === '/')}>
+        <Link to={`/today`} style={linkStyle(location.pathname === '/today' || location.pathname === '/')}>
           📅 Today
         </Link>
-        <Link to={`/goals${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname.startsWith('/goals'))}>
+        <Link to={`/goals`} style={linkStyle(location.pathname.startsWith('/goals'))}>
           🎯 Goals
         </Link>
-        <Link to={`/sprint${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/sprint')}>
+        <Link to={`/sprint`} style={linkStyle(location.pathname === '/sprint')}>
           📊 Sprint
         </Link>
-        <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/analytics')}>
+        <Link to={`/analytics`} style={linkStyle(location.pathname === '/analytics')}>
           📈 Analytics
         </Link>
-        <Link to={`/jobs${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/jobs')}>
+        <Link to={`/jobs`} style={linkStyle(location.pathname === '/jobs')}>
           ⚙️ Jobs
         </Link>
-        <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/team')}>
+        <Link to={`/team`} style={linkStyle(location.pathname === '/team')}>
           👥 Team
         </Link>
-        <Link to={`/debug${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={linkStyle(location.pathname === '/debug')}>
+        <Link to={`/debug`} style={linkStyle(location.pathname === '/debug')}>
           🔍 Debug
         </Link>
       </div>
 
       {/* Mobile navigation */}
       <div className={`nav-links-mobile ${mobileMenuOpen ? 'open' : ''}`}>
-        <Link to={`/today${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/today' || location.pathname === '/')}>
+        <Link to={`/today`} style={mobileLinkStyle(location.pathname === '/today' || location.pathname === '/')}>
           📅 Today
         </Link>
-        <Link to={`/goals${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname.startsWith('/goals'))}>
+        <Link to={`/goals`} style={mobileLinkStyle(location.pathname.startsWith('/goals'))}>
           🎯 Goals
         </Link>
-        <Link to={`/sprint${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/sprint')}>
+        <Link to={`/sprint`} style={mobileLinkStyle(location.pathname === '/sprint')}>
           📊 Sprint
         </Link>
-        <Link to={`/analytics${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/analytics')}>
+        <Link to={`/analytics`} style={mobileLinkStyle(location.pathname === '/analytics')}>
           📈 Analytics
         </Link>
-        <Link to={`/jobs${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/jobs')}>
+        <Link to={`/jobs`} style={mobileLinkStyle(location.pathname === '/jobs')}>
           ⚙️ Jobs
         </Link>
-        <Link to={`/team${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/team')}>
+        <Link to={`/team`} style={mobileLinkStyle(location.pathname === '/team')}>
           👥 Team
         </Link>
-        <Link to={`/debug${currentOrg !== 'default-org' ? `?orgId=${currentOrg}` : ''}`} style={mobileLinkStyle(location.pathname === '/debug')}>
+        <Link to={`/debug`} style={mobileLinkStyle(location.pathname === '/debug')}>
           🔍 Debug
         </Link>
       </div>

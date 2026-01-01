@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { get, post, put } from '../lib/api';
 
 interface TaskOutput {
   id: string;
@@ -54,10 +55,6 @@ interface AIHelpResponse {
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
-  const [searchParams] = useSearchParams();
-  const orgId = searchParams.get('orgId') || 'default-org';
-  
-  // Import useNavigate at the top level
   const navigate = useNavigate();
 
   const [task, setTask] = useState<Task | null>(null);
@@ -79,37 +76,36 @@ export default function TaskDetailPage() {
     if (taskId) {
       fetchTask();
     }
-  }, [taskId, orgId]);
+  }, [taskId]);
 
   const fetchTask = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/tasks/${taskId}?orgId=${orgId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch task: ${response.statusText}`);
-      }
-
-      const taskData = await response.json();
+      const taskData = await get<Task>(`/api/tasks/${taskId}`);
       setTask(taskData);
       setNotes(taskData.notes || '');
 
       // Fetch quest if available
       if (taskData.questId) {
-        const questResponse = await fetch(`/api/quests/${taskData.questId}`);
-        if (questResponse.ok) {
-          const questData = await questResponse.json();
+        try {
+          const questData = await get<Quest>(`/api/quests/${taskData.questId}`);
           setQuest(questData);
 
           // Fetch goal path
           if (questData.goalId) {
-            const pathResponse = await fetch(`/api/goals/${questData.goalId}/path`);
-            if (pathResponse.ok) {
-              const path = await pathResponse.json();
+            try {
+              const path = await get<GoalPath[]>(`/api/goals/${questData.goalId}/path`);
               setGoalPath(path || []);
+            } catch (err) {
+              // Goal path is optional
+              setGoalPath([]);
             }
           }
+        } catch (err) {
+          // Quest is optional
+          setQuest(null);
         }
       }
     } catch (err) {
@@ -125,38 +121,23 @@ export default function TaskDetailPage() {
 
     try {
       setSubmittingOutput(true);
-      const response = await fetch(`/api/tasks/${task.id}/outputs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: outputType,
-          content: outputContent.trim(),
-          title: outputTitle.trim() || undefined,
-        }),
+      await post(`/api/tasks/${task.id}/outputs`, {
+        type: outputType,
+        content: outputContent.trim(),
+        title: outputTitle.trim() || undefined,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to submit output');
-      }
-
-      const result = await response.json();
-      
       // Refresh task to get updated outputs
       await fetchTask();
-      
+
       // Reset form
       setOutputContent('');
       setOutputTitle('');
       setShowOutputForm(false);
-      
+
       // Navigate back after a short delay
       setTimeout(() => {
-        if (typeof navigate === 'function') {
-          navigate('/today?orgId=' + orgId);
-        } else {
-          window.location.href = '/today?orgId=' + orgId;
-        }
+        navigate('/today');
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit output');
@@ -176,25 +157,13 @@ export default function TaskDetailPage() {
 
     try {
       setUpdating(true);
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: { status: newStatus } }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update task');
-
-      const updated = await response.json();
+      const updated = await put<Task>(`/api/tasks/${task.id}`, { updates: { status: newStatus } });
       setTask(updated);
 
       // If completing, check if we should navigate back
       if (newStatus === 'done') {
         setTimeout(() => {
-          if (typeof navigate === 'function') {
-            navigate('/today?orgId=' + orgId);
-          } else {
-            window.location.href = '/today?orgId=' + orgId;
-          }
+          navigate('/today');
         }, 1500);
       }
     } catch (err) {
@@ -209,14 +178,7 @@ export default function TaskDetailPage() {
 
     try {
       setUpdating(true);
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: { notes } }),
-      });
-
-      if (!response.ok) throw new Error('Failed to save notes');
-      const updated = await response.json();
+      const updated = await put<Task>(`/api/tasks/${task.id}`, { updates: { notes } });
       setTask(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save notes');
@@ -232,15 +194,7 @@ export default function TaskDetailPage() {
       setAiLoading(helpType);
       setError(null);
 
-      const response = await fetch(`/api/tasks/${task.id}/ai-help`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: helpType }),
-      });
-
-      if (!response.ok) throw new Error('Failed to get AI help');
-
-      const help = await response.json();
+      const help = await post<AIHelpResponse>(`/api/tasks/${task.id}/ai-help`, { type: helpType });
       setAiHelp(help);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get AI help');
@@ -256,20 +210,11 @@ export default function TaskDetailPage() {
       setAiLoading('expand');
       setError(null);
 
-      const response = await fetch(`/api/tasks/${task.id}/expand`, {
-        method: 'POST',
-      });
+      const result = await post<any>(`/api/tasks/${task.id}/expand`);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to expand task');
-      }
-
-      const result = await response.json();
-      
       // Refresh task data
       await fetchTask();
-      
+
       // Show success message
       alert(`Task expanded! Created ${result.subtasksCreated || 0} subtasks.`);
     } catch (err) {
@@ -323,7 +268,7 @@ export default function TaskDetailPage() {
         <div style={{ background: '#ffebee', padding: '20px', borderRadius: '8px', color: '#d32f2f' }}>
           <h3>Error</h3>
           <p>{error}</p>
-          <button onClick={() => navigate('/today?orgId=' + orgId)}>Back to Today</button>
+          <button onClick={() => navigate('/today')}>Back to Today</button>
         </div>
       </div>
     );
@@ -333,7 +278,7 @@ export default function TaskDetailPage() {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <p>Task not found</p>
-        <Link to={`/today?orgId=${orgId}`}>Back to Today</Link>
+        <Link to={`/today`}>Back to Today</Link>
       </div>
     );
   }
@@ -343,7 +288,7 @@ export default function TaskDetailPage() {
       {/* Header */}
       <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Link to={`/today?orgId=${orgId}`} style={{ color: '#667eea', textDecoration: 'none', marginBottom: '8px', display: 'inline-block' }}>
+          <Link to={`/today`} style={{ color: '#667eea', textDecoration: 'none', marginBottom: '8px', display: 'inline-block' }}>
             ← Back to Today
           </Link>
           <h1 style={{ margin: '8px 0', fontSize: '32px' }}>{task.title}</h1>
@@ -352,7 +297,7 @@ export default function TaskDetailPage() {
               {goalPath.map((g, i) => (
                 <span key={g.id}>
                   {i > 0 && ' → '}
-                  <Link to={`/goals/${g.id}?orgId=${orgId}`} style={{ color: '#0066cc', textDecoration: 'underline' }}>
+                  <Link to={`/goals/${g.id}`} style={{ color: '#0066cc', textDecoration: 'underline' }}>
                     {g.title}
                   </Link>
                 </span>
@@ -492,7 +437,7 @@ export default function TaskDetailPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                     <Link
-                      to={`/tasks/${subtask.id}?orgId=${orgId}`}
+                      to={`/tasks/${subtask.id}`}
                       style={{
                         color: '#2196F3',
                         textDecoration: 'none',
@@ -533,7 +478,7 @@ export default function TaskDetailPage() {
                   )}
                 </div>
                 <Link
-                  to={`/tasks/${subtask.id}?orgId=${orgId}`}
+                  to={`/tasks/${subtask.id}`}
                   style={{
                     padding: '8px 16px',
                     background: '#2196F3',

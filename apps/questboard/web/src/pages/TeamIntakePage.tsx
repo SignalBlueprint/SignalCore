@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { get, put } from '../lib/api';
 
 const WG_PHASES: string[] = ['W', 'I', 'D', 'G', 'E', 'T'];
 
@@ -20,7 +21,6 @@ interface ParsedResults {
 export default function TeamIntakePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [orgId] = useState('default-org');
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [intakeMode, setIntakeMode] = useState<'manual' | 'paste'>('manual');
@@ -59,9 +59,7 @@ export default function TeamIntakePage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/members?orgId=${orgId}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await get<Member[]>('/api/members');
       setMembers(data);
       if (data.length > 0) {
         // Pre-select member from URL param if provided
@@ -256,11 +254,10 @@ export default function TeamIntakePage() {
 
       // For incomplete profiles, only send top2 and capacity
       const payload: any = {
-        orgId,
         top2: profile.top2,
         dailyCapacityMinutes: profile.capacity,
       };
-      
+
       // Only include competency2 and frustration2 if both values are provided and not empty
       if (profile.competency2 && profile.competency2[0] && profile.competency2[1]) {
         payload.competency2 = profile.competency2;
@@ -269,16 +266,7 @@ export default function TeamIntakePage() {
         payload.frustration2 = profile.frustration2;
       }
 
-      const response = await fetch(`/api/team/profiles/${selectedMemberId}?orgId=${orgId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
+      await put(`/api/team/profiles/${selectedMemberId}`, payload);
 
       // Success - navigate back to team page
       navigate('/team');
