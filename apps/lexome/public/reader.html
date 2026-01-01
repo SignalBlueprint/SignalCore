@@ -573,7 +573,16 @@
                     const userBook = await userBookResponse.json();
                     currentProgress = userBook.progress || 0;
 
-                    // TODO: Restore scroll position from currentLocation
+                    // Restore scroll position from currentLocation
+                    if (userBook.currentLocation && userBook.currentLocation.startsWith('scroll:')) {
+                        const scrollPosition = parseInt(userBook.currentLocation.replace('scroll:', ''), 10);
+                        if (!isNaN(scrollPosition)) {
+                            // Delay scroll restoration until after content is rendered
+                            setTimeout(() => {
+                                window.scrollTo(0, scrollPosition);
+                            }, 100);
+                        }
+                    }
                 }
 
                 displayContent();
