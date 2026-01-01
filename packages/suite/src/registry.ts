@@ -10,7 +10,8 @@ export type AppId =
   | "catalog"
   | "outreach"
   | "console"
-  | "demoapp";
+  | "demoapp"
+  | "lexome";
 
 export type AppStatus = "skeleton" | "wip" | "beta" | "prod";
 
@@ -107,6 +108,18 @@ export const SUITE_REGISTRY = {
     description: "[Add purpose description]",
     status: "skeleton",
     defaultPort: 4025,
+    routes: {
+      base: "/",
+      health: "/health",
+    },
+    owners: ["@signal-blueprint/platform"],
+  },
+  lexome: {
+    id: "lexome",
+    name: "Lexome",
+    description: "AI-enhanced e-reader for Project Gutenberg library with contextual assistance",
+    status: "wip",
+    defaultPort: 4026,
     routes: {
       base: "/",
       health: "/health",
