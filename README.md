@@ -14,7 +14,6 @@ apps/              # Independent applications
   outreach/        # Outreach campaign management and automation
   siteforge/       # AI-powered website generation platform
   lexome/          # AI-enhanced e-reader for Project Gutenberg
-  demoapp/         # Placeholder app
 
 packages/          # Shared libraries
   schemas/         # Data contracts and type definitions
@@ -197,21 +196,10 @@ Each app has its own detailed README with comprehensive documentation. Click the
 
 ---
 
-#### 🔴 [Demoapp](apps/demoapp/README.md)
-**Status:** Placeholder - No functionality
-**Description:** Purpose undefined - needs definition or removal
-
-**Current State:** Minimal implementation with no defined purpose.
-
-**See [Demoapp README](apps/demoapp/README.md) for potential use cases and decision points.**
-
----
-
 ## Suite Status Summary
 
 **🟢 Fully Functional (Production-Ready):** Questboard, Catalog, Console, Worker, LeadScout, SiteForge, Lexome
 **🟡 Basic/Functional (Needs Core Features):** Outreach
-**🔴 Placeholder/Early Stage:** Demoapp
 
 ### Data Persistence Status
 
@@ -243,7 +231,7 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 
 ### Key Metrics
 
-- **Total Apps:** 9 (7 production-ready, 1 functional, 1 placeholder)
+- **Total Apps:** 8 (7 production-ready, 1 functional)
 - **Shared Packages:** 18 packages providing suite-wide utilities
 - **Test Coverage:** 48 tests in Questboard, expanding to other apps
 - **Authentication:** JWT-based system implemented, needs frontend rollout
@@ -370,7 +358,6 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
 - 🚨 **Data Loss Risk**: No backup/recovery system implemented
 - 🚨 **Quality Concerns**: Limited test coverage could lead to regressions
 - 🚨 **Performance Unknown**: No monitoring means performance issues may go undetected
-- 🚨 **Demoapp Confusion**: Placeholder app with no clear purpose adds confusion
 
 ---
 
@@ -576,11 +563,6 @@ The Signal Blueprint suite has reached **significant maturity** with 5 productio
     - Create pricing tiers for Catalog
     - Build usage-based billing for API access
     - Add affiliate/referral system
-
-25. **Demoapp Decision** (Week 8: 1 day)
-    - Determine purpose or remove
-    - Options: Keep as template app, convert to integration testing, or delete
-    - Update documentation accordingly
 
 ---
 

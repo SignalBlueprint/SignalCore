@@ -169,11 +169,6 @@ pnpm test
 - **Focus**: AI-enhanced e-reader for classic books
 - **README**: `apps/lexome/README.md`
 
-### Demoapp
-- **Status**: 🔴 Placeholder
-- **Decision Needed**: Determine purpose or remove
-- **README**: `apps/demoapp/README.md`
-
 ## 🚀 Quick Reference: Next Actions
 
 When a user asks "What should we work on?" or "What's next?", consult:
