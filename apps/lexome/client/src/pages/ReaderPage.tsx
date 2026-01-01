@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { booksApi, sessionsApi, annotationsApi, bookmarksApi } from '../services/api';
-import type { Book, ReadingSession } from '../types';
+import type { Book, ReadingSession, Annotation } from '../types';
 import AIAssistant from '../components/AIAssistant';
 import ChapterNavigation from '../components/ChapterNavigation';
 import ReadingSettings, { type ReadingPreferences } from '../components/ReadingSettings';
 import BookmarkPanel from '../components/BookmarkPanel';
 import ProgressIndicator from '../components/ProgressIndicator';
+import KeyboardShortcutsModal from '../components/KeyboardShortcutsModal';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +30,12 @@ export default function ReaderPage() {
   const [showChapterNav, setShowChapterNav] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [wordsReadInSession, setWordsReadInSession] = useState(0);
+  const [totalWords, setTotalWords] = useState(0);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [showAnnotations, setShowAnnotations] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,11 +66,17 @@ export default function ReaderPage() {
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
       setScrollProgress(Math.min(100, Math.max(0, progress)));
+
+      // Calculate words read based on scroll progress
+      if (totalWords > 0) {
+        const estimatedWordsRead = Math.floor((progress / 100) * totalWords);
+        setWordsReadInSession(Math.max(wordsReadInSession, estimatedWordsRead));
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [totalWords, wordsReadInSession]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -83,13 +95,30 @@ export default function ReaderPage() {
             e.preventDefault();
             setShowSettings(prev => !prev);
             break;
+          case '/':
+            e.preventDefault();
+            setShowHelp(prev => !prev);
+            break;
+        }
+      } else if (e.key === 'Escape') {
+        // Close modals on Escape
+        if (showHelp) {
+          setShowHelp(false);
+        } else if (showSettings) {
+          setShowSettings(false);
+        } else if (showChapterNav) {
+          setShowChapterNav(false);
+        } else if (showBookmarks) {
+          setShowBookmarks(false);
+        } else {
+          handleClosePage();
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [showHelp, showSettings, showChapterNav, showBookmarks]);
 
   useEffect(() => {
     return () => {
@@ -107,11 +136,29 @@ export default function ReaderPage() {
       ]);
       setBook(bookRes.data);
       setContent(contentRes.data.content);
+
+      // Calculate total words
+      const text = contentRes.data.content.replace(/<[^>]*>/g, ' ');
+      const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+      setTotalWords(words.length);
+
+      // Load annotations for highlighting
+      loadAnnotations();
     } catch (error) {
       console.error('Failed to load book:', error);
       alert('Failed to load book content');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAnnotations = async () => {
+    if (!id) return;
+    try {
+      const response = await annotationsApi.getByBook(id);
+      setAnnotations(response.data);
+    } catch (error) {
+      console.error('Failed to load annotations:', error);
     }
   };
 
@@ -133,10 +180,13 @@ export default function ReaderPage() {
   const endSession = async () => {
     if (!session) return;
     try {
-      // Calculate rough reading metrics
-      const wordsRead = Math.floor(Math.random() * 500) + 100; // Placeholder
-      const pagesRead = 1;
-      await sessionsApi.end(session.id, { wordsRead, pagesRead });
+      // Calculate reading metrics based on actual scroll progress
+      const pagesRead = Math.max(1, Math.floor(scrollProgress / 10)); // Estimate ~10% per page
+      await sessionsApi.end(session.id, {
+        wordsRead: wordsReadInSession,
+        pagesRead,
+        currentLocation: `${Math.floor(scrollProgress)}%`
+      });
     } catch (error) {
       console.error('Failed to end session:', error);
     }
@@ -188,6 +238,7 @@ export default function ReaderPage() {
       });
       alert('Annotation created!');
       setShowAIMenu(false);
+      loadAnnotations(); // Reload to show the new annotation
     } catch (error) {
       console.error('Failed to create annotation:', error);
       alert('Failed to create annotation');
@@ -304,6 +355,22 @@ export default function ReaderPage() {
                 </svg>
               </button>
 
+              {/* Annotations Toggle */}
+              <button
+                onClick={() => setShowAnnotations(!showAnnotations)}
+                className={`p-2 rounded transition-colors ${
+                  showAnnotations
+                    ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                aria-label="Toggle annotations"
+                title={`${showAnnotations ? 'Hide' : 'Show'} Annotations (${annotations.length})`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </button>
+
               {/* Bookmarks */}
               <button
                 onClick={() => setShowBookmarks(!showBookmarks)}
@@ -328,6 +395,18 @@ export default function ReaderPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
+
+              {/* Help */}
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                aria-label="Keyboard shortcuts"
+                title="Keyboard Shortcuts (Ctrl/Cmd+/)"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -342,7 +421,7 @@ export default function ReaderPage() {
 
       {/* Reader Content */}
       <main
-        className="mx-auto px-6 py-8"
+        className="mx-auto px-6 py-8 relative"
         style={{ maxWidth: preferences.maxWidth === 100 ? '100%' : `${preferences.maxWidth}ch` }}
       >
         <article
@@ -356,6 +435,30 @@ export default function ReaderPage() {
           onMouseUp={handleTextSelection}
           dangerouslySetInnerHTML={{ __html: content }}
         />
+
+        {/* Annotation Indicators */}
+        {showAnnotations && annotations.length > 0 && (
+          <div className="fixed right-4 top-1/2 -translate-y-1/2 z-10 space-y-2">
+            {annotations.map((annotation, index) => (
+              <button
+                key={annotation.id}
+                onClick={() => {
+                  // Scroll to annotation position
+                  if (contentRef.current) {
+                    const percentage = annotation.startOffset / contentRef.current.innerText.length;
+                    const scrollPosition = percentage * document.documentElement.scrollHeight;
+                    window.scrollTo({ top: scrollPosition, behavior: 'smooth' });
+                  }
+                }}
+                className="block w-2 h-8 bg-primary-500 hover:bg-primary-600 dark:bg-primary-400 dark:hover:bg-primary-500 rounded-full opacity-60 hover:opacity-100 transition-all hover:w-3"
+                title={`Annotation: ${annotation.textSelection.slice(0, 50)}...`}
+                style={{
+                  opacity: showAnnotations ? 0.6 : 0,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Chapter Navigation */}
@@ -396,6 +499,12 @@ export default function ReaderPage() {
           onCreateAnnotation={handleCreateAnnotation}
         />
       )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
     </div>
   );
 }

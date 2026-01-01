@@ -120,3 +120,14 @@ export interface BookRecommendation {
   reason: string;
   similarity: number;
 }
+
+export interface Bookmark {
+  id: string;
+  userId: string;
+  bookId: string;
+  position: number;
+  title?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
