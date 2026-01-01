@@ -44,14 +44,16 @@ jobs:
 
           # If no body, use a default message
           if [ -z "$PR_BODY" ]; then
-            PR_BODY="Auto-created PR for claude-code changes on branch $BRANCH_NAME"
+            PR_BODY="Auto-created PR for Claude Code changes on branch $BRANCH_NAME"
           fi
 
-          # Create the PR
-          gh pr create \
+          # Create the PR and output the number
+          PR_URL=$(gh pr create \
             --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
-            --head "$BRANCH_NAME"
+            --head "$BRANCH_NAME")
+
+          echo "Created PR: $PR_URL"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
