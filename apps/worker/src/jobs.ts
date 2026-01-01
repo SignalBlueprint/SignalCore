@@ -8,6 +8,15 @@ import { weeklySprintPlannerJob } from "./sprintplanner-job";
 import { githubSyncJob } from "./github-sync-job";
 import { cleanupJob } from "./cleanup-job";
 import { retryJob } from "./retry-job";
+import {
+  fetchDataJob,
+  processDataJob,
+  validateDataJob,
+  generateReportJob,
+  exportCsvJob,
+  exportJsonJob,
+  sendNotificationJob,
+} from "./demo-pipeline-jobs";
 
 /**
  * Daily Questmaster dry run job (placeholder)
@@ -46,5 +55,13 @@ registerJobs([
   githubSyncJob,
   cleanupJob,
   retryJob,
+  // Demo pipeline jobs (for testing dependency chains)
+  fetchDataJob,
+  processDataJob,
+  validateDataJob,
+  generateReportJob,
+  exportCsvJob,
+  exportJsonJob,
+  sendNotificationJob,
 ]);
 

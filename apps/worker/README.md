@@ -250,6 +250,121 @@ input:
 pnpm --filter worker dev -- job maintenance.retry
 ```
 
+## Job Dependency Chains
+
+The Worker app supports **job dependency chains** through the advanced queue system. This allows you to create workflows where jobs execute in a specific order, with jobs waiting for their dependencies to complete before running.
+
+### How Dependency Chains Work
+
+When you enqueue a job with dependencies:
+1. The job starts in `pending` status
+2. Each dependency's status is tracked (`pending`, `completed`, `failed`)
+3. When all dependencies complete successfully, the job becomes `ready`
+4. If any dependency fails, the job (and its dependents) fail automatically
+5. Failed dependencies cascade through the entire chain
+
+### Creating Job Chains
+
+Use the `queue:enqueue` command with the `--depends-on` flag:
+
+```bash
+# Enqueue job A (no dependencies)
+pnpm --filter worker dev -- queue:enqueue setup.database
+
+# Enqueue job B that depends on A
+pnpm --filter worker dev -- queue:enqueue seed.data \
+  --depends-on queue-setup.database-1234567890
+
+# Enqueue job C that depends on B
+pnpm --filter worker dev -- queue:enqueue verify.data \
+  --depends-on queue-seed.data-1234567891
+```
+
+**Important:** The `--depends-on` parameter takes the **queued job ID** (returned when you enqueue), not the job type ID.
+
+### Multiple Dependencies
+
+Jobs can depend on multiple other jobs:
+
+```bash
+# Job D depends on both B and C
+pnpm --filter worker dev -- queue:enqueue generate.report \
+  --depends-on queue-seed.data-123,queue-verify.data-456
+```
+
+The job will only run when **all** dependencies complete successfully.
+
+### Practical Example: Data Pipeline
+
+Here's a complete example of a data processing pipeline:
+
+```bash
+# 1. Start the queue manager
+pnpm --filter worker dev -- queue:start
+
+# In another terminal:
+
+# 2. Fetch data (no dependencies)
+FETCH_ID=$(pnpm --filter worker dev -- queue:enqueue data.fetch --org myorg | grep "Job ID:" | awk '{print $3}')
+
+# 3. Process data (depends on fetch)
+PROCESS_ID=$(pnpm --filter worker dev -- queue:enqueue data.process \
+  --depends-on $FETCH_ID \
+  --org myorg | grep "Job ID:" | awk '{print $3}')
+
+# 4. Generate report (depends on process)
+pnpm --filter worker dev -- queue:enqueue report.generate \
+  --depends-on $PROCESS_ID \
+  --org myorg
+
+# 5. Monitor the chain
+pnpm --filter worker dev -- queue:list
+```
+
+### Dependency Chain Features
+
+- **Automatic Cascading**: If a dependency fails, all dependent jobs fail automatically
+- **Status Tracking**: Each dependency's status is tracked individually
+- **Priority Inheritance**: Child jobs can have different priorities than parents
+- **Concurrent Branches**: Multiple jobs can depend on the same parent and run in parallel
+- **Deep Chains**: No limit on chain depth (A → B → C → D → E...)
+
+### Monitoring Dependency Chains
+
+View jobs with dependencies:
+
+```bash
+# List all queued jobs (shows dependency count)
+pnpm --filter worker dev -- queue:list
+
+# View specific job details
+pnpm --filter worker dev -- queue:list | grep "Dependencies"
+```
+
+### Dependency Chain Best Practices
+
+1. **Use Descriptive Job IDs**: Make it easy to understand the chain
+2. **Set Appropriate Priorities**: Critical jobs should have high priority even in chains
+3. **Handle Failures Gracefully**: Design jobs to be idempotent for retries
+4. **Monitor Actively**: Watch for stuck chains using the queue status
+5. **Avoid Circular Dependencies**: Jobs cannot depend on themselves (directly or indirectly)
+
+### Example Use Cases
+
+- **Data Pipelines**: Extract → Transform → Load → Validate
+- **Deployment Workflows**: Build → Test → Deploy → Verify
+- **Report Generation**: Fetch → Process → Aggregate → Email
+- **Batch Processing**: Split → Process (parallel) → Merge → Notify
+
+### Combining with Other Features
+
+Dependency chains work seamlessly with:
+- **Priorities**: Each job in the chain can have different priorities
+- **Scheduled Execution**: Use `--scheduled-for` to delay the start of a chain
+- **Retries**: Failed jobs retry according to their retry configuration
+- **Concurrency Keys**: Control parallel execution within chains
+- **Dead Letter Queue**: Failed chains can be retried from the DLQ
+
 ## Configuration
 
 ### Scheduler Configuration (`scheduler.yaml`)
@@ -774,13 +889,12 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
 
 ### Planned Features
 
-1. **Advanced Scheduling**
-   - Job dependency chains
+1. **Advanced Scheduling Enhancements**
    - Conditional execution based on results
    - Dynamic schedule adjustments
    - Manual schedule overrides
 
-5. **Developer Tools**
+2. **Developer Tools**
    - Job template generator CLI
    - Testing framework for jobs
    - Enhanced debugging tools
