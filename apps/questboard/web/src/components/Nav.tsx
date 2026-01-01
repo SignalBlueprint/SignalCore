@@ -1,17 +1,25 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Nav() {
   const location = useLocation();
+  const { user, org, logout } = useAuth();
   const [currentOrg, setCurrentOrg] = useState('default-org');
   const [availableOrgs, setAvailableOrgs] = useState<string[]>(['default-org']);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
-    // Get orgId from URL
-    const params = new URLSearchParams(window.location.search);
-    const orgId = params.get('orgId') || 'default-org';
-    setCurrentOrg(orgId);
+    // Use org from auth context if available
+    if (org) {
+      setCurrentOrg(org.id);
+    } else {
+      // Fallback to URL param
+      const params = new URLSearchParams(window.location.search);
+      const orgId = params.get('orgId') || 'default-org';
+      setCurrentOrg(orgId);
+    }
 
     // Fetch available orgs
     fetch('/api/orgs')
@@ -24,7 +32,7 @@ export default function Nav() {
         // Fallback to default
         setAvailableOrgs(['default-org']);
       });
-  }, [location]);
+  }, [location, org]);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -78,6 +86,75 @@ export default function Nav() {
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* User menu */}
+          {user && (
+            <div style={{ position: 'relative', marginRight: '16px' }}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#f5f5f5',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>👤</span>
+                <span className="user-email">{user.email}</span>
+              </button>
+
+              {showUserMenu && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '4px',
+                  background: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  minWidth: '200px',
+                  zIndex: 1000
+                }}>
+                  <div style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid #eee',
+                    fontSize: '12px',
+                    color: '#666'
+                  }}>
+                    <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
+                      {org?.name || 'No Organization'}
+                    </div>
+                    <div>{user.email}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      logout();
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'none',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: '#d32f2f',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
