@@ -13,9 +13,12 @@ import {
 } from "@sb/schemas";
 import { getSuiteApp } from "@sb/suite";
 import { StorageCampaignRepository } from "./campaignRepository";
+import { executeCampaign, getCampaignHistory } from "./campaignService";
+import { handleSendGridWebhook } from "./webhookHandler";
 
 interface LeadProfile {
   id: string;
+  email: string;
   businessName?: string;
   domain?: string;
   painPoint?: string;
@@ -35,6 +38,7 @@ class MockLeadProvider implements LeadProvider {
     this.leads = [
       {
         id: "lead-1",
+        email: "contact@acme.example.com",
         businessName: "Acme Co",
         domain: "acme.example.com",
         painPoint: "retention dips after onboarding",
@@ -44,6 +48,7 @@ class MockLeadProvider implements LeadProvider {
       },
       {
         id: "lead-2",
+        email: "hello@globex.example.com",
         businessName: "Globex",
         domain: "globex.example.com",
         painPoint: "manual lead triage",
@@ -53,6 +58,7 @@ class MockLeadProvider implements LeadProvider {
       },
       {
         id: "lead-3",
+        email: "info@initech.example.com",
         businessName: "Initech",
         domain: "initech.example.com",
         painPoint: "slow demo-to-close handoff",
@@ -175,6 +181,16 @@ function extractCompileCampaignId(pathname: string): string | null {
   return match?.[1] ?? null;
 }
 
+function extractSendCampaignId(pathname: string): string | null {
+  const match = pathname.match(/^\/campaigns\/([^/]+)\/send$/);
+  return match?.[1] ?? null;
+}
+
+function extractHistoryCampaignId(pathname: string): string | null {
+  const match = pathname.match(/^\/campaigns\/([^/]+)\/history$/);
+  return match?.[1] ?? null;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(
     req.url ?? suiteApp.routes.base,
@@ -250,6 +266,83 @@ const server = http.createServer(async (req, res) => {
       compileMessage(campaign, lead, campaign.template)
     );
     sendJson(res, 200, { messages });
+    return;
+  }
+
+  const sendId = extractSendCampaignId(url.pathname);
+  if (req.method === "POST" && sendId) {
+    const campaign = await repository.getById(sendId);
+    if (!campaign) {
+      sendNotFound(res);
+      return;
+    }
+
+    // Get leads matching campaign filters
+    const leads = await leadProvider.getLeads(campaign.audienceFilters);
+
+    if (leads.length === 0) {
+      sendJson(res, 400, {
+        error: "No leads matched the campaign filters",
+        filters: campaign.audienceFilters,
+      });
+      return;
+    }
+
+    try {
+      // Execute campaign
+      const result = await executeCampaign(campaign, leads);
+
+      sendJson(res, 200, {
+        message: "Campaign sent successfully",
+        result,
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: "Failed to send campaign",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  const historyId = extractHistoryCampaignId(url.pathname);
+  if (req.method === "GET" && historyId) {
+    try {
+      const history = await getCampaignHistory(historyId);
+      sendJson(res, 200, { history });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: "Failed to retrieve campaign history",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  // SendGrid webhook endpoint
+  if (req.method === "POST" && url.pathname === "/webhooks/sendgrid") {
+    let payload: unknown;
+    try {
+      payload = await parseJsonBody(req);
+    } catch (error) {
+      sendJson(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    if (!Array.isArray(payload)) {
+      sendJson(res, 400, { error: "Expected array of events" });
+      return;
+    }
+
+    try {
+      await handleSendGridWebhook(payload);
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: "Failed to process webhook",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
     return;
   }
 
