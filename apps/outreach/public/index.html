@@ -144,6 +144,49 @@ I noticed your site at {{domain}}..."></textarea>
     </div>
   </div>
 
+  <!-- Send Confirmation Modal -->
+  <div id="sendModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Send Campaign</div>
+      <div id="sendModalContent">
+        <p style="margin-bottom: 15px; color: #374151;">Are you sure you want to send this campaign?</p>
+        <div id="sendPreview" style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+          <div style="font-weight: 600; margin-bottom: 5px;">Campaign: <span id="sendCampaignName"></span></div>
+          <div style="color: #6b7280; margin-bottom: 10px;">Recipients: <span id="sendRecipientCount">Calculating...</span></div>
+        </div>
+        <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+          ⚠️ <strong>Warning:</strong> This will send emails immediately. This action cannot be undone.
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeSendModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmSendBtn" onclick="confirmSendCampaign()">Send Campaign</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Progress Modal -->
+  <div id="sendProgressModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Sending Campaign</div>
+      <div id="sendProgressContent" style="text-align: center; padding: 30px 20px;">
+        <div class="loading">Sending emails...</div>
+        <p style="margin-top: 20px; color: #6b7280;">This may take a moment. Please don't close this window.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Results Modal -->
+  <div id="sendResultsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Campaign Sent</div>
+      <div id="sendResultsContent"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" onclick="closeSendResultsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
