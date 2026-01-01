@@ -18,7 +18,12 @@ const PORT = Number(process.env.PORT ?? suiteApp.defaultPort);
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Serve static files from React build or public folder
+const clientBuildPath = path.join(__dirname, "..", "dist", "client");
+const publicPath = path.join(__dirname, "..", "public");
+const staticPath = require("fs").existsSync(clientBuildPath) ? clientBuildPath : publicPath;
+app.use(express.static(staticPath));
 
 // API Routes
 app.use("/api/books", booksRouter);
@@ -89,7 +94,12 @@ app.get("/api", (req, res) => {
 
 // Serve index.html for all other routes (client-side routing)
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+  const clientBuildPath = path.join(__dirname, "..", "dist", "client");
+  const publicPath = path.join(__dirname, "..", "public");
+  const indexPath = require("fs").existsSync(clientBuildPath)
+    ? path.join(clientBuildPath, "index.html")
+    : path.join(publicPath, "index.html");
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {
