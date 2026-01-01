@@ -26,6 +26,7 @@ export interface SiteProject {
   templateStyle?: TemplateStyle;
   industryType?: IndustryType;
   colorScheme?: ColorScheme;
+  contentOverrides?: Record<string, Partial<ComponentContent>>;
   generatedSite?: GeneratedSite;
   error?: string;
   createdAt: string;

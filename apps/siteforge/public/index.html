@@ -28,7 +28,7 @@
     .badge-draft { background: #e5e7eb; color: #374151; }
     .badge-queued { background: #fef3c7; color: #92400e; }
     .badge-generating { background: #dbeafe; color: #1e40af; }
-    .badge-complete { background: #d1fae5; color: #065f46; }
+    .badge-ready { background: #d1fae5; color: #065f46; }
     .badge-failed { background: #fee2e2; color: #991b1b; }
     .project-niche { background: #f3e8ff; color: #6b21a8; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
     .project-notes { color: #6b7280; font-size: 14px; margin-bottom: 15px; font-style: italic; }
@@ -50,6 +50,18 @@
     .stat { background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 8px; }
     .stat-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; }
     .stat-value { font-size: 28px; font-weight: bold; color: #111827; }
+    .preview-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; }
+    .preview-modal.active { display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .preview-controls { background: white; padding: 10px 20px; border-radius: 8px 8px 0 0; display: flex; gap: 10px; align-items: center; }
+    .preview-container { background: white; width: 90vw; height: 85vh; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; }
+    .preview-iframe-wrapper { flex: 1; display: flex; justify-content: center; align-items: center; background: #f3f4f6; padding: 20px; overflow: auto; }
+    .preview-iframe { border: none; background: white; transition: all 0.3s; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .preview-iframe.desktop { width: 100%; height: 100%; }
+    .preview-iframe.tablet { width: 768px; height: 100%; }
+    .preview-iframe.mobile { width: 375px; height: 100%; }
+    .device-btn { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+    .device-btn.active { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color: white; border-color: transparent; }
+    .device-btn:hover { border-color: #ec4899; }
   </style>
 </head>
 <body>
@@ -78,6 +90,67 @@
       </div>
 
       <div id="projectsContainer" class="loading">Loading projects...</div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModal" class="preview-modal">
+    <div class="preview-container">
+      <div class="preview-controls">
+        <button class="device-btn active" onclick="setPreviewDevice('desktop')">🖥️ Desktop</button>
+        <button class="device-btn" onclick="setPreviewDevice('tablet')">📱 Tablet</button>
+        <button class="device-btn" onclick="setPreviewDevice('mobile')">📱 Mobile</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-secondary btn-small" onclick="closePreview()">✕ Close</button>
+      </div>
+      <div class="preview-iframe-wrapper">
+        <iframe id="previewIframe" class="preview-iframe desktop"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Content Modal -->
+  <div id="contentModal" class="modal">
+    <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+      <div class="modal-header">✏️ Edit Content</div>
+      <div id="contentFields"></div>
+      <div class="form-actions" style="position: sticky; bottom: 0; background: white; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+        <button type="button" class="btn btn-secondary" onclick="closeContentModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveContent()">Save & Regenerate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customize Colors Modal -->
+  <div id="colorsModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">🎨 Customize Colors</div>
+      <form id="colorsForm">
+        <div class="form-group">
+          <label>Primary Color</label>
+          <input type="color" id="editPrimaryColor" style="width: 100%; height: 50px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer;">
+          <small style="display: block; margin-top: 5px; color: #6b7280;">Main brand color used for buttons and accents</small>
+        </div>
+        <div class="form-group">
+          <label>Secondary Color (optional)</label>
+          <input type="color" id="editSecondaryColor" style="width: 100%; height: 50px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer;">
+          <small style="display: block; margin-top: 5px; color: #6b7280;">Complementary color for secondary elements</small>
+        </div>
+        <div class="form-group">
+          <label>Accent Color (optional)</label>
+          <input type="color" id="editAccentColor" style="width: 100%; height: 50px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer;">
+          <small style="display: block; margin-top: 5px; color: #6b7280;">Highlight color for special elements</small>
+        </div>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin-top: 15px;">
+          <p style="font-size: 13px; color: #374151; margin: 0;">
+            <strong>💡 Tip:</strong> After updating colors, click "Apply & Regenerate" to see your changes in the live preview.
+          </p>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeColorsModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Apply & Regenerate</button>
+        </div>
+      </form>
     </div>
   </div>
 

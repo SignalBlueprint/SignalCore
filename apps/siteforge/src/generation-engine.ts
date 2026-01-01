@@ -49,11 +49,30 @@ export async function generateWebsite(
       `[generation-engine] AI content generated (cached: ${contentResult.cached})`
     );
 
+    // Apply content overrides if they exist
+    let components = contentResult.components;
+    if (project.contentOverrides) {
+      console.log(`[generation-engine] Applying content overrides...`);
+      components = contentResult.components.map((component) => {
+        const override = project.contentOverrides?.[component.id];
+        if (override) {
+          return {
+            ...component,
+            content: {
+              ...component.content,
+              ...override,
+            },
+          };
+        }
+        return component;
+      });
+    }
+
     // Step 2: Generate HTML from components
     console.log(`[generation-engine] Generating HTML...`);
     const html = generateHTML(
       contentResult.metadata,
-      contentResult.components,
+      components,
       project.businessName,
       project.templateStyle || "modern",
       project.industryType,
@@ -68,7 +87,7 @@ export async function generateWebsite(
     const generatedSite: GeneratedSite = {
       html,
       metadata: contentResult.metadata,
-      components: contentResult.components,
+      components, // Use components with overrides applied
       generatedAt: new Date().toISOString(),
     };
 

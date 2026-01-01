@@ -10,14 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupEventListeners() {
   document.getElementById('projectForm').addEventListener('submit', handleAddProject);
+  document.getElementById('colorsForm').addEventListener('submit', handleUpdateColors);
 
-  // Close modal on outside click
+  // Close modals on outside click
   document.getElementById('projectModal').addEventListener('click', (e) => {
     if (e.target.id === 'projectModal') {
       closeModal();
     }
   });
+
+  document.getElementById('colorsModal').addEventListener('click', (e) => {
+    if (e.target.id === 'colorsModal') {
+      closeColorsModal();
+    }
+  });
 }
+
+let currentEditingProject = null;
 
 async function loadProjects() {
   try {
@@ -87,9 +96,15 @@ function renderProject(project) {
             ⚡ Generate Website
           </button>
         ` : ''}
-        ${project.status === 'complete' ? `
+        ${project.status === 'ready' ? `
           <button class="btn btn-primary btn-small" onclick="viewSite('${project.id}')">
             👁️ View Site
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="customizeColors('${project.id}')">
+            🎨 Customize
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="editContent('${project.id}')">
+            ✏️ Edit
           </button>
         ` : ''}
       </div>
@@ -103,7 +118,7 @@ function renderProject(project) {
 function updateStats() {
   const totalProjects = projects.length;
   const inProgress = projects.filter(p => p.status === 'queued' || p.status === 'generating').length;
-  const completed = projects.filter(p => p.status === 'complete').length;
+  const completed = projects.filter(p => p.status === 'ready').length;
 
   document.getElementById('totalProjects').textContent = totalProjects;
   document.getElementById('inProgress').textContent = inProgress;
@@ -188,7 +203,96 @@ async function generateSite(projectId) {
 }
 
 function viewSite(projectId) {
-  alert('Site preview functionality coming soon!');
+  const iframe = document.getElementById('previewIframe');
+  iframe.src = `/projects/${projectId}/preview`;
+  document.getElementById('previewModal').classList.add('active');
+  setPreviewDevice('desktop');
+}
+
+function closePreview() {
+  document.getElementById('previewModal').classList.remove('active');
+  document.getElementById('previewIframe').src = '';
+}
+
+function setPreviewDevice(device) {
+  const iframe = document.getElementById('previewIframe');
+  const buttons = document.querySelectorAll('.device-btn');
+
+  // Remove active class from all buttons
+  buttons.forEach(btn => btn.classList.remove('active'));
+
+  // Add active class to clicked button
+  event.target.classList.add('active');
+
+  // Update iframe class
+  iframe.className = `preview-iframe ${device}`;
+}
+
+function customizeColors(projectId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return;
+
+  currentEditingProject = project;
+
+  // Load current colors or use defaults
+  const colors = project.colorScheme || {};
+  document.getElementById('editPrimaryColor').value = colors.primary || '#3b82f6';
+  document.getElementById('editSecondaryColor').value = colors.secondary || '#8b5cf6';
+  document.getElementById('editAccentColor').value = colors.accent || '#ec4899';
+
+  document.getElementById('colorsModal').classList.add('active');
+}
+
+function closeColorsModal() {
+  document.getElementById('colorsModal').classList.remove('active');
+  currentEditingProject = null;
+}
+
+async function handleUpdateColors(e) {
+  e.preventDefault();
+
+  if (!currentEditingProject) return;
+
+  const primaryColor = document.getElementById('editPrimaryColor').value;
+  const secondaryColor = document.getElementById('editSecondaryColor').value;
+  const accentColor = document.getElementById('editAccentColor').value;
+
+  const colorScheme = {
+    primary: primaryColor,
+    secondary: secondaryColor,
+    accent: accentColor
+  };
+
+  try {
+    // Update project with new colors
+    const updateResponse = await fetch(`${API_BASE}/projects/${currentEditingProject.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colorScheme })
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update colors');
+    }
+
+    // Regenerate the site with new colors
+    const regenerateResponse = await fetch(`${API_BASE}/projects/${currentEditingProject.id}/generate`, {
+      method: 'POST'
+    });
+
+    if (!regenerateResponse.ok) {
+      throw new Error('Failed to regenerate site');
+    }
+
+    closeColorsModal();
+    alert('✅ Colors updated! The site is being regenerated with your new colors. Refresh in a few seconds to see the changes.');
+
+    // Reload projects
+    await loadProjects();
+  } catch (error) {
+    console.error('Error updating colors:', error);
+    showError('Failed to update colors and regenerate site');
+  }
 }
 
 function formatStatus(status) {
@@ -196,7 +300,7 @@ function formatStatus(status) {
     draft: 'Draft',
     queued: 'Queued',
     generating: 'Generating',
-    complete: 'Complete',
+    ready: 'Ready',
     failed: 'Failed'
   };
   return statusMap[status] || status;
@@ -221,4 +325,149 @@ function escapeHtml(text) {
 
 function showError(message) {
   alert(message);
+}
+
+async function editContent(projectId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project || !project.generatedSite) return;
+
+  currentEditingProject = project;
+
+  // Get components from generated site
+  const components = project.generatedSite.components;
+
+  // Generate editable fields for key text fields
+  const fieldsHtml = components.map(comp => {
+    const componentTypeLabels = {
+      hero: '🦸 Hero Section',
+      features: '⭐ Features',
+      about: 'ℹ️ About',
+      services: '🛠️ Services',
+      pricing: '💰 Pricing',
+      testimonials: '💬 Testimonials',
+      cta: '🎯 Call to Action',
+      contact: '📧 Contact',
+      footer: '📄 Footer'
+    };
+
+    const label = componentTypeLabels[comp.type] || comp.type;
+
+    return `
+      <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 6px;">
+        <h3 style="font-size: 16px; margin-bottom: 10px; color: #374151;">${label}</h3>
+        ${comp.content.heading ? `
+          <div class="form-group">
+            <label>Heading</label>
+            <input type="text" id="content_${comp.id}_heading" value="${escapeHtml(comp.content.heading)}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        ` : ''}
+        ${comp.content.subheading ? `
+          <div class="form-group">
+            <label>Subheading</label>
+            <input type="text" id="content_${comp.id}_subheading" value="${escapeHtml(comp.content.subheading)}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        ` : ''}
+        ${comp.content.body ? `
+          <div class="form-group">
+            <label>Body Text</label>
+            <textarea id="content_${comp.id}_body" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">${escapeHtml(comp.content.body)}</textarea>
+          </div>
+        ` : ''}
+        ${comp.content.buttonText ? `
+          <div class="form-group">
+            <label>Button Text</label>
+            <input type="text" id="content_${comp.id}_buttonText" value="${escapeHtml(comp.content.buttonText)}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('contentFields').innerHTML = fieldsHtml;
+  document.getElementById('contentModal').classList.add('active');
+}
+
+function closeContentModal() {
+  document.getElementById('contentModal').classList.remove('active');
+  currentEditingProject = null;
+}
+
+async function saveContent() {
+  if (!currentEditingProject || !currentEditingProject.generatedSite) return;
+
+  const components = currentEditingProject.generatedSite.components;
+  const contentOverrides = {};
+
+  // Collect edited values
+  components.forEach(comp => {
+    const overrides = {};
+    let hasChanges = false;
+
+    if (comp.content.heading) {
+      const input = document.getElementById(`content_${comp.id}_heading`);
+      if (input && input.value !== comp.content.heading) {
+        overrides.heading = input.value;
+        hasChanges = true;
+      }
+    }
+
+    if (comp.content.subheading) {
+      const input = document.getElementById(`content_${comp.id}_subheading`);
+      if (input && input.value !== comp.content.subheading) {
+        overrides.subheading = input.value;
+        hasChanges = true;
+      }
+    }
+
+    if (comp.content.body) {
+      const input = document.getElementById(`content_${comp.id}_body`);
+      if (input && input.value !== comp.content.body) {
+        overrides.body = input.value;
+        hasChanges = true;
+      }
+    }
+
+    if (comp.content.buttonText) {
+      const input = document.getElementById(`content_${comp.id}_buttonText`);
+      if (input && input.value !== comp.content.buttonText) {
+        overrides.buttonText = input.value;
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      contentOverrides[comp.id] = overrides;
+    }
+  });
+
+  try {
+    // Update project with content overrides
+    const updateResponse = await fetch(`${API_BASE}/projects/${currentEditingProject.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentOverrides })
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update content');
+    }
+
+    // Regenerate the site with new content
+    const regenerateResponse = await fetch(`${API_BASE}/projects/${currentEditingProject.id}/generate`, {
+      method: 'POST'
+    });
+
+    if (!regenerateResponse.ok) {
+      throw new Error('Failed to regenerate site');
+    }
+
+    closeContentModal();
+    alert('✅ Content updated! The site is being regenerated with your changes. Refresh in a few seconds to see them.');
+
+    // Reload projects
+    await loadProjects();
+  } catch (error) {
+    console.error('Error updating content:', error);
+    showError('Failed to update content and regenerate site');
+  }
 }

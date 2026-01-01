@@ -57,8 +57,8 @@ export const SUITE_REGISTRY = {
     id: "siteforge",
     name: "SiteForge",
     description: "Website generation and management platform",
-    status: "skeleton",
-    defaultPort: 4022,
+    status: "prod",
+    defaultPort: 4024,
     routes: {
       base: "/",
       health: "/health",
@@ -82,7 +82,7 @@ export const SUITE_REGISTRY = {
     name: "Outreach",
     description: "Outreach campaign management and automation",
     status: "skeleton",
-    defaultPort: 4024,
+    defaultPort: 4025,
     routes: {
       base: "/",
       health: "/health",

@@ -172,6 +172,7 @@ const server = http.createServer(async (req, res) => {
       const templateStyle = body?.templateStyle as "modern" | "minimal" | "bold" | undefined ?? project.templateStyle;
       const industryType = body?.industryType as "saas" | "ecommerce" | "portfolio" | "general" | undefined ?? project.industryType;
       const colorScheme = body?.colorScheme as { primary: string; secondary?: string; accent?: string; background?: string; text?: string; } | undefined ?? project.colorScheme;
+      const contentOverrides = body?.contentOverrides as Record<string, any> | undefined ?? project.contentOverrides;
 
       const updatedProject: SiteProject = {
         ...project,
@@ -182,6 +183,7 @@ const server = http.createServer(async (req, res) => {
         templateStyle,
         industryType,
         colorScheme,
+        contentOverrides,
         updatedAt: new Date().toISOString(),
       };
 
