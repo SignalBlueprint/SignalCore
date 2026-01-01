@@ -94,6 +94,7 @@ import {
 } from "./store";
 import { adaptTemplate } from "@sb/ai";
 import authRoutes from "./routes/auth";
+import { requireAuth, optionalAuth, requireAdmin, requireOwner, type AuthenticatedRequest } from "@sb/auth";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -130,14 +131,18 @@ app.get("/health", (req, res) => {
   res.status(200).type("text/plain").send("ok");
 });
 
-// Mount auth routes
+// Mount auth routes (public - no auth required)
 app.use("/api/auth", authRoutes);
+
+// Apply authentication to all other /api/* routes
+app.use("/api/*", requireAuth);
 
 // Status endpoint
 app.get("/api/status", async (req, res) => {
   try {
     const storageInfo = getStorageInfo();
-    const orgId = (req.query.orgId as string) || "default-org";
+    // Get orgId from authenticated user context
+    const { orgId } = (req as AuthenticatedRequest).user;
     
     // Get counts (with error handling)
     let orgCount = 0;
@@ -200,11 +205,14 @@ app.get("/api/goals/:id", async (req, res) => {
 // Create new goal
 app.post("/api/goals", async (req, res) => {
   try {
-    const { title, orgId, scope_level, owner_role_id, parent_goal_id } = req.body;
+    const { title, scope_level, owner_role_id, parent_goal_id } = req.body;
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
     }
-    const goal = await createGoal(title, orgId || "default-org", {
+
+    // Get orgId from authenticated user context
+    const { orgId } = (req as AuthenticatedRequest).user;
+    const goal = await createGoal(title, orgId, {
       scope_level,
       owner_role_id,
       parent_goal_id,
@@ -379,7 +387,7 @@ app.post("/api/goals/:id/decompose", async (req, res) => {
       });
     }
 
-    const orgId = goal.orgId || "default-org";
+    const orgId = goal.orgId;
     
     // Fetch team snapshot for AI decomposition
     const teamSnapshot = await buildTeamSnapshot(orgId);
@@ -620,14 +628,14 @@ app.get("/api/goals/:id/questlines", async (req, res) => {
 // Get goal tree for an org
 app.get("/api/goals-tree", async (req, res) => {
   try {
-    const orgId = req.query.orgId as string || "default-org";
+    const orgId = (req as AuthenticatedRequest).user.orgId;
     // Try to get hierarchical goals, fallback to all goals if needed
     let goals = await getGoalTree(orgId);
     // If no goals found, try getting all goals (for backward compatibility)
     if (goals.length === 0) {
       const allGoals = await getAllGoals();
       // Filter by orgId if possible, otherwise return all
-      goals = allGoals.filter(g => !g.orgId || g.orgId === orgId || orgId === "default-org");
+      goals = allGoals.filter(g => !g.orgId || g.orgId === orgId);
     }
     res.json(goals);
   } catch (error) {
@@ -672,7 +680,7 @@ app.post("/api/goals-tree", async (req, res) => {
       return res.status(400).json({ error: "Title is required", details: "The 'title' field is required to create a goal" });
     }
     const goal = await createHierarchicalGoal(
-      orgId || "default-org",
+      orgId,
       title,
       parentGoalId || null,
       level || 0
@@ -885,7 +893,7 @@ app.post("/api/goals/:id/apply-level-up", async (req, res) => {
       return res.status(404).json({ error: "Goal not found" });
     }
 
-    const orgId = goal.orgId || "default-org";
+    const orgId = goal.orgId;
     const updates: Partial<Goal> = {
       level: levelUpResponse.next_level,
       ...(levelUpResponse.summary && levelUpResponse.summary.trim() && { summary: levelUpResponse.summary }),
@@ -1069,7 +1077,7 @@ app.get("/api/goals/:id/quests", async (req, res) => {
 // Get active goals (for filtering)
 app.get("/api/active-goals", async (req, res) => {
   try {
-    const orgId = req.query.orgId as string || "default-org";
+    const orgId = (req as AuthenticatedRequest).user.orgId;
     const goals = await getActiveGoals(orgId);
     res.json(goals);
   } catch (error) {
@@ -1089,7 +1097,7 @@ app.get("/api/goals/:id/assignment-review", async (req, res) => {
       return res.status(400).json({ error: "Goal must be decomposed first" });
     }
 
-    const orgId = goal.orgId || "default-org";
+    const orgId = goal.orgId;
     
     // Get all questlines and their quests
     const questlines = await getQuestlinesByGoalId(goal.id);
@@ -1388,7 +1396,7 @@ app.post("/api/tasks/:id/skip", async (req, res) => {
 // Get all questlines for an organization
 app.get("/api/questlines", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const questlines = await getQuestlinesByOrgId(orgId);
     res.json(questlines);
   } catch (error) {
@@ -1424,8 +1432,9 @@ app.post("/api/quests/:id/tasks", async (req, res) => {
   if (!title) {
     return res.status(400).json({ error: "Title is required" });
   }
-  
-  const orgId = "default-org"; // TODO: Get from auth context
+
+  // Get orgId from authenticated user context
+  const { orgId } = (req as AuthenticatedRequest).user;
   const task = await createTask(orgId, req.params.id, title, description);
   res.json(task);
 });
@@ -1613,6 +1622,9 @@ app.post("/api/tasks/:id/outputs", async (req, res) => {
       return res.status(400).json({ error: "Invalid output type" });
     }
 
+    // Get userId from authenticated user context
+    const { userId } = (req as AuthenticatedRequest).user;
+
     // Create output
     const output = {
       id: `output-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -1620,7 +1632,7 @@ app.post("/api/tasks/:id/outputs", async (req, res) => {
       content: content.trim(),
       title: title?.trim() || undefined,
       submittedAt: new Date().toISOString(),
-      submittedBy: undefined, // TODO: Get from auth context
+      submittedBy: userId,
     };
 
     // Add output to task
@@ -1731,18 +1743,20 @@ app.post("/api/tasks/:id/ai-help", async (req, res) => {
 
 // Member management endpoints
 app.get("/api/members", async (req, res) => {
-  const orgId = req.query.orgId as string || "default-org";
+  const orgId = (req as AuthenticatedRequest).user.orgId;
   const members = await getMembersByOrgId(orgId);
   res.json(members);
 });
 
-app.post("/api/members", async (req, res) => {
+// Create member (requires admin role)
+app.post("/api/members", requireAdmin, async (req, res) => {
   try {
-    const { email, role, orgId: targetOrgId } = req.body;
+    const { email, role } = req.body;
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
-    const orgId = targetOrgId || (req.query.orgId as string) || "default-org";
+    // Get orgId from authenticated user context
+    const { orgId } = (req as AuthenticatedRequest).user;
     
     const member = await createMember(orgId, email, role || "member");
     res.status(201).json(member);
@@ -1761,7 +1775,8 @@ app.get("/api/members/:id", async (req, res) => {
   res.json(member);
 });
 
-app.put("/api/members/:id", async (req, res) => {
+// Update member (requires admin role)
+app.put("/api/members/:id", requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
     const updated = await updateMember(req.params.id, updates);
@@ -1778,7 +1793,7 @@ app.put("/api/members/:id", async (req, res) => {
 // Team management endpoints
 app.get("/api/team", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const snapshot = await buildTeamSnapshot(orgId);
     res.json(snapshot);
   } catch (error) {
@@ -1789,7 +1804,7 @@ app.get("/api/team", async (req, res) => {
 
 app.get("/api/team/profiles", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const profiles = await getMemberProfilesByOrgId(orgId);
     res.json(profiles);
   } catch (error) {
@@ -1816,7 +1831,8 @@ app.put("/api/team/profiles/:memberId", async (req, res) => {
     const profile = await getMemberProfile(req.params.memberId);
     if (!profile) {
       // Create new profile if it doesn't exist
-      const orgId = (req.body.orgId as string) || (req.query.orgId as string) || "default-org";
+      // Get orgId from authenticated user context
+      const { orgId } = (req as AuthenticatedRequest).user;
       const member = await getMemberById(req.params.memberId);
       if (!member) {
         return res.status(404).json({ error: "Member not found" });
@@ -1859,7 +1875,7 @@ app.put("/api/team/profiles/:memberId", async (req, res) => {
 
 app.get("/api/team/settings", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const settings = await getOrgSettings(orgId);
     res.json(settings || { id: orgId, orgId, teamNotes: undefined, updatedAt: new Date().toISOString() });
   } catch (error) {
@@ -1870,7 +1886,7 @@ app.get("/api/team/settings", async (req, res) => {
 
 app.put("/api/team/settings", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || (req.body.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const { teamNotes } = req.body;
     const updated = await updateOrgSettings(orgId, { teamNotes });
     res.json(updated);
@@ -1883,7 +1899,7 @@ app.put("/api/team/settings", async (req, res) => {
 // Assignment explanation endpoint
 app.get("/api/tasks/:id/assignment", async (req, res) => {
   try {
-    const orgId = req.query.orgId as string || "default-org";
+    const orgId = (req as AuthenticatedRequest).user.orgId;
     const explanation = await getTaskAssignmentExplanation(req.params.id, orgId);
     if (!explanation) {
       return res.status(404).json({ error: "Task not found or no candidates available" });
@@ -1899,7 +1915,7 @@ app.get("/api/tasks/:id/assignment", async (req, res) => {
 app.post("/api/assignments/reassign", async (req, res) => {
   try {
     const { orgId } = req.body;
-    const targetOrgId = orgId || "default-org";
+    const targetOrgId = orgId;
     await reassignTasks(targetOrgId);
     res.json({ success: true, message: "Tasks reassigned" });
   } catch (error) {
@@ -1908,12 +1924,12 @@ app.post("/api/assignments/reassign", async (req, res) => {
   }
 });
 
-// Run Questmaster endpoint
-app.post("/api/questmaster/run", async (req, res) => {
+// Run Questmaster endpoint (requires admin role)
+app.post("/api/questmaster/run", requireAdmin, async (req, res) => {
   try {
-    const { orgId } = req.body;
-    const targetOrgId = orgId || "default-org";
-    await runQuestmaster(targetOrgId);
+    // Get orgId from authenticated user context
+    const { orgId } = (req as AuthenticatedRequest).user;
+    await runQuestmaster(orgId);
     res.json({ success: true, message: "Questmaster completed successfully" });
   } catch (error) {
     console.error("Questmaster error:", error);
@@ -1981,7 +1997,7 @@ app.put("/api/orgs/:id", async (req, res) => {
 app.post("/api/sprint/plan", async (req, res) => {
   try {
     const { orgId, weekStart } = req.body;
-    const targetOrgId = orgId || "default-org";
+    const targetOrgId = orgId;
     
     // Check if plan already exists
     let existingPlan = null;
@@ -2020,7 +2036,7 @@ app.post("/api/sprint/plan", async (req, res) => {
 
 app.get("/api/sprint/plans", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const plans = await getSprintPlans(orgId);
     res.json(plans);
   } catch (error) {
@@ -2031,7 +2047,7 @@ app.get("/api/sprint/plans", async (req, res) => {
 
 app.get("/api/sprint/plan/:weekStart", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const plan = await getSprintPlan(orgId, req.params.weekStart);
     if (!plan) {
       return res.status(404).json({ error: "Sprint plan not found" });
@@ -2043,24 +2059,23 @@ app.get("/api/sprint/plan/:weekStart", async (req, res) => {
   }
 });
 
-app.post("/api/sprint/plan/:planId/approve", async (req, res) => {
+// Approve sprint plan (requires admin role)
+app.post("/api/sprint/plan/:planId/approve", requireAdmin, async (req, res) => {
   try {
-    const { approvedBy } = req.body;
-    if (!approvedBy) {
-      return res.status(400).json({ error: "approvedBy is required" });
-    }
-    
-    const plan = await approveSprintPlan(req.params.planId, approvedBy);
+    // Get userId from authenticated user context
+    const { userId } = (req as AuthenticatedRequest).user;
+
+    const plan = await approveSprintPlan(req.params.planId, userId);
     if (!plan) {
       return res.status(404).json({ error: "Sprint plan not found" });
     }
-    
+
     // Publish event
     await publish("sprint.plan.approved", {
       planId: plan.id,
       orgId: plan.orgId,
       weekStart: plan.weekStart,
-      approvedBy,
+      approvedBy: userId,
     }, {
       sourceApp: "questboard",
     });
@@ -2077,7 +2092,7 @@ app.post("/api/sprint/plan/:planId/approve", async (req, res) => {
 // Get all templates for an org
 app.get("/api/templates", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const search = req.query.search as string;
     const tags = req.query.tags ? (req.query.tags as string).split(",").filter(Boolean) : undefined;
     
@@ -2116,7 +2131,7 @@ app.post("/api/questlines/:id/save-as-template", async (req, res) => {
       return res.status(400).json({ error: "Title is required" });
     }
     
-    const orgId = req.body.orgId || "default-org";
+    const orgId = req.body.orgId;
     const creator = createdBy || "system";
     
     const result = await saveTemplate(
@@ -2150,12 +2165,13 @@ app.post("/api/questlines/:id/save-as-template", async (req, res) => {
 // Spawn goal from template
 app.post("/api/templates/:id/spawn", async (req, res) => {
   try {
-    const { goalTitle, orgId: targetOrgId, goalContext, adaptWithAI } = req.body;
+    const { goalTitle, goalContext, adaptWithAI } = req.body;
     if (!goalTitle) {
       return res.status(400).json({ error: "Goal title is required" });
     }
-    
-    const orgId = targetOrgId || "default-org";
+
+    // Get orgId from authenticated user context
+    const { orgId } = (req as AuthenticatedRequest).user;
     
     // Get template
     const template = await getTemplateById(req.params.id);
@@ -2213,8 +2229,8 @@ app.post("/api/templates/:id/spawn", async (req, res) => {
 // Get Today screen data for a user
 app.get("/api/today", async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || "user1"; // TODO: Get from auth
-    const orgId = (req.query.orgId as string) || "default-org";
+    // Get userId and orgId from authenticated user context
+    const { userId, orgId } = (req as AuthenticatedRequest).user;
     
     // Get metadata
     const storageInfo = getStorageInfo();
@@ -2270,7 +2286,7 @@ app.get("/api/today", async (req, res) => {
 // Get Daily Deck endpoint
 app.get("/api/daily-deck", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
     const dateParam = req.query.date as string | undefined;
     const today = dateParam || new Date().toISOString().split("T")[0];
 
@@ -2310,8 +2326,8 @@ app.get("/api/daily-deck", async (req, res) => {
 // Debug/status endpoint
 app.get("/api/debug", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
-    const currentUser = (req.query.userId as string) || "user-1"; // TODO: Get from auth
+    // Get orgId and userId from authenticated user context
+    const { orgId, userId: currentUser } = (req as AuthenticatedRequest).user;
 
     const storageInfo = getStorageInfo();
     const counts = await getEntityCounts(orgId);
@@ -2386,7 +2402,7 @@ app.get("/api/debug", async (req, res) => {
 // Jobs monitoring endpoint
 app.get("/api/jobs", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
 
     // Get all job run summaries (we'll get more to calculate statistics)
     const allSummaries = await getJobRunSummaries(orgId, 100);
@@ -2468,7 +2484,7 @@ app.post("/api/debug/reset-storage", async (req, res) => {
 // Create tasks for quests that don't have any
 app.post("/api/debug/create-quest-tasks", async (req, res) => {
   try {
-    const orgId = req.body.orgId as string || "default-org";
+    const orgId = (req as AuthenticatedRequest).user.orgId;
     
     // Get all quests for this org
     const quests = await storage.list<Quest>("quests", (q) => q.orgId === orgId);
@@ -2964,7 +2980,7 @@ app.post("/api/seed-demo", async (req, res) => {
 // Analytics endpoint
 app.get("/api/analytics", async (req, res) => {
   try {
-    const orgId = (req.query.orgId as string) || "default-org";
+    const { orgId } = (req as AuthenticatedRequest).user;
 
     // Get all data for the org
     const [allGoals, allQuestlines, allQuests, allTasks, members, memberProfiles, teamCapacity] = await Promise.all([
