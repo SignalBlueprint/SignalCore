@@ -690,6 +690,13 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - Configurable retry attempts and lookback windows
    - Execution cleanup for storage management
 
+✅ **Monitoring Dashboard**
+   - Real-time job monitoring in Console app
+   - Visual job registry with status indicators
+   - Execution history and statistics
+   - 24-hour performance metrics
+   - Failure tracking with error details
+
 ### Planned Features
 
 1. **Advanced Job Queue**
@@ -697,13 +704,7 @@ Jobs publish events via `@sb/events`. Other apps (like Console) can subscribe to
    - Job priority system
    - Queue pause/resume functionality
 
-2. **Monitoring Dashboard**
-   - Integration with Console app
-   - Real-time job status visualization
-   - Performance metrics and trends
-   - Alerting dashboard
-
-3. **Alerting**
+2. **Alerting**
    - Email/Slack/Discord notifications
    - Failure alerts with configurable thresholds
    - Custom alert rules

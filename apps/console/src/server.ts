@@ -11,8 +11,10 @@ import * as path from "path";
 import { SUITE_APPS, getSuiteApp } from "@sb/suite";
 import { readEvents } from "@sb/events";
 import { getTelemetryState } from "@sb/telemetry";
-import type { Member } from "@sb/schemas";
+import type { Member, JobExecution } from "@sb/schemas";
 import authRouter from "./routes/auth";
+import { getJobs } from "@sb/jobs";
+import { storage } from "@sb/storage";
 
 const app = express();
 const suiteApp = getSuiteApp("console");
@@ -263,6 +265,217 @@ app.get("/api/quests/active", async (req, res) => {
   } catch (error) {
     console.error("Error fetching active quests:", error);
     res.status(500).json({ error: "Failed to fetch active quests" });
+  }
+});
+
+// Worker Job Monitoring endpoints
+const JOB_EXECUTION_KIND = "job-executions";
+
+// Helper: Get all job executions
+async function getAllJobExecutions(options?: {
+  limit?: number;
+  orgId?: string;
+  status?: JobExecution["status"];
+}): Promise<JobExecution[]> {
+  const allExecutions = await storage.list<JobExecution>(
+    JOB_EXECUTION_KIND,
+    (exec) => {
+      if (options?.orgId && exec.orgId !== options.orgId) return false;
+      if (options?.status && exec.status !== options.status) return false;
+      return true;
+    }
+  );
+
+  const sorted = allExecutions.sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  );
+
+  if (options?.limit) {
+    return sorted.slice(0, options.limit);
+  }
+
+  return sorted;
+}
+
+// Helper: Get job executions for a specific job
+async function getJobExecutions(
+  jobId: string,
+  options?: { limit?: number; orgId?: string }
+): Promise<JobExecution[]> {
+  const allExecutions = await storage.list<JobExecution>(
+    JOB_EXECUTION_KIND,
+    (exec) => {
+      if (exec.jobId !== jobId) return false;
+      if (options?.orgId && exec.orgId !== options.orgId) return false;
+      return true;
+    }
+  );
+
+  const sorted = allExecutions.sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  );
+
+  if (options?.limit) {
+    return sorted.slice(0, options.limit);
+  }
+
+  return sorted;
+}
+
+// Helper: Get job stats
+async function getJobStats(jobId: string, orgId?: string) {
+  const executions = await getJobExecutions(jobId, { orgId });
+
+  const totalRuns = executions.length;
+  const successCount = executions.filter((e) => e.status === "success").length;
+  const failureCount = executions.filter((e) => e.status === "failed").length;
+  const timeoutCount = executions.filter((e) => e.status === "timeout").length;
+
+  const completedExecutions = executions.filter((e) => e.duration !== undefined);
+  const averageDuration =
+    completedExecutions.length > 0
+      ? completedExecutions.reduce((sum, e) => sum + (e.duration || 0), 0) /
+        completedExecutions.length
+      : 0;
+
+  const lastRun = executions[0];
+  const lastSuccess = executions.find((e) => e.status === "success");
+  const lastFailure = executions.find((e) => e.status === "failed");
+
+  return {
+    jobId,
+    totalRuns,
+    successCount,
+    failureCount,
+    timeoutCount,
+    averageDuration,
+    lastRun,
+    lastSuccess,
+    lastFailure,
+  };
+}
+
+app.get("/api/worker/jobs", (req, res) => {
+  try {
+    const jobs = getJobs();
+    res.json(jobs.map((job) => ({
+      id: job.id,
+      name: job.name,
+      scheduleHint: job.scheduleHint,
+    })));
+  } catch (error) {
+    console.error("Error getting worker jobs:", error);
+    res.status(500).json({ error: "Failed to get worker jobs" });
+  }
+});
+
+app.get("/api/worker/executions", async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const status = req.query.status as "running" | "success" | "failed" | "timeout" | undefined;
+    const orgId = req.query.orgId as string | undefined;
+
+    const executions = await getAllJobExecutions({ limit, status, orgId });
+    res.json(executions);
+  } catch (error) {
+    console.error("Error getting worker executions:", error);
+    res.status(500).json({ error: "Failed to get worker executions" });
+  }
+});
+
+app.get("/api/worker/executions/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const orgId = req.query.orgId as string | undefined;
+
+    const executions = await getJobExecutions(jobId, { limit, orgId });
+    res.json(executions);
+  } catch (error) {
+    console.error("Error getting job executions:", error);
+    res.status(500).json({ error: "Failed to get job executions" });
+  }
+});
+
+app.get("/api/worker/stats/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const orgId = req.query.orgId as string | undefined;
+
+    const stats = await getJobStats(jobId, orgId);
+    res.json(stats);
+  } catch (error) {
+    console.error("Error getting job stats:", error);
+    res.status(500).json({ error: "Failed to get job stats" });
+  }
+});
+
+app.get("/api/worker/overview", async (req, res) => {
+  try {
+    const jobs = getJobs();
+    const recentExecutions = await getAllJobExecutions({ limit: 100 });
+
+    // Calculate overview stats
+    const last24Hours = Date.now() - 24 * 60 * 60 * 1000;
+    const recentExecs = recentExecutions.filter(
+      (e) => new Date(e.startedAt).getTime() > last24Hours
+    );
+
+    const totalJobs = jobs.length;
+    const totalExecutions = recentExecs.length;
+    const successCount = recentExecs.filter((e) => e.status === "success").length;
+    const failureCount = recentExecs.filter((e) => e.status === "failed").length;
+    const runningCount = recentExecs.filter((e) => e.status === "running").length;
+    const successRate = totalExecutions > 0
+      ? ((successCount / totalExecutions) * 100).toFixed(1)
+      : "0";
+
+    // Get stats for each job
+    const jobStatsPromises = jobs.map(async (job) => {
+      try {
+        const stats = await getJobStats(job.id);
+        const recentJobExecs = recentExecs.filter((e) => e.jobId === job.id);
+        return {
+          jobId: job.id,
+          jobName: job.name,
+          totalRuns: stats.totalRuns,
+          successCount: stats.successCount,
+          failureCount: stats.failureCount,
+          averageDuration: Math.round(stats.averageDuration),
+          lastRun: stats.lastRun,
+          recentRuns24h: recentJobExecs.length,
+        };
+      } catch (error) {
+        return {
+          jobId: job.id,
+          jobName: job.name,
+          totalRuns: 0,
+          successCount: 0,
+          failureCount: 0,
+          averageDuration: 0,
+          lastRun: null,
+          recentRuns24h: 0,
+        };
+      }
+    });
+
+    const jobStats = await Promise.all(jobStatsPromises);
+
+    res.json({
+      overview: {
+        totalJobs,
+        totalExecutions24h: totalExecutions,
+        successCount,
+        failureCount,
+        runningCount,
+        successRate,
+      },
+      jobs: jobStats,
+      recentExecutions: recentExecutions.slice(0, 10),
+    });
+  } catch (error) {
+    console.error("Error getting worker overview:", error);
+    res.status(500).json({ error: "Failed to get worker overview" });
   }
 });
 

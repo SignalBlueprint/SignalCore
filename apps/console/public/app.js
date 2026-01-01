@@ -28,6 +28,8 @@ async function showView(view) {
       await renderActivity();
     } else if (view === 'telemetry') {
       await renderTelemetry();
+    } else if (view === 'worker') {
+      await renderWorker();
     }
   } catch (error) {
     app.innerHTML = `<div class="card"><p style="color: red;">Error: ${error.message}</p></div>`;
@@ -75,6 +77,10 @@ async function renderDashboard() {
       <div class="card">
         <h2>Quick Actions</h2>
         <div class="grid" style="margin-top: 20px;">
+          <div class="quick-action" onclick="showView('worker')">
+            <div class="quick-action-icon">🤖</div>
+            <div class="quick-action-label">Worker Jobs</div>
+          </div>
           <div class="quick-action" onclick="showView('team')">
             <div class="quick-action-icon">👥</div>
             <div class="quick-action-label">View Team</div>
@@ -459,6 +465,150 @@ async function renderTelemetry() {
         <li>Total cost is cumulative across all AI operations</li>
         <li>Telemetry state resets when server restarts</li>
       </ul>
+    </div>
+  `;
+}
+
+async function renderWorker() {
+  const res = await fetch(`${API_BASE}/worker/overview`);
+  const data = await res.json();
+
+  const { overview, jobs, recentExecutions } = data;
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="card">
+      <h2>Worker Jobs Monitoring</h2>
+      <p style="margin: 10px 0; color: #666;">Background job execution and scheduling dashboard</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="metric-label">Total Jobs</div>
+        <div class="metric-value">${overview.totalJobs}</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Runs (24h)</div>
+        <div class="metric-value">${overview.totalExecutions24h}</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Success Rate</div>
+        <div class="metric-value">${overview.successRate}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Status</div>
+        <div class="metric-value" style="font-size: 20px;">
+          ${overview.successCount > 0 ? '✅' : ''}
+          ${overview.failureCount > 0 ? '❌' : ''}
+          ${overview.runningCount > 0 ? '⏳' : ''}
+          ${overview.totalExecutions24h === 0 ? '💤' : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 20px;">Job Registry</h3>
+      <div class="grid">
+        ${jobs.map(job => {
+          const successRate = job.totalRuns > 0
+            ? ((job.successCount / job.totalRuns) * 100).toFixed(0)
+            : 0;
+          const statusIcon = job.lastRun
+            ? (job.lastRun.status === 'success' ? '✅' : job.lastRun.status === 'failed' ? '❌' : '⏳')
+            : '💤';
+          const avgDuration = job.averageDuration > 0
+            ? (job.averageDuration > 1000 ? `${(job.averageDuration / 1000).toFixed(1)}s` : `${job.averageDuration}ms`)
+            : 'N/A';
+
+          return `
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                  <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">${job.jobName}</div>
+                  <div style="font-size: 11px; opacity: 0.8; font-family: monospace;">${job.jobId}</div>
+                </div>
+                <div style="font-size: 24px;">${statusIcon}</div>
+              </div>
+
+              <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                  <div>
+                    <div style="opacity: 0.8;">Total Runs</div>
+                    <div style="font-weight: bold; font-size: 16px;">${job.totalRuns}</div>
+                  </div>
+                  <div>
+                    <div style="opacity: 0.8;">Success Rate</div>
+                    <div style="font-weight: bold; font-size: 16px;">${successRate}%</div>
+                  </div>
+                  <div>
+                    <div style="opacity: 0.8;">Avg Duration</div>
+                    <div style="font-weight: bold;">${avgDuration}</div>
+                  </div>
+                  <div>
+                    <div style="opacity: 0.8;">24h Runs</div>
+                    <div style="font-weight: bold;">${job.recentRuns24h}</div>
+                  </div>
+                </div>
+              </div>
+
+              ${job.lastRun ? `
+                <div style="font-size: 11px; opacity: 0.8;">
+                  Last run: ${new Date(job.lastRun.startedAt).toLocaleString()}
+                  ${job.lastRun.duration ? ` (${job.lastRun.duration}ms)` : ''}
+                </div>
+              ` : `
+                <div style="font-size: 11px; opacity: 0.8;">No executions yet</div>
+              `}
+
+              ${job.lastRun && job.lastRun.status === 'failed' && job.lastRun.error ? `
+                <div style="background: rgba(255,0,0,0.2); border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 11px;">
+                  ⚠️ ${job.lastRun.error.substring(0, 100)}${job.lastRun.error.length > 100 ? '...' : ''}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">Recent Executions</h3>
+      ${recentExecutions.length === 0 ? '<p style="color: #666;">No recent executions</p>' : `
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #eee;">
+                <th style="text-align: left; padding: 10px; font-size: 12px; color: #666;">Status</th>
+                <th style="text-align: left; padding: 10px; font-size: 12px; color: #666;">Job</th>
+                <th style="text-align: left; padding: 10px; font-size: 12px; color: #666;">Started</th>
+                <th style="text-align: left; padding: 10px; font-size: 12px; color: #666;">Duration</th>
+                <th style="text-align: left; padding: 10px; font-size: 12px; color: #666;">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recentExecutions.map(exec => {
+                const statusIcon = exec.status === 'success' ? '✅' : exec.status === 'failed' ? '❌' : '⏳';
+                const duration = exec.duration
+                  ? (exec.duration > 1000 ? `${(exec.duration / 1000).toFixed(1)}s` : `${exec.duration}ms`)
+                  : 'Running...';
+
+                return `
+                  <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px; font-size: 20px;">${statusIcon}</td>
+                    <td style="padding: 10px; font-size: 13px; font-family: monospace; color: #667eea;">${exec.jobId}</td>
+                    <td style="padding: 10px; font-size: 12px; color: #666;">${new Date(exec.startedAt).toLocaleString()}</td>
+                    <td style="padding: 10px; font-size: 12px; font-weight: bold;">${duration}</td>
+                    <td style="padding: 10px; font-size: 11px;">
+                      ${exec.orgId ? `<span style="color: #666;">Org: ${exec.orgId}</span>` : ''}
+                      ${exec.status === 'failed' && exec.error ? `<div style="color: #d32f2f; margin-top: 4px;">${exec.error.substring(0, 80)}...</div>` : ''}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
     </div>
   `;
 }
