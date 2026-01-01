@@ -7,7 +7,6 @@ import { getEnv } from "@sb/config";
 import { logger } from "@sb/logger";
 
 const SLACK_ENABLED = getEnv("NOTIFY_SLACK_ENABLED") === "true";
-const EMAIL_ENABLED = getEnv("NOTIFY_EMAIL_ENABLED") === "true";
 const SLACK_WEBHOOK_URL = getEnv("SLACK_WEBHOOK_URL");
 const SLACK_BOT_TOKEN = getEnv("SLACK_BOT_TOKEN");
 
@@ -92,42 +91,19 @@ export async function sendSlackMessage(
 }
 
 /**
- * Send an email (stub implementation)
- */
-export async function sendEmail(
-  to: string,
-  subject: string,
-  text: string
-): Promise<boolean> {
-  if (!EMAIL_ENABLED) {
-    logger.info("Email notifications disabled, skipping email");
-    return false;
-  }
-
-  // Stub implementation - in production, integrate with SendGrid, SES, etc.
-  logger.info(`[STUB] Would send email to ${to}: ${subject}`);
-  logger.debug(`Email body: ${text}`);
-
-  // TODO: Implement actual email sending
-  // Example with SendGrid:
-  // const sgMail = require('@sendgrid/mail');
-  // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  // await sgMail.send({ to, from: process.env.FROM_EMAIL, subject, text });
-
-  return true;
-}
-
-/**
  * Check if Slack notifications are enabled
  */
 export function isSlackEnabled(): boolean {
   return SLACK_ENABLED && (!!SLACK_WEBHOOK_URL || !!SLACK_BOT_TOKEN);
 }
 
-/**
- * Check if email notifications are enabled
- */
-export function isEmailEnabled(): boolean {
-  return EMAIL_ENABLED;
-}
+// Export email service
+export {
+  sendEmail,
+  sendBulkEmails,
+  getEmailQueueStatus,
+  isEmailConfigured,
+  type EmailMessage,
+  type EmailResult,
+} from "./email";
 

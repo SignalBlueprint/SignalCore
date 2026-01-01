@@ -20,11 +20,24 @@ export const MessageTemplateSchema = z.object({
 
 export type MessageTemplate = z.infer<typeof MessageTemplateSchema>;
 
+export const CampaignStatusSchema = z.enum([
+  "draft",
+  "active",
+  "paused",
+  "completed",
+]);
+
+export type CampaignStatus = z.infer<typeof CampaignStatusSchema>;
+
 export const CampaignSchema = z.object({
   id: z.string(),
   name: z.string(),
   audienceFilters: AudienceFiltersSchema,
   template: MessageTemplateSchema,
+  status: CampaignStatusSchema.default("draft"),
+  sentCount: z.number().default(0),
+  failedCount: z.number().default(0),
+  lastSentAt: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -41,3 +54,21 @@ export const CompiledMessageSchema = z.object({
 });
 
 export type CompiledMessage = z.infer<typeof CompiledMessageSchema>;
+
+export const EmailSendHistorySchema = z.object({
+  id: z.string(),
+  campaignId: z.string(),
+  leadId: z.string(),
+  to: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  status: z.enum(["sent", "failed", "bounced", "delivered", "opened", "clicked"]),
+  messageId: z.string().optional(),
+  error: z.string().optional(),
+  sentAt: z.string(),
+  deliveredAt: z.string().optional(),
+  openedAt: z.string().optional(),
+  clickedAt: z.string().optional(),
+});
+
+export type EmailSendHistory = z.infer<typeof EmailSendHistorySchema>;

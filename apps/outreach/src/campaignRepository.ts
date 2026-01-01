@@ -1,4 +1,4 @@
-import { Campaign, AudienceFilters, MessageTemplate } from "@sb/schemas";
+import { Campaign, AudienceFilters, MessageTemplate, CampaignStatus } from "@sb/schemas";
 import { storage } from "@sb/storage";
 import { randomUUID } from "crypto";
 
@@ -6,12 +6,17 @@ export interface CampaignCreateInput {
   name: string;
   audienceFilters?: AudienceFilters;
   template: MessageTemplate;
+  status?: CampaignStatus;
 }
 
 export interface CampaignUpdateInput {
   name?: string;
   audienceFilters?: AudienceFilters;
   template?: MessageTemplate;
+  status?: CampaignStatus;
+  sentCount?: number;
+  failedCount?: number;
+  lastSentAt?: string;
 }
 
 export interface CampaignRepository {
@@ -36,6 +41,9 @@ export class StorageCampaignRepository implements CampaignRepository {
       name: input.name,
       audienceFilters: input.audienceFilters ?? {},
       template: input.template,
+      status: input.status ?? "draft",
+      sentCount: 0,
+      failedCount: 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -71,6 +79,10 @@ export class StorageCampaignRepository implements CampaignRepository {
       name: update.name ?? existing.name,
       audienceFilters: update.audienceFilters ?? existing.audienceFilters,
       template: update.template ?? existing.template,
+      status: update.status ?? existing.status,
+      sentCount: update.sentCount ?? existing.sentCount,
+      failedCount: update.failedCount ?? existing.failedCount,
+      lastSentAt: update.lastSentAt ?? existing.lastSentAt,
       updatedAt: new Date().toISOString(),
     };
 

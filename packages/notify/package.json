@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@sb/config": "workspace:*",
-    "@sb/logger": "workspace:*"
+    "@sb/logger": "workspace:*",
+    "@sendgrid/mail": "^8.1.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
