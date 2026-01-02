@@ -21,17 +21,18 @@ Admin hub for suite management with health monitoring, event aggregation, AI tel
 - **Worker monitoring**: Job registry, execution history, statistics, 24hr metrics, failure tracking
 - **Auth backend**: JWT signup/login/refresh endpoints working
 - **Active quests**: Integration with Questboard to show current work
+- **Team persistence**: Team CRUD persists to Supabase or local JSON (via @sb/storage)
 
 ### 🟡 Partial (Works but Incomplete)
-- **Team data in-memory**: Team member profiles stored in Map, lost on restart
 - **Auth frontend missing**: Backend endpoints work but no login UI
 - **Manual refresh**: No WebSocket/SSE for real-time updates
+- **Build errors**: Package type declarations missing, blocking `pnpm build`
 
 ### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
-- **Team persistence**: Team CRUD doesn't persist to database
 - **No auth UI**: Can't login/signup from Console frontend
 - **No notifications**: No alerts when apps go down or jobs fail
 - **No unified analytics**: Each app tracked separately, no cross-app views
+- **Build infrastructure**: TypeScript build fails due to missing package type declarations
 
 ## How to Run
 
@@ -70,7 +71,7 @@ Required in root `.env`:
 ### Stack
 - **Backend**: Express.js REST API (TypeScript)
 - **Frontend**: Static HTML/CSS/JavaScript (no build step)
-- **Storage**: In-memory for team data (needs migration to @sb/storage)
+- **Storage**: @sb/storage (persists to .sb/data/*.json or Supabase)
 - **Integration**: HTTP calls to all suite app health endpoints
 - **Events**: Consumes from `@sb/events` package
 - **Telemetry**: Reads from `@sb/telemetry` package
@@ -85,16 +86,16 @@ Required in root `.env`:
 - **Health checks**: HTTP GET to each app's `/health` endpoint
 - **Events**: Read from shared `@sb/events` in-memory store
 - **Telemetry**: Read from shared `@sb/telemetry` global state
-- **Team**: In-memory Map (no persistence)
+- **Team**: Persisted via `@sb/storage` to .sb/data/members.json or Supabase
 - **Worker jobs**: Fetch from Worker via HTTP API
 
 ## Known Issues
 
-### Team Data Lost on Restart
-- **Repro**: Add team member → restart Console server → member gone
-- **Root cause**: Team data stored in `Map<string, TeamMember>` in-memory
-- **Workaround**: Re-add team members after restart
-- **Fix needed**: Migrate to `@sb/storage` TeamRepository persisting to Supabase
+### Package Build Errors
+- **Repro**: Run `pnpm --filter console build`
+- **Root cause**: @sb/* packages don't emit .d.ts type declaration files
+- **Workaround**: Use `tsx` for dev mode (type checking disabled)
+- **Fix needed**: Fix tsup configs in packages/ to emit declarations, or switch to tsc
 
 ### No Login UI
 - **Repro**: Open Console → no way to login, API calls work unauthenticated
@@ -112,7 +113,7 @@ Required in root `.env`:
 
 | ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
 |----|-------|----------|--------|-------|---------------------|----------|
-| CON-1 | Team data persistence | P0 | TODO | `src/team-routes.ts`, `src/repository.ts` | **What**: Migrate team data from in-memory Map to @sb/storage<br>**Why**: Team members lost on server restart (critical blocker)<br>**Where**: Team routes + new TeamRepository<br>**AC**: Team CRUD persists to Supabase, restart preserves data, existing API unchanged | |
+| CON-1 | Team data persistence | P0 | DONE | `src/routes/team.ts`, `src/seed.ts` | **What**: Migrate team data from in-memory Map to @sb/storage<br>**Why**: Team members lost on server restart (critical blocker)<br>**Where**: Team routes + seed data<br>**AC**: Team CRUD persists to Supabase, restart preserves data, existing API unchanged | ✅ Code complete. Uses @sb/storage (PR #95). Persists to .sb/data/members.json or Supabase. |
 | CON-2 | Auth frontend integration | P1 | TODO | `web/login.html`, `web/signup.html`, `web/js/auth.js` | **What**: Add login/signup UI pages to Console frontend<br>**Why**: No way to authenticate from Console UI<br>**Where**: New HTML pages + auth JavaScript<br>**AC**: Login page works, signup creates account, JWT stored in localStorage, protected pages redirect to login | |
 | CON-3 | Real-time updates (SSE) | P1 | TODO | `src/sse-server.ts`, `web/js/realtime.js` | **What**: Add Server-Sent Events for live dashboard updates<br>**Why**: Must manually refresh to see changes<br>**Where**: SSE endpoint + frontend listener<br>**AC**: Dashboard auto-updates when apps change status, events appear live, no polling needed | |
 | CON-4 | Alerting system | P2 | TODO | `src/alerting.ts`, `web/notifications.html` | **What**: Alert when apps go down or Worker jobs fail<br>**Why**: Don't know when things break without checking<br>**Where**: Alert rules + notification service<br>**AC**: Slack/email when app down, job fails 3x, or AI costs spike, configurable thresholds | |
@@ -122,6 +123,7 @@ Required in root `.env`:
 | CON-8 | App deployment status | P3 | TODO | `src/deployment-routes.ts`, `web/deployment.html` | **What**: Show deployment info (version, last deploy, environment)<br>**Why**: Don't know what version is running where<br>**Where**: New deployment page querying apps<br>**AC**: Display version, commit SHA, deploy timestamp, environment for each app | |
 | CON-9 | Suite-wide search | P3 | TODO | `src/search-routes.ts`, `web/search.html` | **What**: Search across all apps (tasks, leads, campaigns, projects)<br>**Why**: Have to search each app individually<br>**Where**: Unified search API calling all apps<br>**AC**: Type query → see results from all apps, click to jump to app, filters by type/app | |
 | CON-10 | Performance monitoring | P2 | TODO | `src/performance-routes.ts`, `web/performance.html` | **What**: Track response times, error rates, throughput per app<br>**Why**: No visibility into app performance<br>**Where**: Perf metrics collection + dashboard<br>**AC**: Charts show p50/p95/p99 latency, error rate %, requests/sec, alerts on degradation | |
+| CON-11 | Fix package type declarations | P0 | TODO | XAPP: `packages/*/tsup.config.ts` | **What**: Fix tsup configs to emit .d.ts files for all @sb/* packages<br>**Why**: Console build fails with "Cannot find module '@sb/storage'" errors<br>**Where**: Package build configs (OUTSIDE apps/console scope)<br>**AC**: `pnpm build` succeeds, typecheck passes, all imports resolve | ⚠️ XAPP task - requires changes outside apps/console/ |
 
 **Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
 
