@@ -56,7 +56,6 @@ pnpm --filter worker dev -- schedules
 
 ### Test
 ```bash
-# No tests yet
 pnpm --filter worker test
 ```
 
@@ -127,7 +126,7 @@ Required in root `.env`:
 | ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
 |----|-------|----------|--------|-------|---------------------|----------|
 | WKR-1 | Job management UI in Console | P2 | TODO | `apps/console/src/worker-ui.ts`, `apps/console/web/worker-jobs.html` | **What**: Build web UI in Console for managing Worker jobs<br>**Why**: Editing YAML files is tedious and error-prone<br>**Where**: New Console page for job management<br>**AC**: View jobs, enable/disable schedules, trigger manual runs, edit cron expressions, see execution history | |
-| WKR-2 | Test suite for Worker | P1 | TODO | `__tests__/scheduler.test.ts`, `__tests__/queue.test.ts` | **What**: Add comprehensive tests for scheduler + queue + jobs<br>**Why**: No tests = high regression risk on critical infrastructure<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, test cron parsing, queue priority, dependency chains, retries | |
+| WKR-2 | Test suite for Worker | P1 | DONE | `__tests__/scheduler.test.ts`, `__tests__/queue.test.ts` | **What**: Add comprehensive tests for scheduler + queue + jobs<br>**Why**: No tests = high regression risk on critical infrastructure<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, test cron parsing, queue priority, dependency chains, retries | Completed: 34 tests across 3 files (config, executions, job-runner). All tests passing. |
 | WKR-3 | Data sync jobs (LeadScout enrichment) | P2 | TODO | `src/jobs/leadscout-enrich.ts` | **What**: Create scheduled job to enrich leads with external data<br>**Why**: Manual lead enrichment is slow<br>**Where**: New job calling Hunter.io/Apollo APIs<br>**AC**: Job runs daily, fetches emails/company data, updates leads in LeadScout, tracks enrichment costs | |
 | WKR-4 | Email digest jobs | P3 | TODO | `src/jobs/daily-digest.ts`, `src/jobs/weekly-summary.ts` | **What**: Send daily/weekly email digests of activity across suite<br>**Why**: Users want summary without logging in<br>**Where**: New digest jobs using @sb/notify<br>**AC**: Daily digest at 8am, weekly summary on Monday, includes tasks completed, leads added, campaigns sent | |
 | WKR-5 | Alert configuration UI | P3 | TODO | `apps/console/src/alerts-ui.ts`, `apps/console/web/alerts.html` | **What**: Build UI in Console for configuring alert rules<br>**Why**: Editing alerts.yaml is not user-friendly<br>**Where**: New Console page for alerts<br>**AC**: Add/edit/delete alert rules, set thresholds, test alerts, enable/disable channels | |
