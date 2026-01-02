@@ -30,7 +30,7 @@ Suite-first monorepo with 7 production-ready apps and 18 shared packages for bui
 ### ✅ Working (End-to-End)
 - **7 apps running**: All apps serve HTTP/have working CLIs
 - **Full CRUD**: Create/read/update/delete works for all entities
-- **Persistent storage**: All apps using @sb/storage (Supabase) except Console team data
+- **Persistent storage**: All apps using @sb/storage (Supabase or local JSON)
 - **Authentication**: JWT backend complete, frontend integrated in Questboard
 - **AI integration**: 6 apps with GPT-4o/GPT-4o-mini (Questboard, LeadScout, SiteForge, Outreach, Lexome)
 - **Email sending**: Outreach sends real emails via SendGrid
@@ -39,10 +39,10 @@ Suite-first monorepo with 7 production-ready apps and 18 shared packages for bui
 - **AI features working**: Sprint planning, lead intelligence, website generation, archaic translation
 
 ### 🟡 Partial (Works but Incomplete)
-- **Console team data**: In-memory only, lost on restart → needs @sb/storage migration
 - **Auth frontend**: Backend complete, only Questboard has frontend integration
 - **Testing**: Only Questboard has 48 tests, other apps untested
 - **LeadScout AI UI**: Backend intelligence complete, frontend display missing
+- **Build infrastructure**: Package type declarations missing, blocking `pnpm build` for apps
 
 ### ❌ Broken/Missing (Blocking "Full Fledged + Shiny")
 - **No cross-app workflows**: LeadScout→Outreach→payment funnel not connected
@@ -176,7 +176,7 @@ Shared infrastructure used by apps:
 
 | ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
 |----|-------|----------|--------|-------|---------------------|----------|
-| ROOT-1 | Console team data persistence | P1 | TODO | `apps/console/src/team-routes.ts`, `apps/console/src/repository.ts` | **What**: Migrate Console team data from in-memory Map to @sb/storage<br>**Why**: Team profiles lost on server restart<br>**Where**: Console team management routes<br>**AC**: Team CRUD persists to Supabase via TeamRepository, server restart preserves data, existing API works unchanged | |
+| ROOT-1 | Console team data persistence | P1 | DONE | `apps/console/src/routes/team.ts`, `apps/console/src/seed.ts` | **What**: Migrate Console team data from in-memory Map to @sb/storage<br>**Why**: Team profiles lost on server restart<br>**Where**: Console team management routes<br>**AC**: Team CRUD persists to Supabase via TeamRepository, server restart preserves data, existing API works unchanged | ✅ Implemented in PR #95. Uses @sb/storage, persists to .sb/data/members.json or Supabase. |
 | ROOT-2 | LeadScout test suite | P1 | TODO | `apps/leadscout/__tests__/`, `apps/leadscout/src/*.ts` | **What**: Add comprehensive test suite for LeadScout (API routes + scoring engine + AI intelligence)<br>**Why**: No tests = high regression risk on critical app<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ code coverage, tests for CRUD/scoring/AI, all tests pass in CI | |
 | ROOT-3 | Outreach test suite | P1 | TODO | `apps/outreach/__tests__/`, `apps/outreach/src/*.ts` | **What**: Add test suite for Outreach (campaign CRUD + template compilation + email sending)<br>**Why**: Email sending is critical, needs testing<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, mock SendGrid API, test template variable substitution | |
 | ROOT-4 | Sentry error monitoring | P2 | TODO | `root .env`, `apps/*/src/server.ts`, `packages/logger/src/index.ts` | **What**: Integrate Sentry for centralized error tracking across all 7 apps<br>**Why**: Production errors invisible without monitoring<br>**Where**: Suite-wide initialization in each app server<br>**AC**: All errors logged to Sentry with stack traces, source maps uploaded, alert rules configured for critical errors | |
@@ -184,6 +184,7 @@ Shared infrastructure used by apps:
 | ROOT-6 | GitHub Actions CI/CD | P2 | TODO | `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` | **What**: Set up CI pipeline running tests/lint/typecheck on every PR<br>**Why**: Prevent regressions from merging<br>**Where**: GitHub Actions workflow<br>**AC**: All tests run on PR, PR blocked if failing, pnpm cache enabled for speed | |
 | ROOT-7 | Console unified analytics | P3 | TODO | `apps/console/src/analytics-routes.ts`, `apps/console/web/analytics.html` | **What**: Aggregate metrics from all 7 apps into single Console dashboard<br>**Why**: No single view of suite health/usage<br>**Where**: New Console analytics page<br>**AC**: Dashboard shows metrics from all apps (requests, errors, AI costs), charts for trends, filters by date/app | |
 | ROOT-8 | OpenAPI documentation | P3 | TODO | `apps/*/src/openapi.ts`, `apps/*/src/server.ts` | **What**: Generate OpenAPI/Swagger docs for all app APIs<br>**Why**: Easier integration, debugging, and external API usage<br>**Where**: Each app's server.ts adds `/api/docs` endpoint<br>**AC**: Interactive Swagger UI on each app, accurate request/response schemas, try-it-now functionality | |
+| ROOT-9 | Fix package type declarations | P0 | TODO | `packages/*/tsup.config.ts`, `packages/*/package.json` | **What**: Fix tsup configs to emit .d.ts type declaration files for all @sb/* packages<br>**Why**: Console and other apps fail to build with "Cannot find module '@sb/storage'" errors<br>**Where**: Package build configs (tsup.config.ts, package.json exports)<br>**AC**: `pnpm build` succeeds for all apps, typecheck passes, all @sb/* imports resolve with types | Blocks Console CON-11, critical for dev workflow |
 
 **Priority Levels:**
 - **P0** = Blocks core functionality, fix immediately
