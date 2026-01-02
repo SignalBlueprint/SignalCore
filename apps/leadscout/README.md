@@ -15,12 +15,13 @@ Lead discovery and qualification system with configurable scoring engine and AI-
 - **Complete CRUD**: Leads persist to Supabase via @sb/storage
 - **Scoring engine**: Configurable rules (source, recency, URL quality, company name)
 - **AI intelligence (backend)**: GPT-4o-mini analyzes company size, industry, tech stack, risks, opportunities
+- **AI intelligence UI**: Full frontend display with analyze button, qualification badges, insights panels, risk/opportunity analysis
 - **Web UI**: Lead management dashboard with filtering and statistics
 - **Scoring breakdown UI**: Visual progress bars showing score factors
 - **Intelligence-boosted scoring**: Combines base score with AI insights
+- **Lead detail modal**: Comprehensive view with company insights, tech stack, recommended actions
 
 ### 🟡 Partial (Works but Incomplete)
-- **AI intelligence UI**: Backend complete, frontend display missing
 - **No LeadScout→Outreach workflow**: Can't send leads to campaigns yet
 
 ### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
@@ -82,12 +83,6 @@ Required in root `.env`:
 
 ## Known Issues
 
-### AI Intelligence UI Missing
-- **Repro**: Create lead → analyze with AI → insights not shown in UI
-- **Root cause**: Backend `/api/leads/:id/intelligence` works, no frontend display
-- **Workaround**: Curl API directly to see intelligence
-- **Fix needed**: Add "Analyze Lead" button + insights panel in UI
-
 ### No Lead Enrichment
 - **Repro**: Add lead with domain → no email/company data fetched
 - **Root cause**: No integration with Hunter.io/Apollo/Clearbit
@@ -102,7 +97,7 @@ Required in root `.env`:
 
 | ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
 |----|-------|----------|--------|-------|---------------------|----------|
-| LS-1 | AI intelligence UI integration | P1 | TODO | `web/js/lead-detail.js`, `web/lead-detail.html` | **What**: Add "Analyze Lead" button and display AI insights in lead detail page<br>**Why**: Backend complete but invisible to users<br>**Where**: Lead detail view<br>**AC**: Click button → AI analyzes → show qualification, risks, tech stack, recommended actions with nice formatting | |
+| LS-1 | AI intelligence UI integration | P1 | DONE | `public/app.js`, `public/index.html` | **What**: Add "Analyze Lead" button and display AI insights in lead detail page<br>**Why**: Backend complete but invisible to users<br>**Where**: Lead detail view<br>**AC**: Click button → AI analyzes → show qualification, risks, tech stack, recommended actions with nice formatting | ✅ VERIFIED: UI already fully implemented with analyze button, qualification badges, insights panels, tech stack display, risk/opportunity analysis, and recommended actions. Updated README to reflect reality. Completed: 2026-01-02 |
 | LS-2 | LeadScout→Outreach integration | P1 | TODO | `web/js/send-to-campaign.js`, `src/outreach-integration.ts` | **What**: Add "Send to Campaign" button that creates Outreach campaign<br>**Why**: Manual copy/paste to Outreach is tedious<br>**Where**: Lead list + detail view<br>**AC**: Select leads → click → campaign created in Outreach, leads marked "contacted" | |
 | LS-3 | Lead enrichment with Hunter.io/Apollo | P2 | TODO | `src/enrichment-service.ts`, `src/jobs/enrich-leads.ts` | **What**: Integrate email finder + company data APIs<br>**Why**: Manual research is slow<br>**Where**: Enrichment service + Worker job<br>**AC**: Click "Enrich" → fetch email/company data, update lead, track API costs | |
 | LS-4 | CSV import/export | P2 | TODO | `src/import.ts`, `web/import.html` | **What**: Bulk import leads from CSV, export filtered leads<br>**Why**: Can't move data in/out easily<br>**Where**: New import/export endpoints + UI<br>**AC**: Upload CSV → parse → create leads, export filtered leads to CSV download | |
