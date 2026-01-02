@@ -94,6 +94,7 @@ import {
 } from "./store";
 import { adaptTemplate } from "@sb/ai";
 import authRoutes from "./routes/auth";
+import onboardingRoutes from "./routes/onboarding";
 import { requireAuth, optionalAuth, requireAdmin, requireOwner, type AuthenticatedRequest } from "@sb/auth";
 
 const app = express();
@@ -136,6 +137,9 @@ app.use("/api/auth", authRoutes);
 
 // Apply authentication to all other /api/* routes
 app.use("/api/*", requireAuth);
+
+// Mount onboarding routes (protected)
+app.use("/api/onboarding", onboardingRoutes);
 
 // Status endpoint
 app.get("/api/status", async (req, res) => {

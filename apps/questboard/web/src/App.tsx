@@ -6,6 +6,7 @@ import Nav from './components/Nav';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import OnboardingPage from './pages/OnboardingPage';
 import TodayPage from './pages/TodayPage';
 import SprintPage from './pages/SprintPage';
 import DebugPage from './pages/DebugPage';
@@ -35,6 +36,13 @@ function AppContent() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+
+        {/* Onboarding route (semi-protected - requires auth but bypasses onboarding check) */}
+        <Route path="/onboarding" element={
+          <ProtectedRoute skipOnboardingCheck>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } />
 
         {/* Protected routes */}
         <Route path="/*" element={
