@@ -1,268 +1,147 @@
 # Outreach
 
-**Status:** 🟢 Production Ready - Complete campaign management with email sending via SendGrid
-**Port:** 4025
+## TL;DR
+Email campaign management with SendGrid integration, template personalization, and LeadScout integration. Production-ready with real email sending and delivery tracking.
 
-Outreach campaign management and automation platform for coordinating email campaigns with template personalization, audience targeting, and real email delivery via SendGrid.
+## Product Goal
+- Enable teams to create and execute email campaigns at scale
+- Provide template personalization with variable substitution
+- Target audiences with configurable filtering
+- Track email delivery, opens, clicks, and bounces
+- Integrate with LeadScout for lead→campaign workflow
 
-## Purpose
+## Current Status (Reality Check)
 
-Outreach enables teams to create, manage, and execute communication campaigns at scale. The platform provides campaign planning, template management with variable substitution, audience filtering, and campaign preview capabilities to improve outreach effectiveness and efficiency.
+### ✅ Working (End-to-End)
+- **Campaign CRUD**: Campaigns persist to Supabase via @sb/storage
+- **Template system**: Variable substitution (business_name, domain, AI insights from LeadScout, etc.)
+- **Audience targeting**: Filter by industry, score range, tags
+- **SendGrid email sending**: Real emails with rate limiting and queue management
+- **Delivery tracking**: Webhooks for delivered, opened, clicked, bounced events
+- **LeadScout integration**: Fetches leads from LeadScout API, marks as "contacted"
+- **Campaign statistics**: Sent count, failed count, last sent date
+- **Web UI**: Campaign management dashboard
 
-## Features
+### 🟡 Partial (Works but Incomplete)
+- **Analytics UI**: Backend tracks metrics, no analytics dashboard yet
+- **Template builder**: Plain text templates, no rich HTML editor
 
-### Core Campaign Management
-- **Complete REST API** with campaign CRUD operations
-- **Persistent storage** using `@sb/storage` (StorageCampaignRepository)
-- **Full web UI** for campaign management
-- **Campaign creation wizard** with step-by-step flow
-- **Campaign listing** with status badges and filtering
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **No analytics dashboard**: Can't see open/click rates in UI
+- **No drip campaigns**: Can't schedule multi-step sequences
+- **No A/B testing**: Can't test subject lines or content variants
 
-### Message Templates
-- **Template system** with variable substitution:
-  - `{{business_name}}` - Company name
-  - `{{domain}}` - Website domain
-  - `{{pain_point}}` - Industry pain point
-  - `{{industry}}` - Industry classification
-  - `{{score}}` - Lead score
-  - `{{company_size}}` - Company size (from LeadScout intelligence)
-  - `{{funding_status}}` - Funding status (from LeadScout intelligence)
-  - `{{qualification_reason}}` - Qualification reason (from LeadScout intelligence)
-  - `{{key_insight}}` - Key insight (from LeadScout intelligence)
-  - `{{opportunity}}` - Opportunity (from LeadScout intelligence)
-  - `{{recommended_action}}` - Recommended action (from LeadScout intelligence)
-  - `{{tech_stack}}` - Technology stack (from LeadScout intelligence)
-- **Template compilation** - Preview personalized messages
-- **Campaign message preview** - See how messages will look to recipients
+## How to Run
 
-### Audience Targeting
-- **Audience filtering** by:
-  - Industry (technology, healthcare, finance, etc.)
-  - Score range (minimum/maximum lead score)
-  - Tags (custom lead tags)
-- **LeadScout integration** - Fetch real leads from LeadScout API
-- **Mock lead provider** for testing (fallback option)
-- **Dynamic audience selection** - Automatically targets matching leads
-
-### Campaign Management & Execution ✨ NEW
-- **Campaign status tracking** - Draft, active, paused, completed
-- **Campaign statistics** - Track sent count, failed count, last sent date
-- **Real email sending** - SendGrid integration with rate limiting and queue management
-- **Email send history** - Complete delivery tracking per campaign and lead
-- **Webhook handling** - Automatic delivery status updates (delivered, opened, clicked, bounced)
-- **Campaign editing** - Update templates and targeting
-- **Campaign deletion** - Clean up old campaigns
-
-## Quick Start
-
+### Install
 ```bash
-# Install dependencies (from monorepo root)
 pnpm install
+```
 
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Edit .env and add:
-#   SENDGRID_API_KEY - Your SendGrid API key for email sending
-#   FROM_EMAIL - Email address to send from (e.g., campaigns@yourdomain.com)
-#   FROM_NAME - Sender name (e.g., "Your Company")
-#   NOTIFY_EMAIL_ENABLED=true - Enable email sending
-#   EMAIL_RATE_LIMIT=10 - Max emails per second (default: 10)
-#   LEADSCOUT_URL - LeadScout API URL (default: http://localhost:4021)
-#   LEADSCOUT_ORG_ID - Organization ID for LeadScout (optional)
-#   USE_LEADSCOUT - Enable LeadScout integration (default: true)
-
-# Run the development server
+### Dev
+```bash
 pnpm --filter outreach dev
 ```
 
-Then open `http://localhost:4025` in your browser.
-
-### SendGrid Email Setup
-
-To enable actual email sending:
-
-1. **Create a SendGrid Account** at https://sendgrid.com
-2. **Get API Key** from SendGrid Dashboard → Settings → API Keys
-3. **Verify Sender Identity**:
-   - Go to Settings → Sender Authentication
-   - Verify a single sender email OR authenticate your domain
-4. **Add to .env file**:
-   ```bash
-   SENDGRID_API_KEY=SG.xxxxxxxxxxxxx
-   FROM_EMAIL=campaigns@yourdomain.com
-   FROM_NAME="Your Company"
-   NOTIFY_EMAIL_ENABLED=true
-   ```
-5. **Configure Webhooks** (Optional for delivery tracking):
-   - In SendGrid Dashboard → Settings → Mail Settings → Event Webhook
-   - Enable webhook and add URL: `https://yourdomain.com/webhooks/sendgrid`
-   - Select events: Delivered, Opened, Clicked, Bounced, Dropped
-6. **Test**: Create a campaign and click "Send" to send real emails!
-
-## Architecture
-
-- **Backend**: Express.js REST API
-- **Frontend**: Static HTML/CSS/JavaScript with modern UI
-- **Storage**: Supabase via `@sb/storage` abstraction layer (persistent)
-- **Templates**: Custom template engine with variable substitution
-- **Lead Integration**: LeadScout API integration with fallback to mock provider
-
-## API Endpoints
-
-### Campaign Management
-- `POST /api/campaigns` - Create a new campaign
-- `GET /api/campaigns` - List all campaigns
-- `GET /api/campaigns/:id` - Get campaign details
-- `PUT /api/campaigns/:id` - Update a campaign
-- `DELETE /api/campaigns/:id` - Delete a campaign
-
-### Campaign Execution ✨ NEW
-- `POST /api/campaigns/:id/preview` - Preview campaign messages
-- `POST /api/campaigns/:id/send` - Send campaign emails to all matched leads
-- `GET /api/campaigns/:id/history` - Get email send history for a campaign
-
-### Webhooks ✨ NEW
-- `POST /webhooks/sendgrid` - SendGrid webhook handler for delivery events
-
-### Template Testing
-- `POST /api/templates/compile` - Test template compilation with variables
-
-## Usage Examples
-
-### Creating a Campaign
-
-```json
-POST /api/campaigns
-{
-  "orgId": "default-org",
-  "name": "Q1 Outreach - Tech Startups",
-  "subject": "Help {{business_name}} scale faster",
-  "body": "Hi,\n\nI noticed {{business_name}} is in the {{industry}} space...",
-  "targeting": {
-    "industry": "technology",
-    "minScore": 70,
-    "tags": ["startup", "saas"]
-  },
-  "status": "draft"
-}
+### Test
+```bash
+# No tests yet
+pnpm --filter outreach test
 ```
 
-### Previewing Campaign Messages
+### Build
+```bash
+pnpm --filter outreach build
+```
+
+### Env Vars
+Required in root `.env`:
+- `SENDGRID_API_KEY` - For email sending
+- `FROM_EMAIL` - Sender email address (must be verified in SendGrid)
+- `FROM_NAME` - Sender name
+- `NOTIFY_EMAIL_ENABLED=true` - Enable email sending
+- `DATABASE_URL` - Supabase connection
+- `LEADSCOUT_URL` - LeadScout API URL (default: http://localhost:4021)
+
+### URLs/Ports
+- **Outreach**: http://localhost:4025
+
+## Architecture (Short)
+
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
+- **Frontend**: Static HTML/CSS/JavaScript
+- **Storage**: Supabase via @sb/storage (StorageCampaignRepository, EmailSendHistoryRepository)
+- **Email**: SendGrid with rate limiting
+- **Integration**: LeadScout API for lead import
+
+### Key Modules
+- `src/server.ts` - Express API server
+- `src/routes.ts` - Campaign CRUD + send + webhook endpoints
+- `src/template-engine.ts` - Variable substitution
+- `src/email-sender.ts` - SendGrid integration with queue
+- `src/leadscout-client.ts` - LeadScout API client
+- `web/` - Static frontend files
+
+### Data Flow
+- User creates campaign → stored in Supabase
+- Trigger send → fetch leads from LeadScout → compile templates → SendGrid queue
+- SendGrid sends → webhooks update delivery status
+- Leads marked "contacted" in LeadScout
+
+## Known Issues
+
+### No Analytics Dashboard UI
+- **Repro**: Send campaign → want to see open/click rates → no dashboard exists
+- **Root cause**: Backend tracks metrics via webhooks, no frontend display
+- **Workaround**: Query database directly for metrics
+- **Fix needed**: Build analytics dashboard showing open rate, click rate, bounces
+
+### No Drip Campaigns
+- **Repro**: Want to send follow-up emails 3 days later → can't schedule sequences
+- **Root cause**: Only single-shot campaigns implemented
+- **Fix needed**: Add drip campaign builder with delays and triggers
+
+### No Rich HTML Templates
+- **Repro**: Want professional HTML email → only plain text supported
+- **Root cause**: Template system is plain text with variable substitution
+- **Fix needed**: Add HTML template editor with WYSIWYG
+
+## Task Queue (Autopilot)
+
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| OR-1 | Analytics dashboard UI | P1 | TODO | `web/analytics.html`, `src/analytics-routes.ts` | **What**: Build analytics dashboard showing campaign performance metrics<br>**Why**: Backend tracks data but no UI to view it<br>**Where**: New analytics page<br>**AC**: Charts show open rate, click rate, bounce rate, recipient activity timeline | |
+| OR-2 | Enhanced LeadScout integration UI | P2 | TODO | `web/js/import-leads.js` | **What**: Add "Import from LeadScout" button in campaign creation<br>**Why**: Manual filtering is tedious<br>**Where**: Campaign creation wizard<br>**AC**: Click import → show LeadScout leads → select → add to campaign, preview intelligence data | |
+| OR-3 | Drip campaign sequences | P2 | TODO | `src/drip-campaigns.ts`, `web/drip.html` | **What**: Build drip campaign builder with multi-step sequences<br>**Why**: Follow-ups are manual<br>**Where**: New drip campaign type<br>**AC**: Define sequence (email 1 → wait 3 days → email 2), schedule execution, track progression | |
+| OR-4 | Rich HTML template editor | P2 | TODO | `web/js/template-builder.js` | **What**: WYSIWYG HTML email editor with drag-and-drop blocks<br>**Why**: Plain text emails look unprofessional<br>**Where**: Template editor page<br>**AC**: Drag blocks (header, text, image, button), preview, save as template, supports variables | |
+| OR-5 | A/B testing for subject lines | P3 | TODO | `src/ab-testing.ts` | **What**: Create variants with different subjects/content, split traffic<br>**Why**: Want to optimize open/click rates<br>**Where**: Campaign creation with variants<br>**AC**: Create variants → split sends 50/50 → track metrics → declare winner | |
+| OR-6 | Test suite for Outreach | P1 | TODO | `__tests__/campaign.test.ts`, `__tests__/templates.test.ts` | **What**: Add tests for campaign CRUD + template compilation + email sending<br>**Why**: No tests = high regression risk<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, mock SendGrid, test variable substitution | |
+| OR-7 | Contact list management | P3 | TODO | `src/contacts.ts`, `web/contacts.html` | **What**: Build contact database separate from leads<br>**Why**: Need persistent contact list for non-lead recipients<br>**Where**: New contacts table + UI<br>**AC**: Add contacts manually, import CSV, segment by tags, unsubscribe management | |
+| OR-8 | Email warmup scheduler | P3 | TODO | `src/warmup.ts` | **What**: Gradually increase send volume to improve deliverability<br>**Why**: Sudden high volume triggers spam filters<br>**Where**: Warmup job in Worker<br>**AC**: Configure warmup plan, sends increase daily, monitors bounce rate | |
+| OR-9 | Loom video integration | P3 | TODO | `src/loom-integration.ts` | **What**: Embed Loom videos in email templates<br>**Why**: Video increases engagement<br>**Where**: Template variable for Loom URL<br>**AC**: Add Loom URL → auto-embeds with thumbnail, tracks video views | |
+| OR-10 | Unsubscribe management | P2 | TODO | `src/unsubscribe.ts`, `web/unsubscribe.html` | **What**: One-click unsubscribe links, global suppression list<br>**Why**: Legal requirement (CAN-SPAM)<br>**Where**: Unsubscribe endpoint + preference center<br>**AC**: Unsubscribe link in emails, preference center for opt-out, suppression list honored | |
+
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
+
+## Release Gates
 
 ```bash
-POST /api/campaigns/:id/preview
+# All tests pass (once written)
+pnpm --filter outreach test
+
+# No TypeScript errors
+pnpm --filter outreach typecheck
+
+# No linting errors
+pnpm --filter outreach lint
+
+# Builds successfully
+pnpm --filter outreach build
+
+# Manual smoke test:
+# - Create campaign → template compiles correctly
+# - Send campaign → emails delivered via SendGrid
+# - Webhook received → delivery status updated
+# - LeadScout integration → leads imported and marked contacted
 ```
-
-Returns personalized messages for each targeted lead showing how variables will be substituted.
-
-## Current Status
-
-### ✅ Production-Ready Features
-- Complete REST API with campaign CRUD
-- Persistent storage using `@sb/storage` (StorageCampaignRepository)
-- Full web UI for campaign management
-- Message template system with variable substitution
-- Audience filtering by industry, score range, tags
-- Template compilation and preview
-- Campaign message preview showing personalized messages
-- Mock lead provider for testing
-- Campaigns persist across server restarts
-- **✨ SendGrid email integration** - Real email sending with queue management
-- **✨ Email send history** - Complete tracking of sent messages
-- **✨ Delivery tracking** - Webhook handling for delivery, open, click, bounce events
-- **✨ Rate limiting** - Configurable emails per second to respect provider limits
-- **✨ Campaign statistics** - Sent count, failed count, last sent date
-- **✨ LeadScout integration** - Fetch leads from LeadScout API with intelligence data
-- **✨ Lead status updates** - Automatically mark leads as "contacted" after campaign sent
-- **✨ Rich template variables** - Support for company size, funding status, tech stack, and AI insights
-
-### 🎯 Ready for Production Use
-The Outreach app is now fully functional and ready to send real email campaigns!
-
-### Next Steps
-
-**✅ COMPLETED (Jan 2026):** Email Service Integration
-- ✅ SendGrid integration with API client
-- ✅ Email queue with rate limiting (configurable per-second limit)
-- ✅ Campaign execution endpoint (`POST /api/campaigns/:id/send`)
-- ✅ Email send history tracking in database
-- ✅ Webhook handler for delivery events (delivered, opened, clicked, bounced)
-- ✅ Campaign statistics (sent count, failed count, last sent date)
-- **Status:** Production-ready! ✨
-
-**Priority 1 (Next 2-4 Weeks):** Enhanced Analytics & Tracking
-
-1. **Campaign Analytics Dashboard** 📊 UI ENHANCEMENT
-   - Build analytics dashboard in web UI
-   - Show campaign performance metrics (sent, delivered, opened, clicked, bounced)
-   - Calculate and display open rate, click rate, click-to-open rate
-   - Add charts for campaign performance over time
-   - Show recipient-level activity tracking
-   - Add email open tracking improvements (tracking pixel)
-   - Implement click tracking with link wrapping and redirect endpoint
-   - **Goal:** Visual analytics and data-driven campaign optimization
-   - **Benefit:** Better insights into campaign effectiveness
-
-**✅ COMPLETED (Jan 2026):** LeadScout Integration 🔗 CROSS-APP WORKFLOW
-- ✅ Connect to LeadScout API for lead import
-- ✅ Fetch leads with filters (industry, score, tags)
-- ✅ Map lead fields to email template variables
-- ✅ Support LeadScout intelligence data in templates (company size, funding, tech stack, etc.)
-- ✅ Update lead status to "contacted" when campaign emails are sent
-- ✅ Automatic email derivation from lead URLs
-- **Status:** Production-ready! ✨
-
-**Priority 2 (Next 1-2 Months):**
-
-3. **Enhanced LeadScout Integration** 🔗 UI ENHANCEMENT
-   - Add "Import from LeadScout" button in campaign creation UI
-   - Build lead list selection UI with preview
-   - Show lead intelligence data in campaign preview
-   - Display "Last Contacted" date in LeadScout UI
-   - Add bidirectional sync for campaign metrics
-   - **Goal:** Seamless lead-to-campaign workflow with rich UI
-   - **Benefit:** Complete sales automation from discovery to outreach
-
-**Priority 3 (Next Quarter):**
-
-4. **Template Builder & Scheduling**
-   - Build rich text email editor
-   - Add pre-built template library
-   - Implement campaign scheduling (send now, schedule later)
-   - Add drip campaign sequences
-   - Create follow-up automation rules
-   - **Goal:** Professional campaign creation and automation
-
-5. **Contact Management**
-   - Build contact list management
-   - Add contact segmentation
-   - Implement CSV import/export
-   - Add contact tagging system
-   - Build unsubscribe management
-   - **Goal:** Complete contact database
-
-**Future Considerations:**
-- A/B testing framework
-- AI-powered subject line generation
-- Send time optimization
-- Loom video integration
-- Email warmup and deliverability monitoring
-- Sender reputation tracking
-
-## Integration with Suite
-
-Outreach integrates with other Signal Blueprint apps:
-- **LeadScout** - Import leads for campaigns (coming soon)
-- **Console** - Campaign activity monitoring
-- **Worker** - Scheduled campaign sending jobs (coming soon)
-- **Events** - Activity tracking for campaign actions
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.
-

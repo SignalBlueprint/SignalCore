@@ -1,245 +1,138 @@
 # LeadScout
 
-**Status:** 🟢 Fully Functional - Complete API + UI with AI
-**Port:** 4021
+## TL;DR
+Lead discovery and qualification system with configurable scoring engine and AI-powered intelligence. Production-ready with persistent storage and full web UI.
 
-Lead discovery and qualification system with automatic scoring and AI-powered intelligence that helps teams identify and prioritize potential customers.
+## Product Goal
+- Automate lead discovery by aggregating data from multiple sources
+- Apply intelligent scoring to rank leads by fit and engagement potential
+- Use AI to analyze companies and provide qualification insights
+- Enable sales teams to focus on high-value prospects
 
-## Purpose
+## Current Status (Reality Check)
 
-LeadScout automates lead discovery by aggregating data from multiple sources, applying qualification criteria, and ranking leads based on fit and engagement potential. The system uses configurable rules-based scoring combined with AI-powered intelligence to help sales and marketing teams focus on high-value prospects.
+### ✅ Working (End-to-End)
+- **Complete CRUD**: Leads persist to Supabase via @sb/storage
+- **Scoring engine**: Configurable rules (source, recency, URL quality, company name)
+- **AI intelligence (backend)**: GPT-4o-mini analyzes company size, industry, tech stack, risks, opportunities
+- **Web UI**: Lead management dashboard with filtering and statistics
+- **Scoring breakdown UI**: Visual progress bars showing score factors
+- **Intelligence-boosted scoring**: Combines base score with AI insights
 
-## Features
+### 🟡 Partial (Works but Incomplete)
+- **AI intelligence UI**: Backend complete, frontend display missing
+- **No LeadScout→Outreach workflow**: Can't send leads to campaigns yet
 
-### Core Lead Management
-- **Complete REST API** with CRUD operations for leads
-- **Persistent storage** using `@sb/storage` (StorageLeadRepository)
-- **Full web UI** with lead management dashboard
-- **Filtering** by status, source, and score
-- **Lead statistics** - Total leads, average score, status breakdowns
-- **Add/edit lead forms** with validation
-- **Zod schema validation** for data integrity
-- **Seed endpoint** for demo data (development only)
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **No lead enrichment**: Missing email finding, company data lookup
+- **No import/export**: Can't bulk import CSVs or export to CRM
+- **No deduplication**: Same company can appear multiple times
 
-### AI-Powered Lead Scoring
-- **Configurable rules-based scoring system** with multiple factors:
-  - **Source-based scoring** - Customizable weights (manual, import, scrape, referral, partner)
-  - **Recency scoring** - Newer leads valued higher with decay over time
-  - **URL quality scoring** - Custom domains, HTTPS, professional TLDs
-  - **Company name presence** - Bonus points for having company name
-- **Scoring breakdown** - Transparent display of how scores are calculated
-- **Visual score indicators** - Color-coded score badges and progress bars
+## How to Run
 
-### AI-Powered Intelligence
-- **OpenAI GPT-4o-mini** lead analysis with:
-  - Company size and industry classification
-  - Estimated revenue and funding status
-  - Qualification level (high/medium/low) with reasoning
-  - Technology stack detection
-  - Risk factors and opportunities identification
-  - Recommended sales actions
-- **Intelligence-boosted scoring** - Combines base score with AI insights
-- **Caching and telemetry** - Efficient AI usage tracking
-
-### Scoring Breakdown UI
-- **Visual breakdown** with progress bars for each scoring factor
-- **Score components** displayed:
-  - Source Quality (0-40 points)
-  - Recency (0-30 points)
-  - URL Quality (0-20 points)
-  - Company Name (0-10 points)
-- **Color-coded bars** - Green/yellow/red based on score thresholds
-- **Transparent scoring** for better lead prioritization
-
-## Quick Start
-
+### Install
 ```bash
-# Install dependencies (from monorepo root)
 pnpm install
+```
 
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Add OPENAI_API_KEY to .env
-
-# Run the development server
+### Dev
+```bash
 pnpm --filter leadscout dev
 ```
 
-Then open `http://localhost:4021` in your browser.
+### Test
+```bash
+# No tests yet
+pnpm --filter leadscout test
+```
 
-## Architecture
+### Build
+```bash
+pnpm --filter leadscout build
+```
 
-- **Backend**: Express.js REST API
-- **Frontend**: Static HTML/CSS/JavaScript with modern UI
-- **Storage**: Supabase via `@sb/storage` abstraction layer
+### Env Vars
+Required in root `.env`:
+- `OPENAI_API_KEY` - For AI intelligence features
+- `DATABASE_URL` - Supabase connection
+
+### URLs/Ports
+- **LeadScout**: http://localhost:4021
+
+## Architecture (Short)
+
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
+- **Frontend**: Static HTML/CSS/JavaScript
+- **Storage**: Supabase via @sb/storage (StorageLeadRepository)
 - **AI**: OpenAI GPT-4o-mini for lead intelligence
-- **Validation**: Zod schemas from `@sb/schemas`
-- **Events**: Integration with `@sb/events` for activity tracking
+- **Validation**: Zod schemas from @sb/schemas
 
-## API Endpoints
+### Key Modules
+- `src/server.ts` - Express API server
+- `src/routes.ts` - Lead CRUD + scoring + intelligence endpoints
+- `src/scoring-engine.ts` - Configurable rules-based scoring
+- `src/ai-intelligence.ts` - AI lead analysis service
+- `web/` - Static frontend files
 
-### Lead Management
-- `POST /api/leads` - Create a new lead
-- `GET /api/leads` - List leads with optional filters
-- `GET /api/leads/:id` - Fetch a single lead by ID
-- `PATCH /api/leads/:id` - Update lead status, score, or notes
-- `DELETE /api/leads/:id` - Delete a lead
+### Data Flow
+- Frontend → API → StorageLeadRepository → Supabase
+- Scoring triggered on create/update → calculate score
+- Intelligence endpoint → GPT-4o-mini → enriched lead data
 
-### Lead Scoring
-- `POST /api/leads/:id/score` - Recalculate lead score
-- `GET /api/leads/:id/score/breakdown` - Get detailed score breakdown
+## Known Issues
 
-### AI Intelligence
-- `POST /api/leads/:id/intelligence` - Analyze lead with AI
-- `GET /api/leads/:id/intelligence` - Get cached AI intelligence
+### AI Intelligence UI Missing
+- **Repro**: Create lead → analyze with AI → insights not shown in UI
+- **Root cause**: Backend `/api/leads/:id/intelligence` works, no frontend display
+- **Workaround**: Curl API directly to see intelligence
+- **Fix needed**: Add "Analyze Lead" button + insights panel in UI
 
-### Development
-- `POST /api/dev/seed` - Seed sample leads (development only, requires `NODE_ENV=development`)
+### No Lead Enrichment
+- **Repro**: Add lead with domain → no email/company data fetched
+- **Root cause**: No integration with Hunter.io/Apollo/Clearbit
+- **Fix needed**: Add enrichment service + scheduled Worker job
 
-### Query Parameters for GET /api/leads
-- `status` - Filter by status (new, contacted, qualified, converted, lost)
-- `source` - Filter by source (manual, import, scrape, referral, partner)
-- `min_score` - Minimum score threshold
-- `max_score` - Maximum score threshold
-- `orgId` - Organization ID (required)
+### No CSV Import
+- **Repro**: Have 1000 leads in CSV → can't bulk import
+- **Root cause**: Import functionality not implemented
+- **Fix needed**: Add CSV upload + parsing + bulk create endpoint
 
-## Environment Variables
+## Task Queue (Autopilot)
 
-| Name | Description | Default |
-| --- | --- | --- |
-| `PORT` | Port for the LeadScout API server | `4021` |
-| `NODE_ENV` | Enables dev-only seed endpoint when set to `development` | `undefined` |
-| `OPENAI_API_KEY` | OpenAI API key for AI-powered intelligence | Required |
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| LS-1 | AI intelligence UI integration | P1 | TODO | `web/js/lead-detail.js`, `web/lead-detail.html` | **What**: Add "Analyze Lead" button and display AI insights in lead detail page<br>**Why**: Backend complete but invisible to users<br>**Where**: Lead detail view<br>**AC**: Click button → AI analyzes → show qualification, risks, tech stack, recommended actions with nice formatting | |
+| LS-2 | LeadScout→Outreach integration | P1 | TODO | `web/js/send-to-campaign.js`, `src/outreach-integration.ts` | **What**: Add "Send to Campaign" button that creates Outreach campaign<br>**Why**: Manual copy/paste to Outreach is tedious<br>**Where**: Lead list + detail view<br>**AC**: Select leads → click → campaign created in Outreach, leads marked "contacted" | |
+| LS-3 | Lead enrichment with Hunter.io/Apollo | P2 | TODO | `src/enrichment-service.ts`, `src/jobs/enrich-leads.ts` | **What**: Integrate email finder + company data APIs<br>**Why**: Manual research is slow<br>**Where**: Enrichment service + Worker job<br>**AC**: Click "Enrich" → fetch email/company data, update lead, track API costs | |
+| LS-4 | CSV import/export | P2 | TODO | `src/import.ts`, `web/import.html` | **What**: Bulk import leads from CSV, export filtered leads<br>**Why**: Can't move data in/out easily<br>**Where**: New import/export endpoints + UI<br>**AC**: Upload CSV → parse → create leads, export filtered leads to CSV download | |
+| LS-5 | Lead deduplication | P2 | TODO | `src/deduplication.ts` | **What**: Detect duplicate leads by domain/company name<br>**Why**: Same company appears multiple times<br>**Where**: Dedup service + merge UI<br>**AC**: Auto-detect dupes on create, suggest merges, merge preserves best data | |
+| LS-6 | Test suite for LeadScout | P1 | TODO | `__tests__/scoring.test.ts`, `__tests__/intelligence.test.ts` | **What**: Add tests for scoring engine + AI intelligence + CRUD<br>**Why**: No tests = high regression risk<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, test scoring rules, mock AI calls, test API endpoints | |
+| LS-7 | Lead lifecycle tracking | P3 | TODO | `src/lifecycle.ts`, `web/js/lifecycle.js` | **What**: Track lead stages (new → qualified → customer)<br>**Why**: Don't know where leads are in funnel<br>**Where**: Lead schema + status field<br>**AC**: Leads have status, UI shows funnel view, conversion metrics calculated | |
+| LS-8 | Lead assignment to team members | P3 | TODO | `src/assignment.ts`, `web/js/assign-lead.js` | **What**: Assign leads to specific team members<br>**Why**: Need ownership for follow-up<br>**Where**: Lead schema + assignment UI<br>**AC**: Assign lead → team member notified, "My Leads" filter works | |
+| LS-9 | Activity timeline and notes | P3 | TODO | `src/activity.ts`, `web/js/activity.js` | **What**: Log lead interactions (calls, emails, meetings) with notes<br>**Why**: Need history of engagement<br>**Where**: Activity log table + timeline UI<br>**AC**: Add note → appears in timeline, filter by activity type | |
+| LS-10 | Custom scoring rules UI | P3 | TODO | `web/scoring-config.html` | **What**: Configure scoring weights/rules in UI instead of code<br>**Why**: Scoring rules hardcoded in TypeScript<br>**Where**: New admin page for scoring config<br>**AC**: Edit weights, add custom rules, preview score changes, save to DB | |
 
-## Usage Examples
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
 
-### Creating a Lead
-
-```json
-POST /api/leads
-{
-  "orgId": "default-org",
-  "url": "https://acme.example.com",
-  "companyName": "Acme Co",
-  "source": "manual",
-  "status": "new",
-  "notes": "Inbound request for demo."
-}
-```
-
-The system will automatically calculate an initial score based on the lead data.
-
-### Updating a Lead
-
-```json
-PATCH /api/leads/:id
-{
-  "status": "contacted",
-  "notes": "Followed up with pricing details."
-}
-```
-
-### Getting Lead Intelligence
+## Release Gates
 
 ```bash
-POST /api/leads/:id/intelligence
+# All tests pass (once written)
+pnpm --filter leadscout test
+
+# No TypeScript errors
+pnpm --filter leadscout typecheck
+
+# No linting errors
+pnpm --filter leadscout lint
+
+# Builds successfully
+pnpm --filter leadscout build
+
+# Manual smoke test:
+# - Create lead → score calculated correctly
+# - Analyze lead → AI intelligence returned
+# - Filter leads → results correct
+# - Lead persists after restart
 ```
-
-Returns AI-powered insights about the lead including company size, industry, qualification level, risks, opportunities, and recommended actions.
-
-## Current Status
-
-### ✅ Production-Ready Features
-- Complete REST API with CRUD operations
-- Persistent storage using `@sb/storage`
-- Full web UI with lead management dashboard
-- Filtering by status, source, and score
-- Lead statistics (total leads, average score)
-- Add/edit lead forms with validation
-- Zod schema validation
-- Seed endpoint for demo data
-- Lead Scoring Engine with configurable rules
-- AI-Powered Intelligence using GPT-4o-mini
-- Scoring Breakdown UI with visual indicators
-- Intelligence-boosted scoring
-- Caching and telemetry integration
-
-### Next Steps
-
-**Priority 1 (Next 2-4 Weeks):** 🔥 HIGH PRIORITY
-
-1. **AI Intelligence UI Integration**
-   - Add "Analyze Lead" button to lead detail view in UI
-   - Display AI intelligence insights panel with expandable sections
-   - Show qualification level badges (high/medium/low) with color coding
-   - Display recommended actions list and risk factors
-   - Show detected technology stack and company insights
-   - Add loading states during AI analysis and error handling
-   - Cache AI results and show "last analyzed" timestamp
-   - **Goal:** Make AI intelligence visible and actionable in the UI (backend already complete)
-   - **Status:** Backend AI service fully implemented, needs frontend integration
-
-**Priority 2 (Next 1-2 Months):**
-
-2. **Outreach Integration** 🔗 CROSS-APP WORKFLOW
-   - Add "Send to Campaign" button in lead detail view and bulk actions
-   - Connect to Outreach app API for campaign creation
-   - Build lead list selection UI with filters
-   - Export qualified leads to Outreach campaigns
-   - Map lead data to campaign template variables
-   - Create campaign targeting based on lead segments (industry, score, tags)
-   - Track campaign performance metrics back to leads
-   - Add "Last Contacted" field to leads
-   - **Goal:** Complete sales funnel from lead discovery to outreach
-   - **Benefit:** Seamless workflow connecting two apps
-
-3. **Lead Enrichment Automation** 🤖 AUTOMATION
-   - Integrate email finding API (Hunter.io or Apollo.io)
-   - Add company data enrichment service (Clearbit or similar)
-   - Implement automated enrichment worker job (scheduled via Worker app)
-   - Add manual "Enrich Lead" button for on-demand enrichment
-   - Show enrichment status badge and last updated timestamp
-   - Store enrichment history and data sources
-   - Add enrichment cost tracking
-   - **Goal:** Automatic lead data enhancement with minimal manual effort
-   - **Benefit:** Higher quality lead data for outreach
-
-**Priority 3 (Next Quarter):**
-
-4. **Data Import/Export**
-   - CSV import with field mapping
-   - CSV export with filters
-   - Bulk upload from URLs/lists
-   - API integration for CRM sync
-   - **Goal:** Easy data migration and integration
-
-5. **Advanced Features**
-   - Lead deduplication system
-   - Lead lifecycle tracking (new → qualified → customer)
-   - Lead assignment to team members
-   - Activity timeline and notes
-   - Lead scoring refinements based on conversion data
-   - **Goal:** Complete lead management workflow
-
-**Future Considerations:**
-- Web scraping engine for automated lead discovery
-- LinkedIn Sales Navigator integration
-- Competitor analysis and market research tools
-- Custom scraping rules builder
-
-## Integration with Suite
-
-LeadScout integrates with other Signal Blueprint apps:
-- **Outreach** - Export leads to campaigns (coming soon)
-- **Console** - Lead discovery metrics and monitoring
-- **Worker** - Scheduled lead enrichment jobs (coming soon)
-- **Events** - Activity tracking for lead actions
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.

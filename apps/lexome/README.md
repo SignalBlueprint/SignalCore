@@ -1,535 +1,155 @@
 # Lexome
 
-**Status:** 🟢 Fully Functional - Production-ready AI-powered reading platform (Launched Jan 1, 2026)
-**Port:** 4026
+## TL;DR
+AI-enhanced e-reader for Project Gutenberg's 70,000+ classics with React UI, annotations, and 7 AI reading features. Production-ready with full frontend and backend.
 
-AI-enhanced e-reader that connects to Project Gutenberg's 70,000+ public domain books, providing intelligent context, annotations, and reading assistance through advanced AI capabilities. Features a modern React UI with comprehensive keyboard navigation, customizable reading settings, and seamless integration with OpenAI GPT-4.
+## Product Goal
+- Make classic literature accessible and engaging for modern readers
+- Provide AI-powered context for archaic language and historical references
+- Track reading progress and offer personalized recommendations
+- Enable annotation and note-taking with AI assistance
 
-## Purpose
+## Current Status (Reality Check)
 
-Lexome transforms classic literature reading into an enriched, interactive experience by leveraging AI to provide real-time context, historical background, character analysis, and literary insights. By connecting to the vast Project Gutenberg library of public domain books, Lexome makes classic literature more accessible and engaging for modern readers.
+### ✅ Working (End-to-End)
+- **Gutenberg integration**: Search, browse, download 70,000+ public domain books
+- **User library**: Persistent bookshelf with reading status (want_to_read, reading, finished)
+- **Reading interface**: React UI with clean typography, chapter navigation, keyboard shortcuts
+- **7 AI features**: Text explanation, archaic translation, definitions, summarization, character analysis, comprehension questions, recommendations
+- **Annotations**: Create highlights and notes with AI-generated context
+- **Reading sessions**: Track time, words read, pages read
+- **Bookmarks**: Save reading positions with notes
+- **Customizable settings**: Font size, line height, width, font family, dark mode
+- **Rate limiting**: Tiered limits (API/AI/writes) for production safety
 
-## Vision
+### 🟡 Partial (Works but Incomplete)
+- **No tests**: Frontend and backend untested
+- **EPUB support**: Currently HTML/text only, no EPUB reader
 
-Create an intelligent reading companion that:
-- Makes classic literature more approachable through contextual AI assistance
-- Provides instant explanations of archaic language, historical references, and cultural context
-- Tracks reading progress and offers personalized recommendations
-- Enables social reading with shared annotations and discussions
-- Integrates AI-powered features without disrupting the reading flow
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **No social features**: Can't share annotations or join reading groups
+- **No offline mode**: Not a PWA, requires internet connection
+- **No text-to-speech**: Can't listen to books
 
-## Current Features
+## How to Run
 
-### ✅ Implemented Features
-
-#### 1. **Gutenberg Library Integration** (Complete)
-   - ✅ Full integration with Project Gutenberg API (Gutendex)
-   - ✅ Search across 70,000+ public domain books
-   - ✅ Browse by category, author, and popularity
-   - ✅ Download and cache book content
-   - ✅ Metadata extraction (author, title, subjects, year, language)
-   - ✅ Performance caching layer for API responses
-
-#### 2. **Reading Interface** (Complete)
-   - ✅ Clean, distraction-free reading view
-   - ✅ HTML rendering with proper typography
-   - ✅ Frontend reader interface (index.html, reader.html)
-   - ✅ Reading progress tracking
-   - ✅ Session-based reading management
-
-#### 3. **User Library Management** (Complete)
-   - ✅ Personal bookshelf with persistent storage
-   - ✅ Reading status tracking (want_to_read, reading, finished)
-   - ✅ Progress indicators (0-100%)
-   - ✅ Current location/position tracking
-   - ✅ Reading history and statistics
-   - ✅ Start/finish date tracking
-   - ✅ Book ratings (1-5 stars)
-
-#### 4. **Contextual AI Assistance** (Complete - 7 AI Features)
-   - ✅ **Text Explanation**: AI-powered explanations with historical/cultural context
-   - ✅ **Archaic Language Translation**: Convert old English to modern language
-   - ✅ **Word Definition**: Contextual definitions considering the book's era and author
-   - ✅ **Section Summarization**: AI-generated chapter and section summaries
-   - ✅ **Character Analysis**: Deep character analysis and relationship mapping
-   - ✅ **Comprehension Questions**: Generate questions to test understanding
-   - ✅ **Book Recommendations**: Personalized recommendations based on reading history
-
-#### 5. **Annotations System** (Complete)
-   - ✅ Create, read, update, delete annotations
-   - ✅ Text selection with start/end offset tracking
-   - ✅ Personal notes with AI-generated context
-   - ✅ Tag-based organization
-   - ✅ Public/private annotation visibility
-   - ✅ Search annotations by content or tags
-   - ✅ Statistics and tag management
-
-#### 6. **Reading Sessions** (Complete)
-   - ✅ Start/end session tracking
-   - ✅ Words read and pages read counting
-   - ✅ Reading duration tracking
-   - ✅ Session history with statistics
-   - ✅ Active session detection per book
-
-#### 7. **Bookmarks** (Complete)
-   - ✅ Create, read, update, delete bookmarks
-   - ✅ Save reading positions in books
-   - ✅ Optional titles and notes for bookmarks
-   - ✅ List all bookmarks by user or by book
-   - ✅ Bookmark count tracking per book
-
-#### 8. **Security & Production Features** (Complete)
-   - ✅ Rate limiting on all API endpoints
-   - ✅ Tiered rate limits (100/15min general, 20/15min AI, 50/15min writes)
-   - ✅ Authentication middleware infrastructure
-   - ✅ User identification system
-   - ✅ Resource ownership verification
-   - ✅ Request logging and monitoring
-
-#### 9. **Advanced Reader UI** (Complete)
-   - ✅ Chapter navigation with table of contents sidebar
-   - ✅ Automatic chapter extraction (CHAPTER, PART, BOOK patterns)
-   - ✅ Reading settings panel with live preview
-   - ✅ Font size customization (12-32px)
-   - ✅ Line height/spacing control (1.2-2.5)
-   - ✅ Content width adjustment (60-100ch)
-   - ✅ Font family selection (8 options including serif, sans-serif, monospace)
-   - ✅ Dark/light theme toggle
-   - ✅ Keyboard shortcuts for navigation and controls
-   - ✅ Visual progress indicators
-   - ✅ Bookmark panel with quick access
-   - ✅ Responsive design for mobile/tablet/desktop
-
-### 🔮 Future Enhancements
-
-#### 10. **Enhanced Reading Experience**
-   - 🔲 EPUB file format support (currently HTML/text)
-   - 🔲 Multi-format export (PDF, EPUB, Markdown)
-   - 🔲 Text-to-speech integration
-   - 🔲 Offline reading mode with PWA support
-
-#### 11. **Social Reading Features**
-   - 🔲 Public annotation sharing and discovery
-   - 🔲 Reading groups and book clubs
-   - 🔲 Discussion threads on passages
-   - 🔲 User following system
-   - 🔲 Activity feed
-
-#### 12. **Advanced AI Features**
-   - 🔲 Estimated reading time calculation
-   - 🔲 Vocabulary complexity analysis
-   - 🔲 Reading level assessment
-   - 🔲 Multi-language book support
-   - 🔲 Academic citation generation
-   - 🔲 AI-powered reading coach with personalized insights
-
-## Architecture
-
-### Technology Stack
-- **Backend**: Express.js REST API
-- **Frontend**: React SPA with TypeScript
-- **Storage**: Supabase via `@sb/storage` for user data
-- **AI**: OpenAI GPT-4 for context and analysis
-- **Cache**: Redis via `@sb/cache` for book content and AI responses
-- **Events**: `@sb/events` for reading activity tracking
-- **Vector Search**: Book embeddings for semantic search and recommendations
-
-### Data Models
-
-**Book**
-```typescript
-{
-  id: string;
-  gutenbergId: number;
-  title: string;
-  author: string;
-  language: string;
-  subjects: string[];
-  downloadUrl: string;
-  coverImageUrl?: string;
-  publicationYear?: number;
-  wordCount?: number;
-  format: 'epub' | 'html' | 'txt';
-}
+### Install
+```bash
+pnpm install
 ```
 
-**UserBook**
-```typescript
-{
-  id: string;
-  userId: string;
-  bookId: string;
-  status: 'want_to_read' | 'reading' | 'finished';
-  progress: number; // 0-100
-  currentLocation: string; // chapter/position
-  startedAt?: Date;
-  finishedAt?: Date;
-  rating?: number; // 1-5
-}
+### Dev
+```bash
+# Run API + React concurrently
+pnpm --filter lexome dev
+
+# Or run separately:
+pnpm --filter lexome dev:server  # API only (port 4026)
+pnpm --filter lexome dev:client  # React only
 ```
 
-**Annotation**
-```typescript
-{
-  id: string;
-  userId: string;
-  bookId: string;
-  textSelection: string;
-  startOffset: number;
-  endOffset: number;
-  noteContent?: string;
-  aiContext?: string; // AI-generated explanation
-  tags: string[];
-  isPublic: boolean;
-  createdAt: Date;
-}
+### Test
+```bash
+pnpm --filter lexome test           # Run tests (once written)
+pnpm --filter lexome test:ui        # Vitest UI
+pnpm --filter lexome test:coverage  # With coverage
 ```
 
-**ReadingSession**
-```typescript
-{
-  id: string;
-  userId: string;
-  bookId: string;
-  startedAt: Date;
-  endedAt: Date;
-  wordsRead: number;
-  pagesRead: number;
-}
+### Build
+```bash
+pnpm --filter lexome build          # Build both
+pnpm --filter lexome build:client   # Client only
+pnpm --filter lexome build:server   # Server only
 ```
 
-## API Endpoints (Implemented)
+### Env Vars
+Required in root `.env`:
+- `OPENAI_API_KEY` - For AI reading features
+- `DATABASE_URL` - Supabase connection
 
-All endpoints are fully functional and integrated with the respective services.
+### URLs/Ports
+- **Lexome**: http://localhost:4026
 
-### Books (5 endpoints)
-- ✅ `GET /api/books/search?q=<query>&author=<author>&topic=<topic>&language=<lang>&page=<page>` - Search Gutenberg library
-- ✅ `GET /api/books/popular?page=<page>` - Browse popular books
-- ✅ `GET /api/books/category/:category?page=<page>` - Browse by category
-- ✅ `GET /api/books/:id` - Get book details (supports both Gutenberg ID and internal ID)
-- ✅ `GET /api/books/:id/content` - Get book content (cached for performance)
+## Architecture (Short)
 
-### User Library (5 endpoints)
-- ✅ `GET /api/library` - Get user's bookshelf
-- ✅ `POST /api/library/books` - Add book to library
-- ✅ `PATCH /api/library/books/:id` - Update reading status/progress
-- ✅ `DELETE /api/library/books/:id` - Remove from library
-- ✅ `GET /api/library/stats` - Reading statistics
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
+- **Frontend**: React + Vite + Tailwind CSS (TypeScript)
+- **Storage**: Supabase via @sb/storage (books, user library, annotations, sessions, bookmarks)
+- **AI**: OpenAI GPT-4 for 7 reading features
+- **Cache**: @sb/cache for book content and AI responses
+- **Rate limiting**: express-rate-limit with tiered limits
 
-### Annotations (8 endpoints)
-- ✅ `GET /api/annotations` - Get all user annotations
-- ✅ `GET /api/annotations/book/:bookId` - Get annotations for specific book
-- ✅ `POST /api/annotations` - Create annotation with AI context
-- ✅ `PATCH /api/annotations/:id` - Update annotation
-- ✅ `DELETE /api/annotations/:id` - Delete annotation
-- ✅ `GET /api/annotations/search?q=<query>` - Search annotations by content
-- ✅ `GET /api/annotations/tags` - Get all unique tags
-- ✅ `GET /api/annotations/stats` - Get annotation statistics
+### Key Modules
+- `src/server.ts` - Express API with 41+ endpoints
+- `src/routes/` - Books, library, annotations, sessions, AI, bookmarks routes
+- `src/services/gutenberg.ts` - Project Gutenberg API client
+- `src/services/ai.ts` - AI reading assistance (7 features)
+- `client/src/` - React frontend (6 pages, 8 components)
 
-### Reading Sessions (5 endpoints)
-- ✅ `POST /api/sessions/start` - Start reading session
-- ✅ `POST /api/sessions/:id/end` - End session with progress
-- ✅ `GET /api/sessions/history` - Get reading history
-- ✅ `GET /api/sessions/stats` - Get reading statistics
-- ✅ `GET /api/sessions/active/:bookId` - Get active session for book
+### Data Flow
+- Book search → Gutenberg API → cache → frontend
+- Add to library → UserBookRepository → Supabase
+- Start reading → SessionRepository tracks time/progress
+- Select text → AI service → GPT-4 → contextual assistance
+- Create annotation → AnnotationRepository with AI context
 
-### AI Features (7 endpoints)
-- ✅ `POST /api/ai/explain` - Explain selected text with historical/cultural context
-- ✅ `POST /api/ai/translate` - Translate archaic language to modern English
-- ✅ `POST /api/ai/define` - Define word with contextual meaning
-- ✅ `POST /api/ai/summarize` - Generate chapter/section summary
-- ✅ `POST /api/ai/analyze-character` - Deep character analysis
-- ✅ `POST /api/ai/questions` - Generate comprehension questions
-- ✅ `GET /api/ai/recommendations?limit=<limit>` - Get personalized book recommendations
+## Known Issues
 
-### Bookmarks (6 endpoints)
-- ✅ `GET /api/bookmarks` - Get all user bookmarks
-- ✅ `GET /api/bookmarks/book/:bookId` - Get bookmarks for specific book
-- ✅ `GET /api/bookmarks/:id` - Get specific bookmark
-- ✅ `POST /api/bookmarks` - Create new bookmark
-- ✅ `PATCH /api/bookmarks/:id` - Update bookmark
-- ✅ `DELETE /api/bookmarks/:id` - Delete bookmark
+### No EPUB Support
+- **Repro**: Download EPUB file → can't open in Lexome
+- **Root cause**: Reader only supports HTML/text from Gutenberg
+- **Workaround**: Use HTML version of book
+- **Fix needed**: Add EPUB parsing library (epubjs)
 
-### System
-- ✅ `GET /api` - API documentation and endpoint listing
-- ✅ `GET /health` - Health check endpoint
+### No Social Reading Features
+- **Repro**: Want to share annotation → no sharing option
+- **Root cause**: Annotations are private-only
+- **Workaround**: Copy/paste annotation text manually
+- **Fix needed**: Add public annotations, reading groups, discussions
 
-**Total: 41+ API endpoints** covering the complete reading experience from book discovery to AI-enhanced comprehension.
+### No Offline Mode
+- **Repro**: Lose internet → can't read
+- **Root cause**: Not a PWA, no service worker
+- **Fix needed**: Add service worker, cache books for offline reading
 
-## Integration with Suite
+## Task Queue (Autopilot)
 
-Lexome integrates with other Signal Blueprint apps:
-- **Console** - Reading activity metrics and user analytics
-- **Worker** - Scheduled jobs for book catalog updates and cache cleanup
-- **Events** - Reading session tracking and user activity
-- **Storage** - User library, annotations, and preferences
-- **AI** - GPT-4 integration for context and analysis
-- **Cache** - Book content and AI response caching
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| LX-1 | Test suite (frontend + backend) | P1 | TODO | `__tests__/`, `client/src/__tests__/` | **What**: Add comprehensive tests for API routes + React components + AI features<br>**Why**: No tests = high regression risk<br>**Where**: Backend and frontend test directories<br>**AC**: 50%+ coverage, test Gutenberg integration, AI mocking, user flows | |
+| LX-2 | EPUB file support | P2 | TODO | `src/epub-parser.ts`, `client/src/components/EpubReader.tsx` | **What**: Add EPUB parsing and rendering<br>**Why**: Many books available as EPUB<br>**Where**: EPUB service + React reader component<br>**AC**: Upload EPUB → parse → render with pagination, annotations work | |
+| LX-3 | PWA with offline reading | P2 | TODO | `client/public/sw.js`, `client/src/hooks/useOffline.ts` | **What**: Convert to PWA with service worker for offline books<br>**Why**: Want to read without internet<br>**Where**: Service worker + offline storage<br>**AC**: Install as PWA, download books for offline, sync when online | |
+| LX-4 | Social reading features | P3 | TODO | `src/social-routes.ts`, `client/src/pages/Social.tsx` | **What**: Public annotations, reading groups, discussions<br>**Why**: Reading is better together<br>**Where**: Social tab + public annotation feed<br>**AC**: Share annotations, join groups, comment on passages, see friends' highlights | |
+| LX-5 | Text-to-speech | P3 | TODO | `client/src/hooks/useTextToSpeech.ts` | **What**: Add TTS to listen to books being read aloud<br>**Why**: Accessibility and multitasking<br>**Where**: Audio player in reader<br>**AC**: Play/pause, speed control, bookmark position, highlights follow narration | |
+| LX-6 | Multi-format export | P3 | TODO | `src/export.ts` | **What**: Export annotations to PDF, EPUB, Markdown<br>**Why**: Want notes in other apps<br>**Where**: Export menu in library<br>**AC**: Export book + annotations, formatted nicely, preserves highlights | |
+| LX-7 | Vocabulary builder | P3 | TODO | `src/vocabulary.ts`, `client/src/pages/Vocabulary.tsx` | **What**: Track looked-up words, create flashcards, quiz<br>**Why**: Learn new vocabulary while reading<br>**Where**: Vocabulary tab<br>**AC**: Save words, definitions, usage examples, spaced repetition quiz | |
+| LX-8 | Reading goals and streaks | P3 | TODO | `client/src/components/ReadingGoals.tsx` | **What**: Set reading goals (books/year, minutes/day), track streaks<br>**Why**: Gamification encourages reading<br>**Where**: Dashboard + stats page<br>**AC**: Set goal, track progress, celebrate milestones, daily streaks | |
+| LX-9 | Book clubs and challenges | P3 | TODO | `src/clubs.ts`, `client/src/pages/Clubs.tsx` | **What**: Create/join book clubs, participate in reading challenges<br>**Why**: Community motivation<br>**Where**: Clubs tab<br>**AC**: Create club, invite members, set reading schedule, track completion | |
+| LX-10 | Advanced AI features | P3 | TODO | `src/ai-advanced.ts` | **What**: Theme analysis, writing style insights, compare translations<br>**Why**: Deeper literary analysis<br>**Where**: Enhanced AI menu<br>**AC**: Analyze themes, compare styles, suggest related books, literary criticism | |
 
-## Environment Variables
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
 
-| Name | Description | Default |
-| --- | --- | --- |
-| `PORT` | Port for the Lexome API server | `4026` |
-| `NODE_ENV` | Environment (development/production) | `development` |
-| `OPENAI_API_KEY` | OpenAI API key for AI features | Required |
-| `GUTENBERG_API_URL` | Project Gutenberg API endpoint | `https://gutendex.com` |
-| `CACHE_ENABLED` | Enable book content caching | `true` |
-
-## Development Status
-
-### ✅ Phase 1: Foundation - COMPLETE
-
-**Task 1.1: Project Setup** ✅ COMPLETE
-- ✅ Create package.json with dependencies
-- ✅ Set up TypeScript configuration
-- ✅ Create basic Express.js server structure
-- ✅ Configure environment variables
-- ✅ Set up development scripts
-- ✅ Initialize folder structure (src/routes, src/services, src/models, src/repositories)
-
-**Task 1.2: Gutenberg Integration** ✅ COMPLETE
-- ✅ Research Project Gutenberg API (Gutendex)
-- ✅ Create GutenbergService for API communication (183 lines)
-- ✅ Implement book search endpoint
-- ✅ Implement book details retrieval
-- ✅ Implement book content download
-- ✅ Add error handling and caching
-- ⚠️ Tests not yet written
-
-**Task 1.3: Storage Layer** ✅ COMPLETE
-- ✅ Define Book schema with Zod
-- ✅ Define UserBook schema with Zod
-- ✅ Define Annotation schema with Zod
-- ✅ Define ReadingSession schema with Zod
-- ✅ Create BookRepository using @sb/storage
-- ✅ Create UserBookRepository using @sb/storage
-- ✅ Create AnnotationRepository using @sb/storage
-- ✅ Create ReadingSessionRepository using @sb/storage
-- ✅ Implement CRUD operations
-- ⚠️ Tests not yet written
-
-**Task 1.4: Core API Endpoints** ✅ COMPLETE
-- ✅ GET /api/books/search - Search Gutenberg catalog
-- ✅ GET /api/books/popular - Browse popular books
-- ✅ GET /api/books/category/:category - Browse by category
-- ✅ GET /api/books/:id - Get book details
-- ✅ GET /api/books/:id/content - Download/retrieve content
-- ✅ POST /api/library/books - Add to user library
-- ✅ GET /api/library - List user's books
-- ✅ GET /api/library/stats - Reading statistics
-- ✅ PATCH /api/library/books/:id - Update status/progress
-- ✅ DELETE /api/library/books/:id - Remove from library
-- ⚠️ Authentication middleware not yet enforced
-
-### ✅ Phase 2: AI Enhancement - COMPLETE
-
-**Task 2.1: AI Service Setup** ✅ COMPLETE
-- ✅ Create AIService using @sb/ai (401 lines)
-- ✅ Implement text explanation endpoint
-- ✅ Implement archaic language translation
-- ✅ Implement word definition with context
-- ✅ Implement summarization endpoint
-- ✅ Add character analysis endpoint
-- ✅ Add comprehension questions generator
-- ✅ Add book recommendations engine
-- ✅ Set up telemetry tracking (@sb/telemetry)
-- ✅ Implement caching for AI responses (@sb/cache)
-- ✅ Add cost tracking
-
-**Task 2.2: Annotations System** ✅ COMPLETE
-- ✅ Define Annotation schema with Zod
-- ✅ Create AnnotationRepository
-- ✅ Implement annotation CRUD endpoints (208 lines)
-- ✅ Add AI context generation
-- ✅ Implement search and filtering
-- ✅ Add tag management
-- ✅ Add statistics endpoint
-- 🔲 Export annotations to markdown (planned)
-- 🔲 Annotation UI components (planned)
-
-**Task 2.3: Reading Sessions** ✅ COMPLETE
-- ✅ Implement session start/end endpoints (145 lines)
-- ✅ Track words read and pages read
-- ✅ Calculate reading duration
-- ✅ Provide session history
-- ✅ Show statistics and insights
-- ✅ Detect active sessions per book
-
-### ✅ Phase 3: Frontend Enhancement - COMPLETE
-
-**Task 3.1: React + Vite Setup** ✅ COMPLETE
-- ✅ React app with Vite + TypeScript
-- ✅ React Router for navigation
-- ✅ Tailwind CSS styling
-- ✅ API client integration with axios
-- ✅ Dark/light mode support
-- ✅ Responsive design for mobile/tablet/desktop
-
-**Task 3.2: Book Discovery UI** ✅ COMPLETE
-- ✅ Search page with filters (author, topic, language)
-- ✅ Browse popular books
-- ✅ BookCard component (compact and full views)
-- ✅ BookDetail page with metadata
-- ✅ "Add to Library" functionality
-- ✅ Pagination controls
-
-**Task 3.3: Library Management UI** ✅ COMPLETE
-- ✅ Library page with bookshelf view
-- ✅ Filter by reading status
-- ✅ Reading status updates (want_to_read, reading, finished)
-- ✅ Progress tracking UI with progress bars
-- ✅ Statistics dashboard
-- ✅ Remove from library functionality
-
-**Task 3.4: Reader Enhancement** ✅ COMPLETE
-- ✅ Enhanced Reader component with full-screen mode
-- ✅ HTML content rendering
-- ✅ Advanced reading settings panel
-- ✅ Font size customization (12-32px slider)
-- ✅ Line height/spacing control (1.2-2.5)
-- ✅ Content width adjustment (60-100ch)
-- ✅ Font family selection (serif, sans-serif, monospace, etc.)
-- ✅ Dark/light mode toggle
-- ✅ Text selection handler
-- ✅ AI context menu with 7 features
-- ✅ Reading session tracking
-- ✅ Chapter navigation sidebar with auto-detection
-- ✅ Bookmark panel with quick access
-- ✅ Keyboard shortcuts (Ctrl+T, Ctrl+B, Ctrl+/, etc.)
-- ✅ Visual progress indicators
-- ✅ Live settings preview
-- 🔲 EPUB format support (future enhancement)
-
-**Task 3.5: Annotations UI** ✅ COMPLETE
-- ✅ Annotations list page
-- ✅ Search and filter by tags
-- ✅ Display AI context (expandable)
-- ✅ Delete annotations
-- ✅ Statistics display
-
-### 🔲 Phase 4: Advanced Features - PLANNED
-
-**Task 4.1: Recommendations Enhancement** 🔲 PLANNED
-- 🔲 Generate book embeddings using OpenAI
-- 🔲 Store embeddings in vector database
-- 🔲 Implement semantic similarity search
-- ✅ Basic recommendation algorithm (using AI text analysis)
-
-**Task 4.2: Social Features** 🔲 PLANNED
-- 🔲 Public annotations sharing
-- 🔲 Reading groups/clubs schema
-- 🔲 Discussion threads
-- 🔲 User following system
-- 🔲 Activity feed
-
-**Task 4.3: Polish & Production** ✅ COMPLETE
-- ✅ Basic error handling
-- ✅ Health check endpoint
-- ✅ API documentation (GET /api)
-- ✅ Rate limiting implemented (tiered: API/AI/writes)
-- ✅ Authentication middleware infrastructure
-- ⚠️ Request logging minimal
-- ⚠️ No integration tests
-
-## Implementation Summary
-
-**Backend Completeness: 98%** (~2,100+ lines of code)
-- ✅ Books API (184 lines)
-- ✅ Library API (177 lines)
-- ✅ Sessions API (145 lines)
-- ✅ Annotations API (208 lines)
-- ✅ AI API (253 lines)
-- ✅ Bookmarks API (189 lines)
-- ✅ Gutenberg Service (183 lines)
-- ✅ AI Service (330 lines, cleaned up)
-- ✅ Bookmark Repository (120 lines)
-- ✅ Rate Limiting Middleware (68 lines)
-- ✅ Authentication Middleware (107 lines)
-
-**Frontend Completeness: 95%** (~3,000+ lines of React/TypeScript code)
-- ✅ Full React SPA with TypeScript
-- ✅ Vite build system
-- ✅ React Router navigation
-- ✅ Tailwind CSS styling
-- ✅ 6 page components (Home, Discover, Library, Annotations, BookDetail, Reader)
-- ✅ 8 shared components (Layout, BookCard, AIAssistant, ChapterNavigation, ReadingSettings, KeyboardShortcutsModal, ProgressIndicator, BookmarkPanel)
-- ✅ Complete API client with type safety
-- ✅ Dark/light mode theming with user preferences
-- ✅ Responsive design (mobile, tablet, desktop)
-- ✅ Keyboard navigation and shortcuts
-- ✅ Accessibility features (ARIA labels, keyboard support)
-
-**Next Priority Tasks:**
-1. Testing suite (frontend + backend unit/integration tests)
-2. EPUB format support for reader
-3. Multi-format export (PDF, EPUB, Markdown)
-4. Offline reading mode with PWA support
-5. Enhanced request logging and monitoring
-6. Social reading features (public annotations, reading groups)
-
-## Keyboard Shortcuts
-
-Lexome supports comprehensive keyboard navigation for an enhanced reading experience:
-
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl/Cmd + T` | Toggle table of contents sidebar |
-| `Ctrl/Cmd + B` | Toggle bookmarks panel |
-| `Ctrl/Cmd + ,` | Open reading settings |
-| `Ctrl/Cmd + /` | Show keyboard shortcuts help |
-| `Esc` | Close reader and return to library |
-| `Mouse Select` | Select text for AI assistance |
-
-## Quick Start
+## Release Gates
 
 ```bash
-# Install dependencies (from monorepo root)
-pnpm install
+# All tests pass (once written)
+pnpm --filter lexome test
 
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Add OPENAI_API_KEY to .env
+# No TypeScript errors
+pnpm --filter lexome typecheck
 
-# Run the development server
-pnpm --filter lexome dev
+# No linting errors
+pnpm --filter lexome lint
+
+# Builds successfully
+pnpm --filter lexome build
+
+# Manual smoke test:
+# - Search books → results load
+# - Add to library → persists
+# - Open book → renders correctly
+# - Select text → AI features work
+# - Create annotation → saves with AI context
+# - Reading session → tracks correctly
 ```
-
-The server will start on `http://localhost:4026`.
-
-**Available endpoints:**
-- `http://localhost:4026/api` - API documentation with all available endpoints
-- `http://localhost:4026/health` - Health check
-- `http://localhost:4026` - Frontend reading interface
-
-## Known Issues & Troubleshooting
-
-### Gutenberg API Connectivity
-
-In certain network environments, you may encounter issues connecting to the Project Gutenberg API (gutendex.com). The application has been configured to bypass proxies that may block access.
-
-**Common issues:**
-- **HTTP 403 Forbidden**: Proxy blocking - The app now uses a custom axios instance with proxy disabled
-- **DNS Resolution Errors**: Network restrictions - Requires proper DNS access to gutendex.com
-
-For detailed troubleshooting information, see [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md).
-
-**Workarounds:**
-1. Set `GUTENBERG_API_URL` environment variable to point to an alternative mirror
-2. Deploy to an environment with unrestricted HTTPS access
-3. Use cached book data for development/testing
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-- [Project Gutenberg](https://www.gutenberg.org) - Source library
-- [Gutendex API](https://gutendex.com) - Gutenberg API documentation
-
-## License
-
-This project uses content from Project Gutenberg, which is in the public domain. The application code follows the monorepo license.

@@ -1,302 +1,169 @@
 # Questboard
 
-**Status:** 🟢 Production Ready - Most mature app in the suite with PWA support
-**Port:** 3000 (API) / 5173 (Web)
+## TL;DR
+Task management system with AI sprint planning and Working Genius team assignment. Most mature app in the suite with full authentication, PWA support, and 48 passing tests.
 
-Questboard is a comprehensive task management system that combines the Questline task framework with Working Genius team assignment principles, all orchestrated by a daily Questmaster role. It provides a complete solution for managing hierarchical goals, questlines, quests, and tasks with AI-powered planning and assignment.
+## Product Goal
+- Organize work into questlines (connected sequences of tasks) aligned with strategic goals
+- Assign tasks based on team members' Working Genius profiles (Wonder, Invention, Discernment, Galvanizing, Enablement, Tenacity)
+- Use AI to generate optimal sprint plans and task assignments
+- Provide rotating Questmaster role for daily prioritization and coordination
 
-## Purpose
+## Current Status (Reality Check)
 
-Questboard helps teams organize work into questlines (connected sequences of tasks), assigns work based on team members' Working Genius profiles (Wonder, Invention, Discernment, Galvanizing, Enablement, Tenacity), and uses a rotating Questmaster role to prioritize and coordinate daily activities.
+### ✅ Working (End-to-End)
+- **Full-stack auth**: JWT backend + frontend integration, login/signup working
+- **Complete CRUD**: Goals, questlines, quests, tasks all persist to Supabase
+- **AI sprint planning**: GPT-4o generates + compares sprint plans
+- **Task assignment**: AI explains Working Genius fit for assignments
+- **Analytics dashboard**: Task/goal/quest stats, completion metrics, team capacity
+- **PWA**: Service worker, offline support, installable on mobile
+- **Mobile-responsive**: Hamburger menu, touch-optimized, works on phone/tablet
+- **48 passing tests**: Schemas (31), AI functions (17)
+- **Daily deck generation**: Automated focus cards based on priorities
 
-The system bridges strategic planning with daily execution by maintaining a hierarchy from high-level goals down to individual tasks, ensuring every piece of work connects to larger objectives.
+### 🟡 Partial (Works but Incomplete)
+- **Real-time updates**: No WebSocket/SSE, must manually refresh to see changes
+- **Enhanced mobile**: No swipe gestures, pull-to-refresh, haptic feedback yet
+- **Test coverage**: Tests exist but not comprehensive (missing integration tests)
 
-## Features
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **No collaboration features**: Can't see when others are viewing/editing
+- **No onboarding**: New users dropped into empty state without guidance
+- **No data export**: Can't export tasks/goals to CSV, PDF, or other tools
 
-### Core Task Management
-- **Hierarchical goal/questline/quest/task system** - Multi-level organization from strategic goals to actionable tasks
-- **Questline-based task organization** - Organize work into connected sequences of tasks with unlock dependencies
-- **Task assignment with Working Genius-based AI explanations** - Intelligent task assignment considering team members' natural abilities
-- **Daily deck generation for team members** - Automated daily focus cards based on priorities and capacity
-- **Event system integration for activity tracking** - Complete audit trail of all task activities
+## How to Run
 
-### AI-Powered Features
-- **AI-powered sprint planning** with plan generation and comparison
-- **Sprint plan evaluation** - Compare and select optimal sprint plans
-- **Task assignment with Working Genius reasoning** - AI explains why tasks are assigned to specific team members
-- **Goal clarification and decomposition** - AI helps break down strategic goals into actionable work
-
-### Analytics & Insights
-- **Analytics Dashboard** with comprehensive metrics:
-  - Task/goal/quest statistics
-  - Working Genius distribution across team
-  - Completion metrics and velocity tracking
-  - Activity timeline showing recent work
-  - Team capacity utilization
-  - Sprint burndown and progress
-
-### Progressive Web App (PWA)
-- **Mobile-first experience** with native-like functionality
-- **Service worker** with offline support and caching
-- **Installable app** - Add to home screen on mobile devices
-- **Mobile-responsive navigation** with hamburger menu
-- **Touch-optimized interactions** and gestures
-- **Enhanced loading states** with spinner component
-- **Performance optimizations** for mobile devices
-
-### User Interface
-- **Complete React frontend** with 9 page components:
-  - Today - Daily focus and deck view
-  - Sprint - Current sprint planning and tracking
-  - Goals - Strategic goal management
-  - Team - Team member profiles and Working Genius
-  - Analytics - Performance metrics and insights
-  - And more...
-- **Modern, responsive design** optimized for desktop and mobile
-- **Real-time updates** with smooth interactions
-
-## Quick Start
-
+### Install
 ```bash
-# Install dependencies (from monorepo root)
+# From monorepo root
 pnpm install
-
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Add required variables to .env:
-# - OPENAI_API_KEY (for AI features)
-# - JWT_SECRET (for authentication)
-# - DATABASE_URL (Supabase connection)
-
-# Run the development server
-pnpm --filter questboard dev
 ```
 
-**Access the app:**
-- Web UI: `http://localhost:5173`
-- API: `http://localhost:3000`
+### Dev
+```bash
+# Run API + Web concurrently
+pnpm --filter questboard dev:all
 
-**First-time setup:**
-1. Create an account: `POST /api/auth/signup` with email, password, and organization name
-2. Login to receive JWT tokens: `POST /api/auth/login`
-3. Use the token in subsequent API requests: `Authorization: Bearer <token>`
+# Or run separately:
+pnpm --filter questboard dev      # API only (port 3000)
+pnpm --filter questboard dev:web  # Web only (port 5173)
+```
 
-See [AUTH_IMPLEMENTATION.md](./AUTH_IMPLEMENTATION.md) for detailed authentication setup.
+### Test
+```bash
+pnpm --filter questboard test           # Run all tests
+pnpm --filter questboard test:watch     # Watch mode
+pnpm --filter questboard test:coverage  # With coverage
+```
 
-## Architecture
+### Build
+```bash
+pnpm --filter questboard build       # Build API + Web
+pnpm --filter questboard build:web   # Build Web only
+```
 
-- **Backend**: Express.js REST API with comprehensive endpoints
-- **Authentication**: JWT-based auth with bcrypt password hashing, refresh tokens, and RBAC
-- **Frontend**: React + TypeScript with Vite
-- **Storage**: Supabase (PostgreSQL) via `@sb/storage` abstraction layer
-- **AI**: OpenAI GPT-4o for sprint planning and task analysis
+### Env Vars
+Required in root `.env`:
+- `OPENAI_API_KEY` - For AI sprint planning
+- `JWT_SECRET` - For authentication
+- `DATABASE_URL` - Supabase PostgreSQL connection
+
+### URLs/Ports
+- **Web UI**: http://localhost:5173
+- **API**: http://localhost:3000
+- **First-time setup**: Create account at /signup, then login
+
+## Architecture (Short)
+
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
+- **Frontend**: React + Vite (TypeScript)
+- **Database**: Supabase (PostgreSQL) via `@sb/storage`
+- **AI**: OpenAI GPT-4o for sprint planning
+- **Auth**: JWT tokens from `@sb/auth` with bcrypt password hashing
 - **PWA**: Service Worker with Workbox for offline support
-- **State Management**: React hooks and context
-- **Styling**: Modern CSS with responsive design
 
-## Storage Entities
+### Key Modules
+- `src/server.ts` - Express API server with 78 protected endpoints
+- `web/src/` - React frontend (10+ pages: Today, Sprint, Goals, Team, Analytics)
+- `src/routes/` - API route handlers (auth, goals, questlines, quests, tasks, sprint, team, daily)
+- `web/src/lib/api.ts` - Centralized API client with auto token injection
 
-Questboard manages 14+ entity kinds:
+### Data Model
+14+ entity kinds stored via `@sb/storage`:
 - Goals (strategic objectives)
 - Questlines (connected quest sequences)
 - Quests (task bundles)
 - Tasks (individual work items)
-- Team members and Working Genius profiles
-- Sprint plans and assignments
+- Team members + Working Genius profiles
+- Sprint plans + assignments
 - Daily decks
 - Job run summaries
-- And more...
 
-## API Endpoints
+### State Management
+- Frontend: React hooks + Context API
+- Auth state: AuthContext with JWT token refresh
+- API calls: Centralized client handles token injection + 401 refresh
 
-> **Note:** All API endpoints (except `/health` and `/api/auth/*`) require authentication via JWT token in the `Authorization: Bearer <token>` header.
+## Known Issues
 
-### Authentication
-- `POST /api/auth/signup` - Create new organization and owner account
-- `POST /api/auth/login` - Login and receive JWT tokens
-- `POST /api/auth/refresh` - Refresh access token using refresh token
-- `GET /api/auth/me` - Get current user profile
+### No Real-Time Collaboration
+- **Repro**: User A edits task → User B doesn't see change until refresh
+- **Root cause**: No WebSocket/SSE for live updates
+- **Workaround**: Manually refresh page
+- **Fix needed**: Add WebSocket server for real-time events
 
-### Goals
-- `GET /api/goals` - List all goals
-- `POST /api/goals` - Create a new goal
-- `GET /api/goals/:id` - Get goal details
-- `PUT /api/goals/:id` - Update a goal
-- `DELETE /api/goals/:id` - Delete a goal
+### Empty State for New Users
+- **Repro**: Signup → empty dashboard, no guidance
+- **Root cause**: No onboarding flow or sample data seeding
+- **Workaround**: Manually create goals/tasks
+- **Fix needed**: Add setup wizard + sample data option
 
-### Questlines
-- `GET /api/questlines` - List all questlines
-- `POST /api/questlines` - Create a new questline
-- `GET /api/questlines/:id` - Get questline details
-- `PUT /api/questlines/:id` - Update a questline
+### No Data Export
+- **Repro**: Want to export tasks to Excel/Jira → no option exists
+- **Root cause**: Export functionality not implemented
+- **Fix needed**: Add CSV/JSON/PDF export endpoints + UI
 
-### Quests
-- `GET /api/quests` - List all quests
-- `POST /api/quests` - Create a new quest
-- `GET /api/quests/:id` - Get quest details
-- `PUT /api/quests/:id` - Update a quest
+## Task Queue (Autopilot)
 
-### Tasks
-- `GET /api/tasks` - List all tasks
-- `POST /api/tasks` - Create a new task
-- `GET /api/tasks/:id` - Get task details
-- `PUT /api/tasks/:id` - Update a task
-- `PUT /api/tasks/:id/status` - Update task status
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| QB-1 | Real-time collaboration with WebSocket | P1 | TODO | `src/websocket-server.ts`, `web/src/hooks/useRealtimeUpdates.ts` | **What**: Add WebSocket server for live task/quest updates<br>**Why**: Users must manually refresh to see changes<br>**Where**: New WebSocket module + React hook<br>**AC**: User A updates task → User B sees change instantly without refresh, presence indicators show who's online | |
+| QB-2 | User onboarding wizard | P1 | TODO | `web/src/pages/Onboarding.tsx`, `src/routes/onboarding.ts` | **What**: Build multi-step setup wizard for new users<br>**Why**: New signups see empty state, get lost<br>**Where**: New onboarding page shown on first login<br>**AC**: Wizard creates sample goal+questline+tasks, collects Working Genius profile, tours UI features | |
+| QB-3 | Data export (CSV/JSON/PDF) | P2 | TODO | `src/routes/export.ts`, `web/src/components/ExportModal.tsx` | **What**: Add export endpoints + UI for goals/tasks/analytics<br>**Why**: Users can't get data out of system<br>**Where**: New export routes + modal in dashboard<br>**AC**: Export tasks as CSV, goals as JSON, analytics as PDF, download works | |
+| QB-4 | Enhanced mobile gestures | P2 | TODO | `web/src/hooks/useSwipeGesture.ts`, `web/src/pages/Today.tsx` | **What**: Add swipe-to-complete, pull-to-refresh, haptic feedback<br>**Why**: Mobile UX feels basic compared to native apps<br>**Where**: Touch event handlers in task list components<br>**AC**: Swipe right completes task, pull down refreshes, vibrate on actions | |
+| QB-5 | Integration tests for auth + CRUD | P1 | TODO | `__tests__/integration/auth.test.ts`, `__tests__/integration/crud.test.ts` | **What**: Add integration tests for signup→login→create task flow<br>**Why**: Only unit tests exist, no end-to-end coverage<br>**Where**: New integration test directory<br>**AC**: Tests cover full auth flow, CRUD operations, multi-tenant isolation | |
+| QB-6 | Role-based UI features | P2 | TODO | `web/src/hooks/usePermissions.ts`, `web/src/components/RoleGate.tsx` | **What**: Hide admin actions from non-admins in UI<br>**Why**: UI shows actions users can't perform (confusing)<br>**Where**: Permission hooks + gating components<br>**AC**: Members can't see delete buttons, team leads see moderate actions, owners see all | |
+| QB-7 | Keyboard shortcuts for power users | P3 | TODO | `web/src/hooks/useKeyboardShortcuts.ts` | **What**: Add keyboard shortcuts (n=new task, /=search, g g=go goals)<br>**Why**: Power users want faster navigation<br>**Where**: Global keyboard handler hook<br>**AC**: Shortcuts work, help modal (?) shows all shortcuts, conflicts avoided | |
+| QB-8 | Task dependencies + blocking | P2 | TODO | `src/routes/tasks.ts`, `web/src/components/TaskDependencies.tsx` | **What**: Allow tasks to depend on/block other tasks<br>**Why**: Some tasks can't start until others finish<br>**Where**: Task schema + UI for linking<br>**AC**: Tasks can have dependencies, blocked tasks shown in UI, dependency graph validates no cycles | |
+| QB-9 | Bulk operations for tasks | P3 | TODO | `web/src/components/BulkActions.tsx`, `src/routes/tasks.ts` | **What**: Select multiple tasks → bulk assign/delete/move/complete<br>**Why**: Tedious to update tasks one-by-one<br>**Where**: Task list with checkboxes + actions bar<br>**AC**: Select tasks, choose action, all update atomically, undo available | |
+| QB-10 | Dark mode support | P3 | TODO | `web/src/styles/theme.ts`, `web/src/hooks/useTheme.ts` | **What**: Add dark theme with toggle in settings<br>**Why**: Users prefer dark mode for late-night work<br>**Where**: CSS variables + theme context<br>**AC**: Toggle switches theme, preference persisted, all pages styled correctly | |
+| QB-11 | Quest template library | P3 | TODO | `src/routes/templates.ts`, `web/src/pages/Templates.tsx` | **What**: Pre-built quest templates (product launch, sprint, onboarding)<br>**Why**: Users reinvent common workflows<br>**Where**: New templates page + API<br>**AC**: Browse templates, clone to active quests, customize, community sharing (v2) | |
+| QB-12 | Advanced analytics (velocity, burndown) | P3 | TODO | `src/services/analytics.ts`, `web/src/pages/Analytics.tsx` | **What**: Add velocity tracking, burndown charts, cycle time metrics<br>**Why**: Current analytics are basic counts/averages<br>**Where**: Enhanced analytics service + dashboard<br>**AC**: Chart shows velocity trend, burndown for sprints, cycle time per task type | |
 
-### Sprint Planning
-- `POST /api/sprint/plan` - Generate AI-powered sprint plan
-- `GET /api/sprint/current` - Get current sprint
-- `POST /api/sprint/evaluate` - Evaluate and compare sprint plans
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
 
-### Team
-- `GET /api/team` - List team members
-- `GET /api/team/:id` - Get team member details
+## Release Gates
 
-### Daily Operations
-- `GET /api/daily/deck/:memberId` - Get daily deck for team member
-
-## Testing
-
-Questboard has comprehensive test coverage with **48 passing tests**:
+Must pass before production release:
 
 ```bash
-# Run all tests
+# All tests pass
 pnpm --filter questboard test
 
-# Run tests in watch mode
-pnpm --filter questboard test:watch
+# No TypeScript errors
+pnpm --filter questboard typecheck
 
-# Run tests with coverage
-pnpm --filter questboard test:coverage
+# No linting errors
+pnpm --filter questboard lint
+
+# Builds successfully
+pnpm --filter questboard build
+
+# Manual smoke test:
+# - Signup → Login → Create goal → Create quest → Create task → Complete task
+# - Generate sprint plan → Compare plans → Select plan
+# - View analytics → See correct counts
+# - Install PWA → Works offline
 ```
-
-**Test Coverage:**
-- 31 schema tests (`@sb/schemas`) covering all type definitions
-- 17 AI function tests (`@sb/ai`) with mocked OpenAI calls
-- Full coverage for caching, org context, team snapshots, error handling
-
-## Current Status
-
-### ✅ Production-Ready Features
-- Complete Express.js REST API with comprehensive endpoints
-- **Full-stack JWT authentication** - Backend (78 protected endpoints) + Frontend (centralized API client)
-- **Multi-tenant data isolation** - Organization-based access control enforced via JWT
-- **Role-based access control (RBAC)** - Admin, team lead, and member roles
-- **Centralized API client** - Automatic token injection and refresh handling
-- **Protected routes** - Login/Signup pages with authentication guards
-- Full React frontend with 10+ page components
-- Analytics Dashboard with task/goal/quest statistics
-- Hierarchical goal/questline/quest/task system
-- AI-powered sprint planning with plan generation and comparison
-- Daily deck generation for team members
-- Task assignment with Working Genius-based AI explanations
-- Event system integration for activity tracking
-- Storage abstraction layer with template system
-- Progressive Web App (PWA) with offline support
-- Service worker with caching
-- Mobile-responsive navigation
-- Touch-optimized interactions
-- Comprehensive test suite (48 tests passing)
-
-### ✅ Recently Completed (2026-01-01)
-
-1. **Frontend Authentication Integration** 🔐 COMPLETED
-   - ✅ Created centralized API client with automatic token injection
-   - ✅ Updated all 10+ frontend pages to use the API client
-   - ✅ Implemented login/signup UI components
-   - ✅ Added protected routes and auth guards
-   - ✅ Implemented 401 response handling with automatic token refresh
-   - ✅ Removed all hardcoded userId/orgId from frontend code
-   - ✅ Integrated AuthContext with API client
-   - **Status:** ✅ End-to-end secure authentication flow complete
-   - **Result:** Full-stack authentication working (backend + frontend)
-
-### Next Priority Tasks
-
-**Priority 1 (Immediate - This Week):**
-
-1. **Authentication Testing & Validation** 🧪 HIGH PRIORITY
-   - Test complete signup → login → API call flow
-   - Verify multi-tenant isolation (ensure no cross-org access)
-   - Test token refresh on expiration
-   - Test RBAC (members cannot access admin endpoints)
-   - Add integration tests for auth endpoints
-   - **Goal:** Production-grade security validation
-
-2. **User Onboarding Flow** 👤 USER EXPERIENCE
-   - Create organization setup wizard for new users
-   - Add team member invitation system
-   - Build initial Working Genius profile setup
-   - Create sample data seeding for demo purposes
-   - **Goal:** Smooth first-time user experience
-
-3. **Role-Based UI Features** 🎨 USER EXPERIENCE
-   - Hide admin actions from non-admin users in UI
-   - Add role indicators in navigation
-   - Implement permission-aware component rendering
-   - **Goal:** Polished role-based user experience
-
-**Priority 2 (Next 2-4 Weeks):**
-
-4. **Enhanced Mobile Experience** 📱 USER EXPERIENCE
-   - Add swipe gestures for task completion
-   - Implement pull-to-refresh for data updates
-   - Add haptic feedback for touch interactions
-   - Create tablet-optimized layouts
-   - Improve offline capabilities and sync
-   - **Goal:** Best-in-class mobile PWA experience
-
-5. **Real-time Collaboration** 🔄 PRODUCTIVITY
-   - Add WebSocket/SSE for live updates
-   - Show when other users are viewing/editing
-   - Real-time task status updates across clients
-   - Live notifications for assignments and completions
-   - Optimistic UI updates with conflict resolution
-   - **Goal:** Live collaborative team experience
-
-**Priority 3 (Next Quarter):**
-
-6. **Advanced Testing & Quality** 🧪 RELIABILITY
-   - Expand integration tests for all API endpoints
-   - Add E2E tests for critical user flows (Playwright/Cypress)
-   - Increase test coverage to 80%+
-   - Set up CI/CD pipeline with automated testing
-   - Add performance testing and monitoring
-   - **Goal:** Production-grade reliability and confidence
-
-7. **Enhanced UX & Accessibility** ✨ USER EXPERIENCE
-   - In-app tooltips and interactive guides
-   - Keyboard shortcuts for power users
-   - Dark mode support with theme toggle
-   - Accessibility audit (WCAG 2.1 AA compliance)
-   - Improved error messages and user feedback
-   - **Goal:** Exceptional, inclusive user experience
-
-8. **Data Management & Analytics** 📊 ENTERPRISE
-   - Bulk data export (CSV, JSON, PDF reports)
-   - Data import from other tools (Jira, Asana, etc.)
-   - Automated backup and restore functionality
-   - Archival system for completed quests
-   - Advanced analytics and custom reports
-   - **Goal:** Enterprise-grade data capabilities
-
-## Integration with Suite
-
-Questboard integrates with other Signal Blueprint apps:
-- **Console** - Displays active quests and team status
-- **Worker** - Runs scheduled jobs for questmaster and sprint planning
-- **Events** - Publishes task events for suite-wide tracking
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-- [Jobs System](../../docs/JOBS.md) - Scheduled job documentation
-- [Authentication Implementation](./AUTH_IMPLEMENTATION.md) - Detailed auth implementation notes
-- [Setup Guide](./SETUP.md) - Development setup instructions
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.
-
-
