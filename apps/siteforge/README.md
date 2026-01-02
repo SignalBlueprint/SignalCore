@@ -1,294 +1,143 @@
 # SiteForge
 
-**Status:** 🟢 Functional - Complete generation pipeline with AI-powered content
-**Port:** 4024
+## TL;DR
+AI website generator with templates, color schemes, and full HTML generation pipeline. Production-ready with GPT-4o-mini content generation and persistent storage.
 
-Website generation and management platform that enables teams to quickly create, customize, and deploy demonstration sites and landing pages using AI-powered content generation.
+## Product Goal
+- Enable teams to quickly create demo sites and landing pages
+- Use AI to generate SEO-optimized content tailored to business niche
+- Provide customizable templates with industry-specific styling
+- Automate website deployment and hosting
 
-## Purpose
+## Current Status (Reality Check)
 
-SiteForge provides a streamlined way to build and manage demo sites for products, services, or campaigns. The platform aims to offer templates, AI-powered content generation, customization tools, and deployment automation to reduce the time and effort required to create professional websites.
+### ✅ Working (End-to-End)
+- **Project CRUD**: Projects persist to Supabase via @sb/storage
+- **AI content generation**: GPT-4o-mini creates hero, about, features, pricing, testimonials, CTA, contact, footer
+- **Template variations**: 3 visual styles (Modern, Minimal, Bold)
+- **Industry color schemes**: 4 palettes (SaaS, E-commerce, Portfolio, General)
+- **Custom primary color**: Override default palette
+- **HTML generation**: Component-based templates with responsive CSS
+- **Background job processing**: Async generation with queue
+- **Site preview + export**: Live HTML preview and JSON download
 
-## Features
+### 🟡 Partial (Works but Incomplete)
+- **Single-page only**: Can't generate multi-page sites yet
+- **Limited customization**: No visual editor for drag-and-drop
 
-### Core Project Management
-- **Complete REST API** with project CRUD operations
-- **Persistent storage** using `@sb/storage` (ProjectRepository, GenerationJobRepository)
-- **Full web UI** for project management
-- **Project creation** with business details:
-  - Business name
-  - Domain name
-  - Niche/industry
-  - Project notes
-- **Project status tracking** - Draft, queued, generating, ready, failed
-- **Project statistics dashboard** - Total projects, active, completed, failed
-- **Generation job queue system** - Fully functional background processing
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **No visual builder**: Can't edit content/layout visually
+- **No deployment**: Generated sites not deployed anywhere
+- **No asset management**: Can't upload images or use stock photos
 
-### AI-Powered Generation Pipeline ✨ NEW
-- **AI Content Generation** - OpenAI GPT-4o-mini powered content creation
-  - Automatic copywriting tailored to business niche
-  - SEO-optimized metadata generation
-  - Industry-specific content adaptation
-  - Smart keyword integration
-- **Component-Based Generation** - Modular page structure
-  - Hero sections with compelling CTAs
-  - About/mission sections
-  - Features/services showcases
-  - Pricing tiers (when applicable)
-  - Customer testimonials
-  - Call-to-action sections
-  - Professional footers
-- **HTML Template Engine** - Modern, responsive HTML generation
-  - Mobile-first responsive design
-  - Clean, semantic HTML5
-  - Inline CSS with professional styling
-  - Accessibility-friendly markup
-  - Fast loading performance
-- **Background Job Processing** - Asynchronous generation
-  - Non-blocking job queue
-  - Real-time status updates
-  - Error handling and retry logic
-  - Progress tracking
-- **Site Preview & Export** - View and download generated sites
-  - Live HTML preview
-  - Complete site metadata
-  - Component-level access
-  - JSON export capability
+## How to Run
 
-### Project Status Management
-- **Draft** - Initial project setup
-- **Queued** - Ready for generation
-- **Generating** - AI generation in progress
-- **Complete** - Website generated and ready
-- **Failed** - Generation failed with error details
-
-### User Interface
-- **Project dashboard** with visual status indicators
-- **Add/edit project forms** with validation
-- **Project cards** with key information display
-- **Status badges** with color coding
-- **Generation trigger** - Queue projects for generation
-
-## Quick Start
-
+### Install
 ```bash
-# Install dependencies (from monorepo root)
 pnpm install
+```
 
-# Set up environment variables
-cp ../../.env.example ../../.env
-# Add OPENAI_API_KEY for future AI generation
-
-# Run the development server
+### Dev
+```bash
 pnpm --filter siteforge dev
 ```
 
-Then open `http://localhost:4024` in your browser.
+### Test
+```bash
+# No tests yet
+pnpm --filter siteforge test
+```
 
-## Architecture
+### Build
+```bash
+pnpm --filter siteforge build
+```
 
-- **Backend**: Node.js HTTP server with TypeScript
-- **Frontend**: Static HTML/CSS/JavaScript with modern UI
-- **Storage**: Supabase via `@sb/storage` abstraction layer
-- **AI**: OpenAI GPT-4o-mini for content generation (with caching via `@sb/cache`)
-- **Job Processing**: In-memory queue with background processor
-- **Events**: Suite-wide event publishing via `@sb/events`
-- **Telemetry**: AI usage tracking via `@sb/telemetry`
-- **Generated Output**: Responsive HTML with inline CSS (mobile-first)
+### Env Vars
+Required in root `.env`:
+- `OPENAI_API_KEY` - For AI content generation
+- `DATABASE_URL` - Supabase connection
 
-## API Endpoints
+### URLs/Ports
+- **SiteForge**: http://localhost:4024
 
-### Project Management
-- `POST /projects` - Create a new project
-- `GET /projects` - List all projects
-- `GET /projects/:id` - Get project details
-- `PUT /projects/:id` - Update a project
-- `DELETE /projects/:id` - Delete a project
+## Architecture (Short)
 
-### Generation & Preview
-- `POST /projects/:id/generate` - Queue project for AI-powered generation
-- `GET /projects/:id/status` - Get generation status and job history
-- `GET /projects/:id/preview` - View generated HTML site (live preview)
-- `GET /projects/:id/site` - Get generated site data (JSON with components)
-- `GET /jobs` - List all generation jobs
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
+- **Frontend**: Static HTML/CSS/JavaScript
+- **Storage**: Supabase via @sb/storage (ProjectRepository, GenerationJobRepository)
+- **AI**: OpenAI GPT-4o-mini for content generation
+- **Queue**: In-memory job queue for async generation
 
-## Usage Example
+### Key Modules
+- `src/server.ts` - Express API server
+- `src/generation-engine.ts` - Orchestrates AI + HTML generation
+- `src/ai-content-generator.ts` - GPT-4o-mini content creation
+- `src/html-generator.ts` - Component-to-HTML templating
+- `src/job-processor.ts` - Background job queue
+- `web/` - Static frontend files
+
+### Data Flow
+- User creates project → stored in Supabase
+- Trigger generation → job queued
+- Job processor → AI generates content → HTML templates → store GeneratedSite
+- User views preview → render HTML or download JSON
+
+## Known Issues
+
+### No Visual Editor
+- **Repro**: Generate site → want to edit text → can only regenerate entire site
+- **Root cause**: No WYSIWYG editor implemented
+- **Workaround**: Regenerate with different prompt
+- **Fix needed**: Build drag-and-drop visual builder
+
+### No Deployment Integration
+- **Repro**: Generate site → want to publish → no deploy button
+- **Root cause**: No Vercel/Netlify integration
+- **Workaround**: Download HTML and deploy manually
+- **Fix needed**: One-click deploy to Vercel/Netlify
+
+### Single Page Only
+- **Repro**: Need About page → can only generate landing page
+- **Root cause**: Generator only creates single-page sites
+- **Fix needed**: Multi-page generation with navigation
+
+## Task Queue (Autopilot)
+
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| SF-1 | Visual content editor | P2 | TODO | `web/js/visual-editor.js`, `src/content-update.ts` | **What**: Build WYSIWYG editor to edit generated content inline<br>**Why**: Regenerating entire site for small changes is slow<br>**Where**: Site preview page with edit mode<br>**AC**: Click text → edit inline, drag components, reorder sections, save changes | |
+| SF-2 | Multi-page site generation | P2 | TODO | `src/multi-page-generator.ts` | **What**: Generate About, Contact, Blog pages with navigation<br>**Why**: Single-page sites are limiting<br>**Where**: Enhanced generation engine<br>**AC**: Config multi-page → AI generates each page, nav menu links pages | |
+| SF-3 | Vercel/Netlify deployment | P1 | TODO | `src/deployment.ts`, `web/js/deploy.js` | **What**: One-click deploy generated sites to Vercel/Netlify<br>**Why**: Manual deployment is tedious<br>**Where**: Deploy button in project view<br>**AC**: Click deploy → authenticates with Vercel → deploys → returns live URL | |
+| SF-4 | Image upload + stock photos | P2 | TODO | `src/asset-manager.ts`, `web/js/image-upload.js` | **What**: Upload images for hero/sections, integrate Unsplash/Pexels<br>**Why**: Sites need custom images<br>**Where**: Asset manager + image picker UI<br>**AC**: Upload image → stored, browse Unsplash → insert, images optimized | |
+| SF-5 | Font selection (3-5 options) | P3 | TODO | `src/theme-fonts.ts`, `web/js/font-picker.js` | **What**: Let users choose from curated font pairings<br>**Why**: Typography impacts design significantly<br>**Where**: Theme settings<br>**AC**: 5 font pairings, preview in editor, applies to generated HTML | |
+| SF-6 | Section reordering | P3 | TODO | `web/js/section-reorder.js` | **What**: Drag-and-drop to reorder page sections<br>**Why**: Generated order may not match preferences<br>**Where**: Visual editor<br>**AC**: Drag section → reorders, save persists order, regenerates HTML | |
+| SF-7 | Test suite for SiteForge | P1 | TODO | `__tests__/generation.test.ts`, `__tests__/templates.test.ts` | **What**: Add tests for AI generation + HTML templates + job queue<br>**Why**: No tests = high regression risk<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, mock OpenAI, test template rendering | |
+| SF-8 | Custom domain support | P3 | TODO | `src/custom-domain.ts` | **What**: Connect custom domains to deployed sites<br>**Why**: Users want professional domains<br>**Where**: Domain settings page<br>**AC**: Add domain → DNS instructions → verify → site accessible at custom domain | |
+| SF-9 | Template marketplace | P3 | TODO | `src/template-marketplace.ts`, `web/templates.html` | **What**: Browse community templates, clone and customize<br>**Why**: Don't want to start from scratch<br>**Where**: Template gallery page<br>**AC**: Browse templates by industry, preview, clone, rate/review | |
+| SF-10 | A/B testing for landing pages | P3 | TODO | `src/ab-testing.ts` | **What**: Create variant pages, track conversion rates<br>**Why**: Want to optimize conversions<br>**Where**: Variants feature in project<br>**AC**: Create variant → split traffic → track conversions, declare winner | |
+
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
+
+## Release Gates
 
 ```bash
-# 1. Create a new project
-curl -X POST http://localhost:4024/projects \
-  -H "Content-Type: application/json" \
-  -d '{
-    "businessName": "TechFlow Solutions",
-    "domain": "techflow.com",
-    "niche": "SaaS project management",
-    "notes": "Focus on team collaboration and productivity"
-  }'
+# All tests pass (once written)
+pnpm --filter siteforge test
 
-# 2. Trigger generation
-curl -X POST http://localhost:4024/projects/{PROJECT_ID}/generate
+# No TypeScript errors
+pnpm --filter siteforge typecheck
 
-# 3. Check status
-curl http://localhost:4024/projects/{PROJECT_ID}/status
+# No linting errors
+pnpm --filter siteforge lint
 
-# 4. View generated site
-curl http://localhost:4024/projects/{PROJECT_ID}/preview > site.html
+# Builds successfully
+pnpm --filter siteforge build
+
+# Manual smoke test:
+# - Create project → generates site → preview renders
+# - Template selection → applies correctly
+# - Color scheme → changes colors
+# - Export → downloads HTML
 ```
-
-## Current Status
-
-### ✅ Implemented Features (v1.1)
-- ✅ Complete REST API with project CRUD
-- ✅ Persistent storage using `@sb/storage`
-- ✅ Full web UI for project management
-- ✅ Project creation with business details
-- ✅ Project status tracking (draft → queued → generating → ready/failed)
-- ✅ Project statistics dashboard
-- ✅ **Website Generation Pipeline** - Fully functional AI-powered engine
-- ✅ **AI Content Generation** - GPT-4o-mini integration with caching
-- ✅ **Component-Based Templates** - 8 component types (hero, features, about, pricing, testimonials, CTA, contact, footer)
-- ✅ **HTML Generation Engine** - Responsive, mobile-first templates
-- ✅ **Background Job Processing** - Async generation with queue management
-- ✅ **Site Preview & Export** - Live HTML preview and JSON export
-- ✅ **Event Publishing** - Integration with suite event system
-- ✅ **Template Variations** - 3 visual styles (Modern, Minimal, Bold)
-- ✅ **Industry-Specific Styling** - Auto-optimized color palettes for SaaS, E-commerce, Portfolio
-- ✅ **Color Customization** - Custom primary color support with full color scheme system
-
-### ⚠️ Future Enhancements
-- **Visual Builder** - Drag-and-drop customization UI
-- **Deployment** - Vercel, Netlify, or static hosting integration
-- **Asset Management** - Image upload and stock photo integration
-- **Multi-page Sites** - Currently single-page, expand to full sites
-- **Advanced Color Customization** - Full color picker UI for all color scheme properties
-
-## Technical Architecture
-
-### Generation Pipeline Flow
-
-```
-1. User creates project → Stored in Supabase
-2. User triggers generation → Job queued
-3. Job Processor picks up job → Status: "processing"
-4. AI Content Generator → GPT-4o-mini generates content
-   ├─ Hero section content
-   ├─ About section content
-   ├─ Features/services (3-4 items)
-   ├─ Pricing tiers (if applicable)
-   ├─ Testimonials (2-3)
-   └─ SEO metadata
-5. HTML Generator → Converts components to HTML
-   ├─ Responsive CSS
-   ├─ Mobile-first design
-   └─ Accessibility markup
-6. Store generated site → Project updated with GeneratedSite
-7. Publish events → Suite-wide notification
-8. User views preview → Render HTML or download
-```
-
-### Key Files
-
-- `src/ai-content-generator.ts` - AI content generation with OpenAI
-- `src/html-generator.ts` - Component-to-HTML templating engine
-- `src/generation-engine.ts` - Orchestrates AI + HTML generation
-- `src/job-processor.ts` - Background job queue processor
-- `src/repository.ts` - Data persistence layer
-- `src/server.ts` - Express API server with endpoints
-
-### Template System ✨ NEW
-
-**Three Visual Styles:**
-- **Modern** - Contemporary gradient design with smooth animations and modern aesthetics
-- **Minimal** - Clean, elegant typography-focused design with simple aesthetics
-- **Bold** - Vibrant, impactful design with high contrast and striking visual elements
-
-**Industry-Specific Color Palettes:**
-- **SaaS** - Professional blue & purple tones
-- **E-commerce** - Energetic pink & amber palette
-- **Portfolio** - Creative indigo & cyan scheme
-- **General** - Versatile neutral palette
-
-**Customization Options:**
-- Template style selection (modern/minimal/bold)
-- Industry type selection for auto-optimized color schemes
-- Custom primary color override
-- Future: Full color scheme customization
-
-**API Support:**
-- `templateStyle` field on SiteProject (`modern` | `minimal` | `bold`)
-- `industryType` field on SiteProject (`saas` | `ecommerce` | `portfolio` | `general`)
-- `colorScheme` object with `primary`, `secondary`, `accent`, `background`, `text` colors
-- All template configuration is optional (defaults to `modern` with `general` palette)
-
-### Next Steps (Roadmap v2.0)
-
-**✅ COMPLETED - Template Variations** (Completed Dec 2025)
-- ✅ Three distinct visual templates implemented (Modern, Minimal, Bold)
-- ✅ Template selection integrated in UI with preview
-- ✅ Color scheme customization with primary color override
-- ✅ Industry-specific color palettes (SaaS, E-commerce, Portfolio, General)
-- ✅ Responsive templates optimized for all screen sizes
-- **Status:** Users can now choose from 3 visual styles and 4 industry color schemes!
-
-**Priority 1 (Next Month):**
-
-1. **Advanced Visual Customization**
-   - Add color picker for theme colors
-   - Implement font selection (3-5 options)
-   - Allow section reordering
-   - Add image upload for hero/background
-   - Basic text editing for generated content
-   - **Goal:** Allow basic visual customization
-
-2. **Multi-page Generation**
-   - Add About page generation
-   - Add Contact page with form
-   - Add simple blog/news section
-   - Generate navigation between pages
-   - **Goal:** Complete multi-page websites
-
-**Priority 2 (Next Quarter):**
-
-3. **Visual Builder**
-   - Drag-and-drop component builder
-   - Live preview with instant editing
-   - Component palette
-   - Section customization (text, images, styles)
-   - Undo/redo functionality
-   - **Goal:** WYSIWYG editing experience
-
-4. **Deployment Integration**
-   - One-click Vercel deployment
-   - Netlify integration
-   - Static file export (zip download)
-   - Custom domain support
-   - **Goal:** Easy deployment and hosting
-
-**Priority 3 (Future):**
-
-5. **Asset Management & Advanced Features**
-   - Stock photo integration (Unsplash, Pexels)
-   - Image upload and optimization
-   - AI image generation (DALL-E integration)
-   - Contact form with email integration
-   - Analytics (Google Analytics, Plausible)
-   - SEO optimization tools
-   - Performance optimization
-
-## Integration with Suite
-
-SiteForge integrates with other Signal Blueprint apps:
-- **Catalog** - Generate e-commerce product pages (coming soon)
-- **Console** - Project monitoring and management
-- **Worker** - Background generation jobs (coming soon)
-- **Events** - Generation activity tracking
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.
-

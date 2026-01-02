@@ -1,248 +1,151 @@
 # Console
 
-**Status:** 🟢 Fully Functional - Admin hub with UI
-**Port:** 4000
+## TL;DR
+Admin hub for suite management with health monitoring, event aggregation, AI telemetry tracking, and worker job oversight. Dashboard works but team data stored in-memory.
 
-Unified admin console for the Signal Blueprint suite - your team's home base for collaboration, monitoring, and management across all apps.
+## Product Goal
+- Provide centralized command center for entire Signal Blueprint suite
+- Monitor real-time health of all apps and services
+- Track AI usage costs and performance across the suite
+- Manage team members with Working Genius profiles
+- Aggregate events and activity from all apps
+- Monitor Worker job execution and performance
 
-## Purpose
+## Current Status (Reality Check)
 
-Console serves as the command center and team hub for the entire suite, providing a comprehensive dashboard with real-time system health monitoring, team member profiles with Working Genius assignments, activity timeline and event tracking, AI telemetry and cost monitoring, and quick actions for common operations.
+### ✅ Working (End-to-End)
+- **Dashboard**: Key metrics (team size, apps online, recent activity, AI usage)
+- **Health checks**: Real-time status for all suite apps with port info
+- **Event timeline**: Last 200 events across all apps with filtering
+- **AI telemetry**: Calls, cache hits, tokens, costs aggregation
+- **Worker monitoring**: Job registry, execution history, statistics, 24hr metrics, failure tracking
+- **Auth backend**: JWT signup/login/refresh endpoints working
+- **Active quests**: Integration with Questboard to show current work
 
-## Features
+### 🟡 Partial (Works but Incomplete)
+- **Team data in-memory**: Team member profiles stored in Map, lost on restart
+- **Auth frontend missing**: Backend endpoints work but no login UI
+- **Manual refresh**: No WebSocket/SSE for real-time updates
 
-### Dashboard (Home)
-The main landing page with at-a-glance information:
-- **Key metrics** - Team size, apps online, recent activity, AI usage
-- **Quick actions** - Fast navigation to common views (Team, Apps, Health, Activity, Telemetry)
-- **Recent activity** - Latest 5 events across all apps with timestamps
-- **Team overview** - Team members with current workload indicators and capacity status
+### ❌ Broken/Missing (Prevents "Full Fledged + Shiny")
+- **Team persistence**: Team CRUD doesn't persist to database
+- **No auth UI**: Can't login/signup from Console frontend
+- **No notifications**: No alerts when apps go down or jobs fail
+- **No unified analytics**: Each app tracked separately, no cross-app views
 
-### Team Management
-Complete team member directory featuring:
-- **Member profiles** - Name, email, role, and avatar
-- **Working Genius profiles** - Each member's top 2 geniuses, competencies, and frustrations
-- **Workload tracking** - Current workload vs daily capacity with visual indicators
-- **Overload warnings** - Highlights when team members exceed capacity (red indicators)
-- **Capacity visualization** - Color-coded workload bars (green/yellow/red)
+## How to Run
 
-### System Health
-Real-time health monitoring for all suite apps:
-- **Status indicators** - Online/offline status for each app with visual badges
-- **Port information** - Quick reference for local development
-- **Direct links** - Click to open running apps in new tab
-- **Last checked** - Timestamp of last health check
-- **Suite-wide status** - At-a-glance view of entire system health
-
-### Apps Registry
-Complete suite registry with detailed app information:
-- **App catalog** - All apps with status badges (skeleton, wip, beta, prod)
-- **App metadata** - ID, purpose, ownership, and current status
-- **Quick navigation** - Links to each app's running instance
-- **Status tracking** - Production readiness indicators
-
-### Activity Timeline
-Event timeline across all suite apps:
-- **Latest 200 events** - Reverse chronological feed of all system events
-- **Event details** - Type, source app, timestamp, and full payload
-- **Searchable** - Full event data in formatted JSON for debugging
-- **Real-time updates** - New events appear automatically
-- **Event filtering** - View events by app or type
-
-### Telemetry Dashboard
-AI usage and cost monitoring across the entire suite:
-- **Call statistics** - Total, cached, and fresh AI calls
-- **Cache hit rate** - Percentage of calls served from cache (optimization metric)
-- **Token usage** - Total tokens consumed across all AI operations
-- **Cost tracking** - Cumulative AI costs across all operations
-- **Performance insights** - Identify caching opportunities and cost optimization
-
-### Active Quests Integration
-Direct integration with Questboard:
-- **Active quests display** - View currently active quests from Questboard
-- **Quest status** - See quest progress and assignments
-- **Quick navigation** - Jump to Questboard for detailed quest management
-
-### Worker Job Monitoring ✨ NEW
-Real-time monitoring and analytics for background jobs:
-- **Job registry** - View all registered worker jobs with status indicators
-- **Execution statistics** - Success rate, average duration, and run counts for each job
-- **Recent executions** - Timeline of job executions with status and duration
-- **24-hour metrics** - Overview of job performance in the last 24 hours
-- **Failure tracking** - Detailed error messages for failed job executions
-- **Visual indicators** - Color-coded status badges and progress metrics
-
-### Authentication System ✨ NEW
-Complete JWT-based authentication for the entire suite:
-- **User signup** - Create new user accounts with email/password
-- **User login** - Authenticate and receive JWT access tokens
-- **Token refresh** - Automatic token rotation for security
-- **Multi-org support** - Users can belong to multiple organizations
-- **Role-based access** - Owner, admin, and member roles
-- **Password validation** - Complexity requirements and secure hashing
-- **Service accounts** - Token support for background jobs
-
-## Quick Start
-
+### Install
 ```bash
-# Install dependencies (from monorepo root)
+# From monorepo root
 pnpm install
+```
 
-# Set up environment variables (if needed)
-cp ../../.env.example ../../.env
-
-# Run the development server
+### Dev
+```bash
 pnpm --filter console dev
 ```
 
-Then open `http://localhost:4000` in your browser.
+### Test
+```bash
+# No tests yet
+pnpm --filter console test
+```
 
-## Architecture
+### Build
+```bash
+pnpm --filter console build
+```
 
-- **Backend**: Express.js REST API with frontend SPA
+### Env Vars
+Required in root `.env`:
+- `JWT_SECRET` - For authentication endpoints
+- `DATABASE_URL` - Supabase connection (needed for future team persistence)
+
+### URLs/Ports
+- **Console**: http://localhost:4000
+
+## Architecture (Short)
+
+### Stack
+- **Backend**: Express.js REST API (TypeScript)
 - **Frontend**: Static HTML/CSS/JavaScript (no build step)
-- **Storage**: Currently uses in-memory mock data for team (pending migration to `@sb/storage`)
-- **Integration**: Connects to all suite apps via health check endpoints
-- **Events**: Aggregates events from `@sb/events` across all apps
-- **Telemetry**: Monitors AI usage via `@sb/telemetry`
+- **Storage**: In-memory for team data (needs migration to @sb/storage)
+- **Integration**: HTTP calls to all suite app health endpoints
+- **Events**: Consumes from `@sb/events` package
+- **Telemetry**: Reads from `@sb/telemetry` package
 
-## API Endpoints
+### Key Modules
+- `src/server.ts` - Express server with routes
+- `src/team-routes.ts` - Team member CRUD (in-memory Map)
+- `src/worker-routes.ts` - Worker job monitoring endpoints
+- `web/` - Static frontend files (dashboard.html, team.html, etc.)
 
-The console exposes several API endpoints for data access:
+### Data Flow
+- **Health checks**: HTTP GET to each app's `/health` endpoint
+- **Events**: Read from shared `@sb/events` in-memory store
+- **Telemetry**: Read from shared `@sb/telemetry` global state
+- **Team**: In-memory Map (no persistence)
+- **Worker jobs**: Fetch from Worker via HTTP API
 
-### Core APIs
-- `GET /health` - Console health check
-- `GET /api/dashboard/stats` - Quick stats for dashboard (team size, apps online, recent events, AI calls)
+## Known Issues
 
-### Authentication ✨ NEW
-- `POST /api/auth/signup` - Create new user account
-- `POST /api/auth/login` - Authenticate and get JWT tokens
-- `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout (client-side token discard)
-- `GET /api/auth/me` - Get current authenticated user info
+### Team Data Lost on Restart
+- **Repro**: Add team member → restart Console server → member gone
+- **Root cause**: Team data stored in `Map<string, TeamMember>` in-memory
+- **Workaround**: Re-add team members after restart
+- **Fix needed**: Migrate to `@sb/storage` TeamRepository persisting to Supabase
 
-### App Management
-- `GET /api/apps` - Suite registry with all apps and metadata
-- `GET /api/health` - Health checks for all suite apps
+### No Login UI
+- **Repro**: Open Console → no way to login, API calls work unauthenticated
+- **Root cause**: Auth backend complete but frontend integration missing
+- **Workaround**: Use Questboard for auth, or curl API directly
+- **Fix needed**: Add login/signup pages to Console frontend
 
-### Team Management
-- `GET /api/team` - Team members with Working Genius profiles
-- *(Future)* `POST /api/team` - Add new team member
-- *(Future)* `PUT /api/team/:id` - Update team member
-- *(Future)* `DELETE /api/team/:id` - Remove team member
+### No Real-Time Updates
+- **Repro**: App goes down → Console still shows "online" until manual refresh
+- **Root cause**: No WebSocket/SSE for live data
+- **Workaround**: Manually refresh page
+- **Fix needed**: Add SSE or polling for auto-refresh
 
-### Activity & Events
-- `GET /api/events` - Event log (last 200 events across all apps)
-- `GET /api/events?sourceApp=<app>` - Filter events by source app
+## Task Queue (Autopilot)
 
-### Telemetry
-- `GET /api/telemetry` - AI usage statistics (calls, cache hits, tokens, costs)
+| ID | Title | Priority | Status | Files | Acceptance Criteria | Notes/PR |
+|----|-------|----------|--------|-------|---------------------|----------|
+| CON-1 | Team data persistence | P0 | TODO | `src/team-routes.ts`, `src/repository.ts` | **What**: Migrate team data from in-memory Map to @sb/storage<br>**Why**: Team members lost on server restart (critical blocker)<br>**Where**: Team routes + new TeamRepository<br>**AC**: Team CRUD persists to Supabase, restart preserves data, existing API unchanged | |
+| CON-2 | Auth frontend integration | P1 | TODO | `web/login.html`, `web/signup.html`, `web/js/auth.js` | **What**: Add login/signup UI pages to Console frontend<br>**Why**: No way to authenticate from Console UI<br>**Where**: New HTML pages + auth JavaScript<br>**AC**: Login page works, signup creates account, JWT stored in localStorage, protected pages redirect to login | |
+| CON-3 | Real-time updates (SSE) | P1 | TODO | `src/sse-server.ts`, `web/js/realtime.js` | **What**: Add Server-Sent Events for live dashboard updates<br>**Why**: Must manually refresh to see changes<br>**Where**: SSE endpoint + frontend listener<br>**AC**: Dashboard auto-updates when apps change status, events appear live, no polling needed | |
+| CON-4 | Alerting system | P2 | TODO | `src/alerting.ts`, `web/notifications.html` | **What**: Alert when apps go down or Worker jobs fail<br>**Why**: Don't know when things break without checking<br>**Where**: Alert rules + notification service<br>**AC**: Slack/email when app down, job fails 3x, or AI costs spike, configurable thresholds | |
+| CON-5 | Unified analytics dashboard | P2 | TODO | `src/analytics-routes.ts`, `web/analytics.html` | **What**: Aggregate metrics from all 7 apps into single view<br>**Why**: No suite-wide visibility into usage/costs<br>**Where**: New analytics page pulling from all apps<br>**AC**: Charts show requests/errors/AI costs per app, trend lines, filters by date range | |
+| CON-6 | Test suite for Console | P1 | TODO | `__tests__/routes.test.ts`, `__tests__/team.test.ts` | **What**: Add comprehensive tests for all API routes<br>**Why**: No tests = high regression risk<br>**Where**: New `__tests__` directory<br>**AC**: 50%+ coverage, test health checks, team CRUD, worker monitoring, auth endpoints | |
+| CON-7 | User preferences storage | P3 | TODO | `src/preferences-routes.ts`, `web/js/preferences.js` | **What**: Persist user settings (theme, dashboard layout, alert prefs)<br>**Why**: Settings lost on browser clear or device change<br>**Where**: New preferences API + localStorage<br>**AC**: Save theme, dashboard widget order, alert settings, sync across devices | |
+| CON-8 | App deployment status | P3 | TODO | `src/deployment-routes.ts`, `web/deployment.html` | **What**: Show deployment info (version, last deploy, environment)<br>**Why**: Don't know what version is running where<br>**Where**: New deployment page querying apps<br>**AC**: Display version, commit SHA, deploy timestamp, environment for each app | |
+| CON-9 | Suite-wide search | P3 | TODO | `src/search-routes.ts`, `web/search.html` | **What**: Search across all apps (tasks, leads, campaigns, projects)<br>**Why**: Have to search each app individually<br>**Where**: Unified search API calling all apps<br>**AC**: Type query → see results from all apps, click to jump to app, filters by type/app | |
+| CON-10 | Performance monitoring | P2 | TODO | `src/performance-routes.ts`, `web/performance.html` | **What**: Track response times, error rates, throughput per app<br>**Why**: No visibility into app performance<br>**Where**: Perf metrics collection + dashboard<br>**AC**: Charts show p50/p95/p99 latency, error rate %, requests/sec, alerts on degradation | |
 
-### Questboard Integration
-- `GET /api/questboard/active` - Get active quests from Questboard
+**Priority Legend**: P0=blocker, P1=production readiness, P2=important quality/UX, P3=nice-to-have
 
-### Worker Job Monitoring ✨ NEW
-- `GET /api/worker/overview` - Complete overview with job stats and recent executions
-- `GET /api/worker/jobs` - List all registered worker jobs
-- `GET /api/worker/executions` - Get recent job executions (with filters)
-- `GET /api/worker/executions/:jobId` - Get execution history for specific job
-- `GET /api/worker/stats/:jobId` - Get statistics for specific job
+## Release Gates
 
-## Current Status
+Must pass before production release:
 
-### ✅ Production-Ready Features
-- Complete Express.js API with frontend SPA
-- **JWT-based authentication system** (signup, login, refresh, logout)
-- **Multi-org support** with role-based access control
-- **Worker job monitoring dashboard** - Real-time job execution tracking and analytics
-- Real-time health checks for all suite apps
-- Event log aggregation (last 200 events)
-- AI telemetry tracking (calls, costs, cache hits)
-- Team member profiles with Working Genius (mock in-memory data)
-- Dashboard statistics and metrics
-- Active quests integration with Questboard
-- Responsive web interface with navigation
+```bash
+# All tests pass (once written)
+pnpm --filter console test
 
-### ⚠️ Known Limitations
-- Team data is mock/in-memory (not persistent) - migration to @sb/storage needed
-- Authentication available in backend but not integrated into frontend UI yet
-- No real-time WebSocket/SSE updates (manual refresh needed)
-- No admin user management interface in UI
-- No centralized error tracking or performance monitoring
+# No TypeScript errors
+pnpm --filter console typecheck
 
-### Next Steps
+# No linting errors
+pnpm --filter console lint
 
-**Priority 1 (Next 2-4 Weeks):**
+# Builds successfully
+pnpm --filter console build
 
-1. **Authentication Frontend Integration** 🔥 HIGH PRIORITY
-   - Add login/signup UI to Console frontend
-   - Implement JWT token storage and refresh logic
-   - Add authentication state management (React Context or Zustand)
-   - Build protected route components with auth guards
-   - Create user profile dropdown with logout button
-   - Add org switcher for multi-org users
-   - **Goal:** Secure Console app and provide foundation for suite-wide auth
-
-2. **Team Data Persistence**
-   - Migrate team data from in-memory mock to `@sb/storage`
-   - Persist Working Genius profiles to database
-   - Implement team member CRUD operations via API
-   - Store user preferences and settings
-   - Add team member invitation system
-   - **Goal:** Make team management production-ready
-
-**Priority 2 (Next 1-2 Months):**
-
-3. **Real-time Updates**
-   - Add WebSocket/SSE for live updates
-   - Real-time app status monitoring
-   - Live event stream viewer
-   - Push notifications for critical events
-
-4. **Unified Analytics Dashboard**
-   - Aggregate metrics from all suite apps
-   - Build cross-app analytics views
-   - Add suite-wide KPI tracking
-   - Create executive summary dashboard
-   - Track AI costs and usage trends
-
-5. **Notification System**
-   - Build notification center with alerts
-   - Add email notifications for critical events
-   - Implement Slack/Discord webhooks
-   - Create alert rules (app down, errors, high costs)
-
-**Priority 3 (Next Quarter):**
-
-6. **Enhanced Team Management**
-   - Build team member invitation system
-   - Implement Working Genius assessment flow
-   - Add team analytics and capacity insights
-   - Create team calendar and availability tracking
-
-7. **Suite Orchestration**
-   - Monitor app deployment status
-   - Environment configuration management
-   - Suite-wide settings panel
-   - Backup and restore functionality
-
-## Integration with Suite
-
-Console integrates with all Signal Blueprint apps:
-- **Questboard** - Display active quests and team status
-- **Catalog** - Monitor product catalog activity
-- **LeadScout** - Track lead discovery metrics
-- **Outreach** - View campaign activity
-- **Worker** - Monitor scheduled job execution
-- **All Apps** - Health monitoring and event aggregation
-
-## Documentation
-
-- [Main Suite README](../../README.md) - Complete suite overview
-- [Suite Map](../../docs/SUITE_MAP.md) - App registry and architecture
-- [Authentication Strategy](../../docs/AUTHENTICATION_STRATEGY.md) - JWT-based auth architecture
-
-## Contributing
-
-See the main [Contributing Guide](../../docs/CONTRIBUTING.md) for development guidelines and best practices.
-
+# Manual smoke test:
+# - All apps show online in health checks
+# - Events appear in timeline
+# - AI telemetry shows calls/costs
+# - Worker jobs display with stats
+# - Team data persists after restart (once fixed)
+```
